@@ -1,5 +1,6 @@
 package com.example.appcenter_project.domain.openChat.service;
 
+import com.example.appcenter_project.domain.block.service.BlockService;
 import com.example.appcenter_project.domain.openChat.dto.response.ResponseChatRoomListDto;
 import com.example.appcenter_project.domain.openChat.dto.response.ResponseOpenChatRoomDto;
 import com.example.appcenter_project.domain.openChat.enums.ChatCategory;
@@ -41,6 +42,9 @@ class ChatRoomListServiceTest {
 
     @Mock
     MyRoommateRepository myRoommateRepository;
+
+    @Mock
+    BlockService blockService;
 
     @InjectMocks
     OpenChatRoomService openChatRoomService;
