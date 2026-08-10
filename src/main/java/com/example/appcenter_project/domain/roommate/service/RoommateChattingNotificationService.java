@@ -8,7 +8,7 @@ import com.example.appcenter_project.domain.openChat.dto.response.ResponseNotifi
 import com.example.appcenter_project.domain.openChat.enums.ChatNotificationMode;
 import com.example.appcenter_project.domain.roommate.dto.RoommateUnreadNotificationInfo;
 import com.example.appcenter_project.domain.roommate.entity.RoommateChattingRoom;
-import com.example.appcenter_project.domain.roommate.repository.RoommateChattingChatQuerydslRepository;
+import com.example.appcenter_project.domain.roommate.repository.RoommateChattingChatRepository;
 import com.example.appcenter_project.domain.roommate.repository.RoommateChattingRoomRepository;
 import com.example.appcenter_project.domain.user.repository.FcmTokenRepository;
 import com.example.appcenter_project.global.exception.CustomException;
@@ -26,7 +26,7 @@ import java.util.stream.Collectors;
 public class RoommateChattingNotificationService {
 
     private final RoommateChattingRoomRepository roommateChattingRoomRepository;
-    private final RoommateChattingChatQuerydslRepository roommateChattingChatQuerydslRepository;
+    private final RoommateChattingChatRepository roommateChattingChatQuerydslRepository;
     private final FcmTokenRepository fcmTokenRepository;
     private final FcmOutboxRepository fcmOutboxRepository;
 
