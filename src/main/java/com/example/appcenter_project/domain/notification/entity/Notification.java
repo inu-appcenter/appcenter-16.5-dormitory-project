@@ -23,6 +23,7 @@ public class Notification extends BaseTimeEntity {
 
     private Long boardId;
     private String title;
+    @Column(columnDefinition = "TEXT")
     private String body;
 
     @Enumerated(EnumType.STRING)
