@@ -152,7 +152,8 @@ public class FcmAsyncSender {
 
         if (rt != null && rid != null) {
             String groupKey = rt.threadId(rid);
-            log.info("FCM Outbox 라우팅: type={}, path={}, {}={}", rt.dataType(), rt.path(rid), rt.dataKey(), rid);
+            log.info("FCM Outbox 전송: title={}, body={}, path={}, type={}, {}={}",
+                    title, body, rt.path(rid), rt.dataType(), rt.dataKey(), rid);
             builder
                     .setApnsConfig(ApnsConfig.builder()
                             .setAps(Aps.builder().setSound("default").setThreadId(groupKey).build())
