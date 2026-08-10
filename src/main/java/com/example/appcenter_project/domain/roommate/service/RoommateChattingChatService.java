@@ -3,15 +3,20 @@ package com.example.appcenter_project.domain.roommate.service;
 import com.example.appcenter_project.common.image.entity.Image;
 import com.example.appcenter_project.common.image.enums.ImageType;
 import com.example.appcenter_project.common.image.service.ImageService;
+import com.example.appcenter_project.domain.fcm.entity.FcmOutbox;
+import com.example.appcenter_project.domain.fcm.entity.FcmToken;
+import com.example.appcenter_project.domain.fcm.repository.FcmOutboxRepository;
 import com.example.appcenter_project.domain.fcm.service.FcmMessageService;
 import com.example.appcenter_project.domain.notification.dto.request.RequestNotificationDto;
 import com.example.appcenter_project.domain.notification.entity.Notification;
 import com.example.appcenter_project.domain.notification.service.NotificationService;
+import com.example.appcenter_project.domain.openChat.enums.ChatNotificationMode;
 import com.example.appcenter_project.domain.roommate.dto.request.RequestRoommateChatDto;
 import com.example.appcenter_project.domain.roommate.dto.response.ResponseRoommateChatDto;
 import com.example.appcenter_project.domain.roommate.entity.RoommateChattingChat;
 import com.example.appcenter_project.domain.roommate.entity.RoommateChattingRoom;
 import com.example.appcenter_project.domain.user.entity.User;
+import com.example.appcenter_project.domain.user.repository.FcmTokenRepository;
 import com.example.appcenter_project.global.exception.CustomException;
 import com.example.appcenter_project.domain.roommate.repository.RoommateChattingChatRepository;
 import com.example.appcenter_project.domain.roommate.repository.RoommateChattingRoomRepository;
@@ -41,6 +46,8 @@ public class RoommateChattingChatService {
     private final UserRepository userRepository;
     private final SimpMessagingTemplate messagingTemplate;
     private final NotificationService notificationService;
+    private final FcmOutboxRepository fcmOutboxRepository;
+    private final FcmTokenRepository fcmTokenRepository;
     private final FcmMessageService fcmMessageService;
     private final ImageService imageService;
 
@@ -109,15 +116,24 @@ public class RoommateChattingChatService {
         }
 
         if (!isReceiverOnline) {
-            sendChatNotification(sender, receiver, room.getId(), chat.getContent());
+            boolean isReceiverHost = room.getHost().getId().equals(receiver.getId());
+            ChatNotificationMode mode = isReceiverHost
+                    ? room.getHostNotificationMode()
+                    : room.getGuestNotificationMode();
+            if (mode == null) {
+                mode = ChatNotificationMode.EVERY;
+            }
+            sendChatNotification(sender, receiver, room.getId(), chat.getContent(), mode);
         }
 
         return responseDto;
     }
 
-    private void sendChatNotification(User sender, User receiver, Long chatRoomId, String content) {
+    private void sendChatNotification(User sender, User receiver, Long chatRoomId, String content, ChatNotificationMode mode) {
+        if (mode != ChatNotificationMode.EVERY) {
+            return;
+        }
         Notification chatNotification = notificationService.createChatNotification(sender.getName(), chatRoomId, content);
-//        notificationService.createUserNotification(receiver, chatNotification);
         fcmMessageService.sendNotification(receiver, chatNotification.getTitle(), chatNotification.getBody());
     }
 
