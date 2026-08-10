@@ -260,13 +260,17 @@ public class OpenChatRoomService {
                     int unread = unreadMap.getOrDefault(r.getId(), 0L).intValue();
                     Long opponentId = r.getHost().getId().equals(userId) ? r.getGuest().getId() : r.getHost().getId();
                     boolean isMyRoommate = myRoommateId != null && myRoommateId.equals(opponentId);
-                    return ResponseOpenChatRoomDto.fromRoommate(
+                    ResponseOpenChatRoomDto dto = ResponseOpenChatRoomDto.fromRoommate(
                             r.getId(),
                             getOpponentName(r, userId),
                             lastChat != null ? lastChat.getCreatedDate() : null,
                             lastChat != null ? lastChat.getContent() : null,
                             unread,
                             isMyRoommate);
+                    if (blockService.isBlockedBy(opponentId, userId)) {
+                        dto.updateIsBlockedByPartner(true);
+                    }
+                    return dto;
                 })
                 .toList();
 

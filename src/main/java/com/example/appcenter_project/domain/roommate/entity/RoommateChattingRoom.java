@@ -1,6 +1,7 @@
 package com.example.appcenter_project.domain.roommate.entity;
 
 import com.example.appcenter_project.common.BaseTimeEntity;
+import com.example.appcenter_project.domain.openChat.enums.ChatNotificationMode;
 import com.example.appcenter_project.domain.user.entity.User;
 import jakarta.persistence.*;
 import lombok.Builder;
@@ -51,6 +52,14 @@ public class RoommateChattingRoom extends BaseTimeEntity {
     @Column(nullable = false)
     private boolean guestLeft = false;
 
+    @Enumerated(EnumType.STRING)
+    @Column(nullable = false, length = 10)
+    private ChatNotificationMode hostNotificationMode = ChatNotificationMode.EVERY;
+
+    @Enumerated(EnumType.STRING)
+    @Column(nullable = false, length = 10)
+    private ChatNotificationMode guestNotificationMode = ChatNotificationMode.EVERY;
+
     @Builder
     public RoommateChattingRoom(RoommateBoard roommateBoard, User guest, User host,
                                 RoommateCheckList guestChecklist, RoommateCheckList hostChecklist) {
@@ -93,5 +102,13 @@ public class RoommateChattingRoom extends BaseTimeEntity {
 
     public void rejoinAsGuest() {
         this.guestLeft = false;
+    }
+
+    public void updateHostNotificationMode(ChatNotificationMode mode) {
+        this.hostNotificationMode = mode;
+    }
+
+    public void updateGuestNotificationMode(ChatNotificationMode mode) {
+        this.guestNotificationMode = mode;
     }
 }
