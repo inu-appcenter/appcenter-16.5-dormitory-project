@@ -1,6 +1,9 @@
 package com.example.appcenter_project.domain.roommate.repository;
 
+import com.example.appcenter_project.domain.openChat.enums.ChatNotificationMode;
+import com.example.appcenter_project.domain.roommate.dto.RoommateUnreadNotificationInfo;
 import com.example.appcenter_project.domain.roommate.entity.QRoommateChattingChat;
+import com.example.appcenter_project.domain.roommate.entity.QRoommateChattingRoom;
 import com.example.appcenter_project.domain.roommate.entity.RoommateChattingChat;
 import com.querydsl.core.Tuple;
 import com.querydsl.jpa.JPAExpressions;
@@ -21,6 +24,7 @@ public class RoommateChattingChatQuerydslRepositoryImpl implements RoommateChatt
     }
 
     private static final QRoommateChattingChat chat = QRoommateChattingChat.roommateChattingChat;
+    private static final QRoommateChattingRoom room = QRoommateChattingRoom.roommateChattingRoom;
 
     @Override
     public Map<Long, RoommateChattingChat> findLastMessagesByRoomIds(List<Long> roomIds) {
@@ -62,5 +66,43 @@ public class RoommateChattingChatQuerydslRepositoryImpl implements RoommateChatt
                 .collect(Collectors.toMap(
                         t -> t.get(chat.roommateChattingRoom.id),
                         t -> t.get(chat.count())));
+    }
+
+    @Override
+    public List<RoommateUnreadNotificationInfo> findUnreadCountsForBundled() {
+        List<Tuple> hostResults = queryFactory
+                .select(room.id, room.host.id, chat.count())
+                .from(chat)
+                .join(chat.roommateChattingRoom, room)
+                .where(
+                        chat.readByReceiver.isFalse(),
+                        chat.member.id.eq(room.guest.id),
+                        room.hostNotificationMode.eq(ChatNotificationMode.BUNDLED)
+                )
+                .groupBy(room.id, room.host.id)
+                .fetch();
+
+        List<Tuple> guestResults = queryFactory
+                .select(room.id, room.guest.id, chat.count())
+                .from(chat)
+                .join(chat.roommateChattingRoom, room)
+                .where(
+                        chat.readByReceiver.isFalse(),
+                        chat.member.id.eq(room.host.id),
+                        room.guestNotificationMode.eq(ChatNotificationMode.BUNDLED)
+                )
+                .groupBy(room.id, room.guest.id)
+                .fetch();
+
+        List<RoommateUnreadNotificationInfo> infos = new java.util.ArrayList<>();
+        for (Tuple t : hostResults) {
+            infos.add(new RoommateUnreadNotificationInfo(
+                    t.get(room.host.id), t.get(room.id), t.get(chat.count())));
+        }
+        for (Tuple t : guestResults) {
+            infos.add(new RoommateUnreadNotificationInfo(
+                    t.get(room.guest.id), t.get(room.id), t.get(chat.count())));
+        }
+        return infos;
     }
 }
