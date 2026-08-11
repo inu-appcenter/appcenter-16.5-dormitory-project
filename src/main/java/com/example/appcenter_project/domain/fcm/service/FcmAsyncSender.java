@@ -160,7 +160,7 @@ public class FcmAsyncSender {
                             "\"data\":{\"path\":\"%s\",\"type\":\"%s\",\"%s\":\"%s\"}}",
                     title, body, groupKey, groupKey, rt.path(rid), rt.dataType(), rt.dataKey(), rid);
             log.info("FCM Outbox 전송 payload: {}", fcmPayloadLog);
-            builder
+          builder
                     .setApnsConfig(ApnsConfig.builder()
                             .setAps(Aps.builder().setSound("default").setThreadId(groupKey).build())
                             .build())
