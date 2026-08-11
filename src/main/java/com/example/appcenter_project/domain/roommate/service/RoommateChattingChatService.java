@@ -5,8 +5,8 @@ import com.example.appcenter_project.common.image.enums.ImageType;
 import com.example.appcenter_project.common.image.service.ImageService;
 import com.example.appcenter_project.domain.fcm.entity.FcmOutbox;
 import com.example.appcenter_project.domain.fcm.entity.FcmToken;
+import com.example.appcenter_project.domain.fcm.enums.FcmRoutingType;
 import com.example.appcenter_project.domain.fcm.repository.FcmOutboxRepository;
-import com.example.appcenter_project.domain.fcm.service.FcmMessageService;
 import com.example.appcenter_project.domain.notification.dto.request.RequestNotificationDto;
 import com.example.appcenter_project.domain.notification.entity.Notification;
 import com.example.appcenter_project.domain.notification.service.NotificationService;
@@ -48,7 +48,6 @@ public class RoommateChattingChatService {
     private final NotificationService notificationService;
     private final FcmOutboxRepository fcmOutboxRepository;
     private final FcmTokenRepository fcmTokenRepository;
-    private final FcmMessageService fcmMessageService;
     private final ImageService imageService;
 
     public ResponseRoommateChatDto sendChat(Long userId, RequestRoommateChatDto requestRoommateChatDto) {
@@ -134,7 +133,14 @@ public class RoommateChattingChatService {
             return;
         }
         Notification chatNotification = notificationService.createChatNotification(sender.getName(), chatRoomId, content);
-        fcmMessageService.sendNotification(receiver, chatNotification.getTitle(), chatNotification.getBody());
+        List<FcmToken> tokens = fcmTokenRepository.findAllByUser(receiver);
+        List<FcmOutbox> outboxes = tokens.stream()
+                .map(token -> FcmOutbox.create(token.getToken(), chatNotification.getTitle(), chatNotification.getBody(),
+                        FcmRoutingType.CHAT_ROOMMATE, chatRoomId))
+                .toList();
+        if (!outboxes.isEmpty()) {
+            fcmOutboxRepository.saveAll(outboxes);
+        }
     }
 
     public void markAsRead(Long roomId, Long userId) {

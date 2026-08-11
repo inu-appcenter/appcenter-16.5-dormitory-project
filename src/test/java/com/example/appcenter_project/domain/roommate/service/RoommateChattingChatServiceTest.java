@@ -3,8 +3,10 @@ package com.example.appcenter_project.domain.roommate.service;
 import com.example.appcenter_project.common.image.dto.ImageLinkDto;
 import com.example.appcenter_project.common.image.enums.ImageType;
 import com.example.appcenter_project.common.image.service.ImageService;
-import com.example.appcenter_project.domain.fcm.service.FcmMessageService;
+import com.example.appcenter_project.domain.fcm.entity.FcmToken;
+import com.example.appcenter_project.domain.fcm.repository.FcmOutboxRepository;
 import com.example.appcenter_project.domain.notification.entity.Notification;
+import com.example.appcenter_project.domain.user.repository.FcmTokenRepository;
 import com.example.appcenter_project.domain.notification.service.NotificationService;
 import com.example.appcenter_project.domain.roommate.dto.request.RequestRoommateChatDto;
 import com.example.appcenter_project.domain.roommate.dto.response.ResponseRoommateChatDto;
@@ -63,7 +65,10 @@ class RoommateChattingChatServiceTest {
     NotificationService notificationService;
 
     @Mock
-    FcmMessageService fcmMessageService;
+    FcmOutboxRepository fcmOutboxRepository;
+
+    @Mock
+    FcmTokenRepository fcmTokenRepository;
 
     @Mock
     ImageService imageService;
@@ -251,6 +256,10 @@ class RoommateChattingChatServiceTest {
         when(notificationService.createChatNotification(anyString(), anyLong(), anyString()))
                 .thenReturn(mockNotification);
 
+        FcmToken mockToken = mock(FcmToken.class);
+        when(mockToken.getToken()).thenReturn("test-token");
+        when(fcmTokenRepository.findAllByUser(host)).thenReturn(List.of(mockToken));
+
         RequestRoommateChatDto dto = mock(RequestRoommateChatDto.class);
         when(dto.getRoommateChattingRoomId()).thenReturn(100L);
         when(dto.getContent()).thenReturn("테스트");
@@ -258,9 +267,9 @@ class RoommateChattingChatServiceTest {
         roommateChattingChatService.sendChat(2L, dto);
 
         if (expectFcmSent) {
-            verify(fcmMessageService).sendNotification(eq(host), anyString(), anyString());
+            verify(fcmOutboxRepository).saveAll(anyList());
         } else {
-            verify(fcmMessageService, never()).sendNotification(any(), any(), any());
+            verify(fcmOutboxRepository, never()).saveAll(anyList());
         }
     }
 
