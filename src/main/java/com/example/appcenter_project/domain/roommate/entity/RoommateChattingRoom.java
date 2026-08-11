@@ -8,6 +8,7 @@ import lombok.Builder;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 
+import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -60,6 +61,12 @@ public class RoommateChattingRoom extends BaseTimeEntity {
     @Column(nullable = false, length = 10)
     private ChatNotificationMode guestNotificationMode = ChatNotificationMode.EVERY;
 
+    @Column(nullable = true)
+    private LocalDateTime hostLastBundledNotifiedAt;
+
+    @Column(nullable = true)
+    private LocalDateTime guestLastBundledNotifiedAt;
+
     @Builder
     public RoommateChattingRoom(RoommateBoard roommateBoard, User guest, User host,
                                 RoommateCheckList guestChecklist, RoommateCheckList hostChecklist) {
@@ -110,5 +117,13 @@ public class RoommateChattingRoom extends BaseTimeEntity {
 
     public void updateGuestNotificationMode(ChatNotificationMode mode) {
         this.guestNotificationMode = mode;
+    }
+
+    public void updateHostLastBundledNotifiedAt(LocalDateTime at) {
+        this.hostLastBundledNotifiedAt = at;
+    }
+
+    public void updateGuestLastBundledNotifiedAt(LocalDateTime at) {
+        this.guestLastBundledNotifiedAt = at;
     }
 }

@@ -17,6 +17,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
@@ -101,5 +102,25 @@ public class RoommateChattingNotificationService {
         if (!outboxes.isEmpty()) {
             fcmOutboxRepository.saveAll(outboxes);
         }
+
+        LocalDateTime notifiedAt = LocalDateTime.now();
+        List<Long> roomIds = unreadInfos.stream()
+                .map(RoommateUnreadNotificationInfo::roomId)
+                .distinct()
+                .collect(Collectors.toList());
+
+        Map<Long, RoommateChattingRoom> roomMap = roommateChattingRoomRepository.findAllById(roomIds)
+                .stream()
+                .collect(Collectors.toMap(RoommateChattingRoom::getId, r -> r));
+
+        unreadInfos.forEach(info -> {
+            RoommateChattingRoom room = roomMap.get(info.roomId());
+            if (room == null) return;
+            if (info.isHost()) {
+                room.updateHostLastBundledNotifiedAt(notifiedAt);
+            } else {
+                room.updateGuestLastBundledNotifiedAt(notifiedAt);
+            }
+        });
     }
 }

@@ -1,9 +1,6 @@
 package com.example.appcenter_project.global.config;
 
-import com.example.appcenter_project.domain.roommate.entity.RoommateChattingChat;
-import com.example.appcenter_project.domain.roommate.entity.RoommateChattingRoom;
-import com.example.appcenter_project.domain.roommate.repository.RoommateChattingChatRepository;
-import com.example.appcenter_project.domain.roommate.repository.RoommateChattingRoomRepository;
+import com.example.appcenter_project.domain.roommate.service.RoommateChattingChatService;
 import com.example.appcenter_project.global.security.jwt.JwtTokenProvider;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -25,8 +22,7 @@ import java.util.concurrent.ConcurrentHashMap;
 public class RoommateWebSocketEventListener {
 
     private final SimpMessageSendingOperations messagingTemplate;
-    private final RoommateChattingRoomRepository chatRoomRepository;
-    private final RoommateChattingChatRepository chatRepository;
+    private final RoommateChattingChatService chatService;
     private final JwtTokenProvider jwtTokenProvider;
 
     // 세션 → 채팅방 ID, 유저 ID
@@ -137,34 +133,7 @@ public class RoommateWebSocketEventListener {
 
                 // 읽지 않은 메시지 → 읽음 처리
                 try {
-                    RoommateChattingRoom chatRoom = chatRoomRepository.findById(roomId)
-                            .orElse(null);
-
-                    if (chatRoom != null) {
-                        List<RoommateChattingChat> unreadMessages =
-                                chatRepository.findByRoommateChattingRoomAndReadByReceiverFalse(chatRoom);
-
-                        List<Long> readIds = new ArrayList<>();
-                        for (RoommateChattingChat chat : unreadMessages) {
-                            // 내가 보낸 메시지가 아닌 것만 읽음 처리
-                            if (!chat.getMember().getId().toString().equals(userId)) {
-                                chat.markAsRead();
-                                readIds.add(chat.getId());
-                            }
-                        }
-
-                        // 읽음된 메시지 ID 전송 - 메시지를 보낸 사용자에게 알림
-                        if (!readIds.isEmpty()) {
-                            // 상대방 찾기
-                            String otherUserId = chatRoom.getHost().getId().toString().equals(userId)
-                                    ? chatRoom.getGuest().getId().toString()
-                                    : chatRoom.getHost().getId().toString();
-
-                            String readDestination = "/sub/roommate/chat/read/" + roomId + "/user/" + otherUserId;
-                            messagingTemplate.convertAndSend(readDestination, readIds);
-                            log.info("📖 [입장 시 읽음 처리] destination: {}, readIds: {}", readDestination, readIds);
-                        }
-                    }
+                    chatService.markAsRead(roomId, Long.parseLong(userId));
                 } catch (Exception e) {
                     log.error("읽음 처리 중 오류 발생: roomId={}, userId={}, error={}", roomId, userId, e.getMessage());
                 }

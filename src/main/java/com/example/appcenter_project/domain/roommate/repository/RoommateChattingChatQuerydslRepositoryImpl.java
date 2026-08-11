@@ -11,7 +11,6 @@ import com.querydsl.jpa.JPQLQuery;
 import com.querydsl.jpa.impl.JPAQueryFactory;
 import jakarta.persistence.EntityManager;
 
-import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
@@ -71,8 +70,6 @@ public class RoommateChattingChatQuerydslRepositoryImpl implements RoommateChatt
 
     @Override
     public List<RoommateUnreadNotificationInfo> findUnreadCountsForBundled() {
-        LocalDateTime oneHourAgo = LocalDateTime.now().minusHours(1);
-
         List<Tuple> hostResults = queryFactory
                 .select(room.id, room.host.id, chat.count())
                 .from(chat)
@@ -81,7 +78,8 @@ public class RoommateChattingChatQuerydslRepositoryImpl implements RoommateChatt
                         chat.readByReceiver.isFalse(),
                         chat.member.id.eq(room.guest.id),
                         room.hostNotificationMode.eq(ChatNotificationMode.BUNDLED),
-                        chat.createdDate.goe(oneHourAgo)
+                        room.hostLastBundledNotifiedAt.isNull()
+                                .or(chat.createdDate.gt(room.hostLastBundledNotifiedAt))
                 )
                 .groupBy(room.id, room.host.id)
                 .fetch();
@@ -94,7 +92,8 @@ public class RoommateChattingChatQuerydslRepositoryImpl implements RoommateChatt
                         chat.readByReceiver.isFalse(),
                         chat.member.id.eq(room.host.id),
                         room.guestNotificationMode.eq(ChatNotificationMode.BUNDLED),
-                        chat.createdDate.goe(oneHourAgo)
+                        room.guestLastBundledNotifiedAt.isNull()
+                                .or(chat.createdDate.gt(room.guestLastBundledNotifiedAt))
                 )
                 .groupBy(room.id, room.guest.id)
                 .fetch();
@@ -102,11 +101,11 @@ public class RoommateChattingChatQuerydslRepositoryImpl implements RoommateChatt
         List<RoommateUnreadNotificationInfo> infos = new java.util.ArrayList<>();
         for (Tuple t : hostResults) {
             infos.add(new RoommateUnreadNotificationInfo(
-                    t.get(room.host.id), t.get(room.id), t.get(chat.count())));
+                    t.get(room.host.id), t.get(room.id), t.get(chat.count()), true));
         }
         for (Tuple t : guestResults) {
             infos.add(new RoommateUnreadNotificationInfo(
-                    t.get(room.guest.id), t.get(room.id), t.get(chat.count())));
+                    t.get(room.guest.id), t.get(room.id), t.get(chat.count()), false));
         }
         return infos;
     }
