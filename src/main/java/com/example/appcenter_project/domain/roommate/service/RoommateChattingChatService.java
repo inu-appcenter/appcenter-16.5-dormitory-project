@@ -237,7 +237,6 @@ public class RoommateChattingChatService {
         return isOnline;
     }
 
-    @Transactional(readOnly = true)
     public List<ResponseRoommateChatDto> getChatList(Long userId, Long roomId, HttpServletRequest request) {
         RoommateChattingRoom room = chatRoomRepository.findById(roomId)
                 .orElseThrow(() -> new CustomException(ROOMMATE_CHAT_ROOM_NOT_FOUND));
