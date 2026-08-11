@@ -150,11 +150,17 @@ public class FcmAsyncSender {
                 .addAllTokens(tokens)
                 .setNotification(Notification.builder().setTitle(title).setBody(body).build());
 
+        log.info("======== sendoutboxbatch start ============");
         if (rt != null && rid != null) {
             String groupKey = rt.threadId(rid);
-            log.info("FCM Outbox 전송: title={}, body={}, path={}, type={}, {}={}",
-                    title, body, rt.path(rid), rt.dataType(), rt.dataKey(), rid);
-            builder
+            String fcmPayloadLog = String.format(
+                    "{\"notification\":{\"title\":\"%s\",\"body\":\"%s\"}," +
+                            "\"apns\":{\"payload\":{\"aps\":{\"sound\":\"default\",\"thread-id\":\"%s\"}}}," +
+                            "\"android\":{\"notification\":{\"sound\":\"default\",\"tag\":\"%s\"}}," +
+                            "\"data\":{\"path\":\"%s\",\"type\":\"%s\",\"%s\":\"%s\"}}",
+                    title, body, groupKey, groupKey, rt.path(rid), rt.dataType(), rt.dataKey(), rid);
+            log.info("FCM Outbox 전송 payload: {}", fcmPayloadLog);
+          builder
                     .setApnsConfig(ApnsConfig.builder()
                             .setAps(Aps.builder().setSound("default").setThreadId(groupKey).build())
                             .build())
@@ -166,6 +172,7 @@ public class FcmAsyncSender {
                     .putData("type", rt.dataType())
                     .putData(rt.dataKey(), String.valueOf(rid));
         }
+        log.info("======== sendoutboxbatch end ============");
 
         MulticastMessage message = builder.build();
 
