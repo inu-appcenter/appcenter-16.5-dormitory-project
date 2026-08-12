@@ -38,6 +38,10 @@ public class OpenChatNotificationService {
     public void sendHourlyUnreadNotifications() {
         List<UnreadNotificationInfo> unreadInfos = participantRepository.findUnreadCountsForNotification();
 
+        log.info("[BUNDLE-DIAG] 알림 대상 participant 수: {}", unreadInfos.size());
+        unreadInfos.forEach(info ->
+                log.info("[BUNDLE-DIAG] roomId={}, userId={}, unreadCount={}", info.roomId(), info.userId(), info.unreadCount()));
+
         if (unreadInfos.isEmpty()) {
             return;
         }
@@ -87,9 +91,16 @@ public class OpenChatNotificationService {
                         info -> info
                 ));
 
-        participantRepository.findAllByRoomIdIn(new ArrayList<>(roomIds)).stream()
+        List<OpenChatParticipant> targets = participantRepository.findAllByRoomIdIn(new ArrayList<>(roomIds)).stream()
                 .filter(p -> infoMap.containsKey(p.getRoomId() + ":" + p.getUserId()))
-                .forEach(p -> p.updateLastBundledNotifiedAt(notifiedAt));
+                .toList();
+
+        log.info("[BUNDLE-DIAG] 갱신 대상 participant 수: {}", targets.size());
+        targets.forEach(p ->
+                log.info("[BUNDLE-DIAG] 갱신 전 roomId={}, userId={}, lastBundledNotifiedAt={}", p.getRoomId(), p.getUserId(), p.getLastBundledNotifiedAt()));
+
+        targets.forEach(p -> p.updateLastBundledNotifiedAt(notifiedAt));
+        log.info("[BUNDLE-DIAG] lastBundledNotifiedAt → {} 로 갱신 완료", notifiedAt);
     }
 
     @Transactional
