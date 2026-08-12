@@ -14,6 +14,7 @@ import com.example.appcenter_project.domain.user.repository.FcmTokenRepository;
 import com.example.appcenter_project.global.exception.CustomException;
 import com.example.appcenter_project.global.exception.ErrorCode;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -24,6 +25,7 @@ import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
+@Slf4j
 public class RoommateChattingNotificationService {
 
     private final RoommateChattingRoomRepository roommateChattingRoomRepository;
@@ -73,6 +75,10 @@ public class RoommateChattingNotificationService {
         List<RoommateUnreadNotificationInfo> unreadInfos =
                 roommateChattingChatQuerydslRepository.findUnreadCountsForBundled();
 
+        log.info("[BUNDLE-DIAG][ROOMMATE] 알림 대상 수: {}", unreadInfos.size());
+        unreadInfos.forEach(info ->
+                log.info("[BUNDLE-DIAG][ROOMMATE] roomId={}, userId={}, isHost={}, unreadCount={}", info.roomId(), info.userId(), info.isHost(), info.unreadCount()));
+
         if (unreadInfos.isEmpty()) {
             return;
         }
@@ -117,10 +123,13 @@ public class RoommateChattingNotificationService {
             RoommateChattingRoom room = roomMap.get(info.roomId());
             if (room == null) return;
             if (info.isHost()) {
+                log.info("[BUNDLE-DIAG][ROOMMATE] 갱신 전 roomId={}, host lastBundledNotifiedAt={}", info.roomId(), room.getHostLastBundledNotifiedAt());
                 room.updateHostLastBundledNotifiedAt(notifiedAt);
             } else {
+                log.info("[BUNDLE-DIAG][ROOMMATE] 갱신 전 roomId={}, guest lastBundledNotifiedAt={}", info.roomId(), room.getGuestLastBundledNotifiedAt());
                 room.updateGuestLastBundledNotifiedAt(notifiedAt);
             }
         });
+        log.info("[BUNDLE-DIAG][ROOMMATE] lastBundledNotifiedAt → {} 로 갱신 완료", notifiedAt);
     }
 }
