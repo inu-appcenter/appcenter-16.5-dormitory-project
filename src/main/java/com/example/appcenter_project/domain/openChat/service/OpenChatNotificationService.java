@@ -17,6 +17,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
@@ -78,6 +79,17 @@ public class OpenChatNotificationService {
             fcmOutboxRepository.saveAll(outboxes);
             log.info("오픈채팅 시간별 알림 배치 완료: {}건 발송 예약", outboxes.size());
         }
+
+        LocalDateTime notifiedAt = LocalDateTime.now();
+        Map<String, UnreadNotificationInfo> infoMap = unreadInfos.stream()
+                .collect(Collectors.toMap(
+                        info -> info.roomId() + ":" + info.userId(),
+                        info -> info
+                ));
+
+        participantRepository.findAllByRoomIdIn(new ArrayList<>(roomIds)).stream()
+                .filter(p -> infoMap.containsKey(p.getRoomId() + ":" + p.getUserId()))
+                .forEach(p -> p.updateLastBundledNotifiedAt(notifiedAt));
     }
 
     @Transactional
