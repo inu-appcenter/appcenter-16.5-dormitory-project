@@ -1,11 +1,15 @@
 package com.example.appcenter_project.domain.feature.controller;
 
 import com.example.appcenter_project.domain.feature.dto.request.RequestFeatureDto;
+import com.example.appcenter_project.domain.feature.dto.response.ResponseAbGroupDto;
 import com.example.appcenter_project.domain.feature.dto.response.ResponseFeatureDto;
+import com.example.appcenter_project.domain.feature.enums.AbGroup;
 import com.example.appcenter_project.domain.feature.service.FeatureService;
+import com.example.appcenter_project.global.security.CustomUserDetails;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.stereotype.Controller;
 import org.springframework.web.bind.annotation.*;
 
@@ -38,5 +42,14 @@ public class FeatureController implements FeatureApiSpecification {
     public ResponseEntity<Void> updateFeature(@RequestBody RequestFeatureDto dto) {
         featureService.updateFeature(dto);
         return ResponseEntity.status(HttpStatus.OK).build();
+    }
+
+    @GetMapping("/ab/{key}")
+    public ResponseEntity<ResponseAbGroupDto> getAbGroup(
+            @PathVariable String key,
+            @AuthenticationPrincipal CustomUserDetails userDetails
+    ) {
+        AbGroup group = featureService.getAbGroup(key, userDetails.getId());
+        return ResponseEntity.ok(ResponseAbGroupDto.of(group));
     }
 }
