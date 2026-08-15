@@ -3,7 +3,6 @@ package com.example.appcenter_project.domain.feature.controller;
 import com.example.appcenter_project.domain.feature.dto.request.RequestFeatureDto;
 import com.example.appcenter_project.domain.feature.dto.response.ResponseAbGroupDto;
 import com.example.appcenter_project.domain.feature.dto.response.ResponseFeatureDto;
-import com.example.appcenter_project.domain.feature.enums.AbGroup;
 import com.example.appcenter_project.domain.feature.service.FeatureService;
 import com.example.appcenter_project.global.security.CustomUserDetails;
 import lombok.RequiredArgsConstructor;
@@ -49,7 +48,6 @@ public class FeatureController implements FeatureApiSpecification {
             @PathVariable String key,
             @AuthenticationPrincipal CustomUserDetails userDetails
     ) {
-        AbGroup group = featureService.getAbGroup(key, userDetails.getId());
-        return ResponseEntity.ok(ResponseAbGroupDto.of(group));
+        return ResponseEntity.ok(featureService.getAbGroup(key, userDetails.getId()));
     }
 }
