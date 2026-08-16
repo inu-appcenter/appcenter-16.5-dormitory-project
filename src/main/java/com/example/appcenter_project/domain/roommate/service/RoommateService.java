@@ -485,6 +485,17 @@ public class RoommateService {
         return roommateBoardLikeRepository.existsByUserAndRoommateBoard(user, board);
     }
 
+    @Transactional(readOnly = true)
+    public ResponseMyRoommateBoardIdDto getMyBoardId(Long userId) {
+        MatchingPeriod current = periodResolver.resolveCurrent(LocalDate.now());
+        RoommateBoard board = roommateBoardRepository
+                .findByUserIdAndYearAndSemester(userId, current.year(), current.semester())
+                .orElseThrow(() -> new CustomException(ErrorCode.ROOMMATE_BOARD_NOT_FOUND));
+        return ResponseMyRoommateBoardIdDto.builder()
+                .boardId(board.getId())
+                .build();
+    }
+
     // 내가 작성한 이번 학기 체크리스트 내용 조회 (수정 화면 표시용)
     @Transactional(readOnly = true)
     public ResponseRoommateCheckListDto getMyCheckList(Long userId) {
