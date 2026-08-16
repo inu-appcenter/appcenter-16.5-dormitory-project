@@ -21,7 +21,8 @@ public class RoommateQueryService {
 
     public List<ResponseRoommatePostDto> findByUser(Long userId) {
         MatchingPeriod current = periodResolver.resolveCurrent(LocalDate.now());
-        return roommateBoardRepository.findByUserId(userId)
+        return roommateBoardRepository.findAllByUserIdOrderByCreatedDateDesc(userId)
+                .stream()
                 .map(board -> {
                     ResponseRoommatePostDto dto = ResponseRoommatePostDto.entityToDto(board, board.isMatched(), null);
                     dto.updateIsMyPost(true);
@@ -32,8 +33,7 @@ public class RoommateQueryService {
                     );
                     return dto;
                 })
-                .map(List::of)
-                .orElse(List.of());
+                .toList();
     }
 
     public List<ResponseRoommatePostDto> findLikedByUser(Long userId) {
