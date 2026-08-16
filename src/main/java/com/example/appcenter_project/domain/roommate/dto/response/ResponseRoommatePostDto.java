@@ -87,6 +87,10 @@ public class ResponseRoommatePostDto extends ResponseBoardDto {
         this.isCurrentPeriod = isCurrentPeriod;
     }
 
+    public void updateIsMyPost(boolean isMyPost) {
+        this.isMyPost = isMyPost;
+    }
+
     public void updateMatchedFilter(List<String> fields) {
         this.matchedFilterFields = fields;
         this.matchedFilterCount = fields != null ? fields.size() : null;
