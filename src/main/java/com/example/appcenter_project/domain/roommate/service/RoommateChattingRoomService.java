@@ -3,6 +3,7 @@ package com.example.appcenter_project.domain.roommate.service;
 import com.example.appcenter_project.common.image.enums.ImageType;
 import com.example.appcenter_project.common.image.service.ImageService;
 import com.example.appcenter_project.domain.block.service.BlockService;
+import com.example.appcenter_project.domain.roommate.dto.response.ResponseRoommateChatRoomDetailDto;
 import com.example.appcenter_project.domain.roommate.dto.response.ResponseRoommateChatRoomDto;
 import com.example.appcenter_project.domain.roommate.entity.RoommateBoard;
 import com.example.appcenter_project.domain.roommate.entity.RoommateChattingChat;
@@ -24,6 +25,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import java.util.ArrayList;
 
+import jakarta.servlet.http.HttpServletRequest;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.Comparator;
@@ -215,6 +217,47 @@ public class RoommateChattingRoomService {
         return result;
     }
 
+
+    @Transactional(readOnly = true)
+    public ResponseRoommateChatRoomDetailDto getRoommateChatRoomDetail(Long userId, Long chatRoomId, HttpServletRequest request) {
+        RoommateChattingRoom room = roommateChattingRoomRepository.findById(chatRoomId)
+                .orElseThrow(() -> new CustomException(ROOMMATE_CHAT_ROOM_NOT_FOUND));
+
+        boolean isHost = room.getHost().getId().equals(userId);
+        boolean isGuest = room.getGuest().getId().equals(userId);
+        if (!isHost && !isGuest) {
+            throw new CustomException(ROOMMATE_FORBIDDEN_ACCESS);
+        }
+
+        User partner = isHost ? room.getGuest() : room.getHost();
+        boolean opponentLeft = isHost ? room.isGuestLeft() : room.isHostLeft();
+        boolean isBlockedByPartner = blockService.isBlockedBy(partner.getId(), userId);
+
+        MatchingPeriod current = periodResolver.resolveCurrent(LocalDate.now());
+        String hostBoardTitle = room.getRoommateBoard() != null ? room.getRoommateBoard().getTitle() : null;
+        String guestBoardTitle = roommateBoardRepository
+                .findByUserIdAndYearAndSemester(room.getGuest().getId(), current.year(), current.semester())
+                .map(RoommateBoard::getTitle).orElse(null);
+        String myBoardTitle = isHost ? hostBoardTitle : guestBoardTitle;
+        String opponentBoardTitle = isHost ? guestBoardTitle : hostBoardTitle;
+
+        String partnerProfileImageUrl = null;
+        try {
+            partnerProfileImageUrl = imageService.findImage(ImageType.USER, partner.getId(), request).getImageUrl();
+        } catch (Exception e) {
+            log.warn("partner image url resolve failed. userId={}", partner.getId(), e);
+        }
+
+        return ResponseRoommateChatRoomDetailDto.builder()
+                .chatRoomId(room.getId())
+                .partnerName(partner.getName())
+                .partnerProfileImageUrl(partnerProfileImageUrl)
+                .isOpponentLeft(opponentLeft)
+                .isBlockedByPartner(isBlockedByPartner)
+                .myBoardTitle(myBoardTitle)
+                .opponentBoardTitle(opponentBoardTitle)
+                .build();
+    }
 
     @Transactional(readOnly = true)
     public RoommateCheckList getOpponentChecklist(Long userId, Long chatRoomId) {

@@ -1,6 +1,7 @@
 package com.example.appcenter_project.domain.roommate.controller;
 
 import com.example.appcenter_project.common.metrics.annotation.TrackApi;
+import com.example.appcenter_project.domain.roommate.dto.response.ResponseRoommateChatRoomDetailDto;
 import com.example.appcenter_project.domain.roommate.dto.response.ResponseRoommateChatRoomDto;
 import com.example.appcenter_project.domain.roommate.dto.response.ResponseRoommateCheckListDto;
 import com.example.appcenter_project.domain.roommate.entity.RoommateCheckList;
@@ -53,6 +54,15 @@ public class RoommateChattingRoomController implements RoommateChattingRoomApiSp
         List<ResponseRoommateChatRoomDto> chatRooms =
                 roommateChattingRoomService.findRoommateChatRoomListByUser(user, request); // 변경
         return ResponseEntity.ok(chatRooms);
+    }
+
+    @Override
+    @GetMapping("/{chatRoomId}")
+    public ResponseEntity<ResponseRoommateChatRoomDetailDto> getRoommateChatRoomDetail(
+            @AuthenticationPrincipal CustomUserDetails user,
+            @PathVariable Long chatRoomId,
+            HttpServletRequest request) {
+        return ResponseEntity.ok(roommateChattingRoomService.getRoommateChatRoomDetail(user.getId(), chatRoomId, request));
     }
 
     //상대방 체크리스트 확인
