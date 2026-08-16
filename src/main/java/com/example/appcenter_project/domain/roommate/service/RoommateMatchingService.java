@@ -107,7 +107,15 @@ public class RoommateMatchingService {
         sendAcceptNotification(receiver, sender, matching.getId());
 
         try {
-            mixpanelService.trackEvent(user.getId().toString(), "matching_accept", new JSONObject());
+            JSONObject acceptProps = new JSONObject();
+            acceptProps.put("matching_id", matching.getId());
+            mixpanelService.trackEvent(user.getId().toString(), "matching_request_accepted", acceptProps);
+
+            JSONObject completedProps = new JSONObject();
+            completedProps.put("matching_id", matching.getId());
+            mixpanelService.trackEvent(sender.getId().toString(), "matching_completed", completedProps);
+            mixpanelService.trackEvent(receiver.getId().toString(), "matching_completed", completedProps);
+
             JSONObject profileProps = new JSONObject();
             profileProps.put("matching_completed", true);
             mixpanelService.setUserProfile(user.getId().toString(), profileProps);
@@ -203,7 +211,15 @@ public class RoommateMatchingService {
         // RoommateMatching 레코드 완전 삭제
         roommateMatchingRepository.delete(matching);
         log.info("RoommateMatching record deleted for matchingId: {}", matchingId);
-        
+
+        try {
+            JSONObject props = new JSONObject();
+            props.put("matching_id", matchingId);
+            mixpanelService.trackEvent(userId.toString(), "matching_cancelled", props);
+        } catch (Exception e) {
+            log.warn("Mixpanel 매칭 취소 이벤트 추적 실패 - userId: {}", userId);
+        }
+
         log.info("=== cancelMatching END ===");
     }
 
@@ -235,7 +251,9 @@ public class RoommateMatchingService {
         sendRequestNotification(sender, receiver, matching.getId());
 
         try {
-            mixpanelService.trackEvent(sender.getId().toString(), "matching_request_send", new JSONObject());
+            JSONObject props = new JSONObject();
+            props.put("receiver_id", receiver.getId());
+            mixpanelService.trackEvent(sender.getId().toString(), "matching_request_sent", props);
         } catch (Exception e) {
             log.warn("Mixpanel 매칭 요청 이벤트 추적 실패 - senderId: {}", sender.getId());
         }
@@ -272,6 +290,15 @@ public class RoommateMatchingService {
 
         log.info("상호 신청 감지로 매칭 완료 처리: matchingId={}, sender={}, receiver={}",
                 reverseRequest.getId(), originalSender.getId(), originalReceiver.getId());
+
+        try {
+            JSONObject props = new JSONObject();
+            props.put("matching_id", reverseRequest.getId());
+            mixpanelService.trackEvent(originalSender.getId().toString(), "matching_completed", props);
+            mixpanelService.trackEvent(originalReceiver.getId().toString(), "matching_completed", props);
+        } catch (Exception e) {
+            log.warn("Mixpanel 상호 매칭 완료 이벤트 추적 실패 - matchingId: {}", reverseRequest.getId());
+        }
 
         return ResponseRoommateMatchingDto.builder()
                 .matchingId(reverseRequest.getId())

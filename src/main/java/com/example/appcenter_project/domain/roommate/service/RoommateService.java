@@ -110,6 +110,17 @@ public class RoommateService {
         // 5. 알림 전송
         roommateNotificationService.sendFilteredNotifications(savedBoard);
 
+        try {
+            JSONObject props = new JSONObject();
+            props.put("board_id", savedBoard.getId());
+            props.put("year", year);
+            props.put("semester", semester.name());
+            mixpanelService.trackEvent(user.getId().toString(), "roommate_post_create_completed", props);
+            mixpanelService.trackEvent(user.getId().toString(), "roommate_post_published", props);
+        } catch (Exception e) {
+            log.warn("Mixpanel 모집글 생성 이벤트 추적 실패 - userId: {}", user.getId());
+        }
+
         // 6. 응답
         return ResponseRoommatePostDto.builder()
                 .id(roommateBoard.getId())
@@ -696,20 +707,31 @@ public class RoommateService {
     }
 
     private void doDeleteBoard(RoommateBoard board) {
+        Long boardOwnerId = board.getUser().getId();
+        Long boardId = board.getId();
+
         RoommateCheckList checkList = board.getRoommateCheckList();
 
-        roommateChattingRoomRepository.detachBoard(board.getId());
+        roommateChattingRoomRepository.detachBoard(boardId);
         if (checkList != null) {
             roommateChattingRoomRepository.detachGuestChecklist(checkList.getId());
             roommateChattingRoomRepository.detachHostChecklist(checkList.getId());
         }
 
-        roommateBoardReadRepository.deleteAllByRoommateBoardId(board.getId());
+        roommateBoardReadRepository.deleteAllByRoommateBoardId(boardId);
 
         roommateBoardRepository.delete(board);
 
         if (checkList != null) {
             roommateCheckListRepository.delete(checkList);
+        }
+
+        try {
+            JSONObject props = new JSONObject();
+            props.put("board_id", boardId);
+            mixpanelService.trackEvent(boardOwnerId.toString(), "roommate_post_deleted", props);
+        } catch (Exception e) {
+            log.warn("Mixpanel 모집글 삭제 이벤트 추적 실패 - userId: {}", boardOwnerId);
         }
     }
 

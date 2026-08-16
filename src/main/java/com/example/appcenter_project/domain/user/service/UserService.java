@@ -85,21 +85,21 @@ public class UserService {
         }
         User user = isTestAccount ? createTestAccountUser(signupUser) : createUser(signupUser);
         trackSignupProfile(user);
-        trackLoginComplete(user);
+        trackLoginComplete(user, true);
         return createDto(user);
     }
 
     public ResponseLoginDto saveFreshman(SignupUser signupUser) {
         User user = createFreshman(signupUser);
         trackSignupProfile(user);
-        trackLoginComplete(user);
+        trackLoginComplete(user, true);
         return createDto(user);
     }
 
     public ResponseLoginDto loginFreshman(SignupUser signupUser) {
         try {
             User user = findFreshmanForLogin(signupUser);
-            trackLoginComplete(user);
+            trackLoginComplete(user, false);
             return createDto(user);
         } catch (CustomException e) {
             trackLoginFail(signupUser.getStudentNumber(), e.getErrorCode().name());
@@ -421,7 +421,7 @@ public class UserService {
         }
     }
 
-    private void trackLoginComplete(User user) {
+    private void trackLoginComplete(User user, boolean isFirstLogin) {
         try {
             JSONObject eventProps = new JSONObject();
             if (user.getDormType() != null) {
@@ -430,7 +430,12 @@ public class UserService {
             if (user.getCollege() != null) {
                 eventProps.put("department", user.getCollege().toValue());
             }
+            eventProps.put("is_first_login", isFirstLogin);
             mixpanelService.trackEvent(user.getId().toString(), "Login_complete", eventProps);
+
+            if (isFirstLogin) {
+                mixpanelService.trackEvent(user.getId().toString(), "first_login_completed", eventProps);
+            }
 
             JSONObject profileProps = new JSONObject();
             profileProps.put("last_active_date", java.time.Instant.now().toString());

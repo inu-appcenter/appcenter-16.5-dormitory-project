@@ -22,6 +22,7 @@ import com.example.appcenter_project.domain.roommate.repository.RoommateChatting
 import com.example.appcenter_project.domain.roommate.repository.RoommateChattingRoomRepository;
 import com.example.appcenter_project.domain.user.repository.UserRepository;
 import com.example.appcenter_project.global.config.RoommateWebSocketEventListener;
+import com.example.appcenter_project.global.mixpanel.MixpanelService;
 import jakarta.servlet.http.HttpServletRequest;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -32,6 +33,7 @@ import org.springframework.transaction.annotation.Transactional;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
+import org.json.JSONObject;
 
 import static com.example.appcenter_project.global.exception.ErrorCode.*;
 
@@ -49,6 +51,7 @@ public class RoommateChattingChatService {
     private final FcmOutboxRepository fcmOutboxRepository;
     private final FcmTokenRepository fcmTokenRepository;
     private final ImageService imageService;
+    private final MixpanelService mixpanelService;
 
     public ResponseRoommateChatDto sendChat(Long userId, RequestRoommateChatDto requestRoommateChatDto) {
         log.info("💬 [채팅 전송 시작] userId: {}, roomId: {}, content: {}",
@@ -87,7 +90,10 @@ public class RoommateChattingChatService {
         boolean isReceiverOnline = isUserOnlineInRoom(requestRoommateChatDto.getRoommateChattingRoomId(), receiver.getId());
         log.info("🔍 [수신자 온라인 상태] receiverId: {}, isOnline: {}", receiver.getId(), isReceiverOnline);
 
-        // 5. 채팅 메시지 엔티티 생성 (수신자가 온라인이면 자동으로 읽음 처리)
+        // 5. 첫 메시지 여부 판별 (저장 전 count)
+        boolean isFirstMessage = chatRepository.countByRoommateChattingRoom(room) == 0;
+
+        // 6. 채팅 메시지 엔티티 생성 (수신자가 온라인이면 자동으로 읽음 처리)
         RoommateChattingChat chat = RoommateChattingChat.builder()
                 .roommateChattingRoom(room)
                 .member(sender)
@@ -95,10 +101,20 @@ public class RoommateChattingChatService {
                 .readByReceiver(isReceiverOnline) // 수신자가 온라인이면 읽음 처리
                 .build();
 
-        // 6. DB에 저장
+        // 7. DB에 저장
         RoommateChattingChat savedChat = chatRepository.save(chat);
         log.info("💾 [채팅 DB 저장 완료] chatId: {}, read: {}", savedChat.getId(), savedChat.isReadByReceiver());
 
+        try {
+            JSONObject props = new JSONObject();
+            props.put("room_id", room.getId());
+            mixpanelService.trackEvent(userId.toString(), "chat_message_sent", props);
+            if (isFirstMessage) {
+                mixpanelService.trackEvent(userId.toString(), "chat_first_message_sent", props);
+            }
+        } catch (Exception e) {
+            log.warn("Mixpanel 채팅 이벤트 추적 실패 - userId: {}", userId);
+        }
 
         ResponseRoommateChatDto responseDto = ResponseRoommateChatDto.entityToDto(savedChat, null);
         String destination = "/sub/roommate/chat/" + room.getId();
