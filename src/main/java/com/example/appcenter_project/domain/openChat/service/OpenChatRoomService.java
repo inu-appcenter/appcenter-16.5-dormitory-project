@@ -72,6 +72,7 @@ public class OpenChatRoomService {
     private final RoommateChattingChatRepository roommateChattingChatRepository;
     private final MyRoommateRepository myRoommateRepository;
     private final BlockService blockService;
+    private final OpenChatNotificationService openChatNotificationService;
 
     @Autowired
     public OpenChatRoomService(
@@ -84,7 +85,8 @@ public class OpenChatRoomService {
             RoommateChattingRoomRepository roommateChattingRoomRepository,
             RoommateChattingChatRepository roommateChattingChatRepository,
             MyRoommateRepository myRoommateRepository,
-            BlockService blockService) {
+            BlockService blockService,
+            OpenChatNotificationService openChatNotificationService) {
         this.openChatRoomRepository = openChatRoomRepository;
         this.openChatParticipantRepository = openChatParticipantRepository;
         this.openChatMessageRepository = openChatMessageRepository;
@@ -95,6 +97,7 @@ public class OpenChatRoomService {
         this.roommateChattingChatRepository = roommateChattingChatRepository;
         this.myRoommateRepository = myRoommateRepository;
         this.blockService = blockService;
+        this.openChatNotificationService = openChatNotificationService;
     }
 
     @Transactional
@@ -434,6 +437,9 @@ public class OpenChatRoomService {
                 .findByRoomIdAndUserId(roomId, userId)
                 .orElseThrow(() -> new CustomException(ErrorCode.OPEN_CHAT_PARTICIPANT_NOT_FOUND));
         participant.updateNotificationMode(mode);
+        if (mode == ChatNotificationMode.OFF) {
+            openChatNotificationService.cancelPendingChatNotifications(userId, roomId);
+        }
     }
 
     @Transactional(readOnly = true)

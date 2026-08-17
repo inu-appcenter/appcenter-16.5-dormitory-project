@@ -104,6 +104,17 @@ public class OpenChatNotificationService {
     }
 
     @Transactional
+    public void cancelPendingChatNotifications(Long userId, Long roomId) {
+        List<String> tokens = fcmTokenRepository.findAllByUserIdIn(List.of(userId)).stream()
+                .map(FcmToken::getToken)
+                .filter(t -> t != null)
+                .toList();
+        if (!tokens.isEmpty()) {
+            fcmOutboxRepository.cancelPendingChatOutboxesByTokensAndRoom(tokens, roomId);
+        }
+    }
+
+    @Transactional
     public void sendImmediateNotifications(Long roomId, OpenChatRoomType roomType, Set<Long> onlineUserIds, String title, String body) {
         List<OpenChatParticipant> everyParticipants =
                 participantRepository.findAllByRoomIdAndNotificationMode(roomId, ChatNotificationMode.EVERY);
