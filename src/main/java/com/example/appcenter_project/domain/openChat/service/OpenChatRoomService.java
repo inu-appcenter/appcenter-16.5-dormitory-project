@@ -301,7 +301,7 @@ public class OpenChatRoomService {
                 .orElseThrow(() -> new CustomException(ErrorCode.OPEN_CHAT_ROOM_NOT_FOUND));
 
         if (openChatParticipantRepository.existsByRoomIdAndUserId(roomId, userId)) {
-            return toDetailDto(room, roomId);
+            return toDetailDtoWithBlockedCheck(room, roomId, userId);
         }
 
         User user = userRepository.findById(userId)
@@ -333,7 +333,7 @@ public class OpenChatRoomService {
                 OpenChatParticipant.create(roomId, userId, LocalDateTime.now(), defaultMode));
         openChatMessageService.sendSystemMessage(roomId, user.getName() + "님이 입장했습니다.");
 
-        return toDetailDto(room, roomId);
+        return toDetailDtoWithBlockedCheck(room, roomId, userId);
     }
 
     @Transactional
@@ -723,5 +723,20 @@ public class OpenChatRoomService {
                 .isOfficial(room.isOfficial())
                 .createdAt(room.getCreatedDate())
                 .build();
+    }
+
+    private ResponseOpenChatRoomDetailDto toDetailDtoWithBlockedCheck(OpenChatRoom room, Long roomId, Long userId) {
+        ResponseOpenChatRoomDetailDto dto = toDetailDto(room, roomId);
+        if (room.getRoomType() == OpenChatRoomType.PERSONAL) {
+            openChatParticipantRepository.findAllByRoomId(roomId).stream()
+                    .filter(p -> !p.getUserId().equals(userId))
+                    .findFirst()
+                    .ifPresent(p -> {
+                        if (blockService.isBlockedBy(p.getUserId(), userId)) {
+                            dto.updateIsBlockedByPartner(true);
+                        }
+                    });
+        }
+        return dto;
     }
 }

@@ -12,6 +12,7 @@ import java.util.Optional;
 public interface RoommateBoardRepository extends JpaRepository<RoommateBoard, Long>, RoommateBoardQuerydslRepository {
     List<RoommateBoard> findAllByOrderByCreatedDateDesc();
     Optional<RoommateBoard> findByUserId(Long userId);
+    List<RoommateBoard> findAllByUserIdOrderByCreatedDateDesc(Long userId);
 
     // 가장 최근 10개의 게시글 조회
     List<RoommateBoard> findTop10ByOrderByCreatedDateDesc();

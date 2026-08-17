@@ -7,6 +7,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.LocalDate;
 import java.util.List;
 
 @Service
@@ -16,12 +17,23 @@ public class RoommateQueryService {
 
     private final RoommateBoardLikeRepository roommateBoardLikeRepository;
     private final RoommateBoardRepository roommateBoardRepository;
+    private final RoommateMatchingPeriodResolver periodResolver;
 
     public List<ResponseRoommatePostDto> findByUser(Long userId) {
-        return roommateBoardRepository.findByUserId(userId)
-                .map(board -> ResponseRoommatePostDto.entityToDto(board, board.isMatched(), null))
-                .map(List::of)
-                .orElse(List.of());
+        MatchingPeriod current = periodResolver.resolveCurrent(LocalDate.now());
+        return roommateBoardRepository.findAllByUserIdOrderByCreatedDateDesc(userId)
+                .stream()
+                .map(board -> {
+                    ResponseRoommatePostDto dto = ResponseRoommatePostDto.entityToDto(board, board.isMatched(), null);
+                    dto.updateIsMyPost(true);
+                    dto.updateIsCurrentPeriod(
+                            board.getSemester() == current.semester()
+                            && board.getYear() != null
+                            && board.getYear() == current.year()
+                    );
+                    return dto;
+                })
+                .toList();
     }
 
     public List<ResponseRoommatePostDto> findLikedByUser(Long userId) {

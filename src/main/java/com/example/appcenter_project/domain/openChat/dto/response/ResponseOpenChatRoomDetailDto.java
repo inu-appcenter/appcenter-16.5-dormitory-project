@@ -18,4 +18,9 @@ public class ResponseOpenChatRoomDetailDto {
     private int maxParticipants;
     private boolean isOfficial;
     private LocalDateTime createdAt;
+    private boolean isBlockedByPartner;
+
+    public void updateIsBlockedByPartner(boolean v) {
+        this.isBlockedByPartner = v;
+    }
 }

@@ -136,6 +136,15 @@ public class RoommateController implements RoommateApiSpecification{
 
     @TrackApi
     @Override
+    @GetMapping("/my-checklist/board-id")
+    public ResponseEntity<ResponseMyRoommateBoardIdDto> getMyBoardId(
+            @AuthenticationPrincipal CustomUserDetails userDetails
+    ) {
+        return ResponseEntity.ok(roommateService.getMyBoardId(userDetails.getId()));
+    }
+
+    @TrackApi
+    @Override
     @GetMapping("/my-checklist")
     public ResponseEntity<ResponseRoommateCheckListDto> getMyCheckList(
             @AuthenticationPrincipal CustomUserDetails userDetails

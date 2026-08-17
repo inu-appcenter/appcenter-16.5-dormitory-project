@@ -1,10 +1,12 @@
 package com.example.appcenter_project.domain.fcm.service;
 
 import com.example.appcenter_project.domain.fcm.entity.FcmOutbox;
+import com.example.appcenter_project.domain.fcm.entity.FcmToken;
 import com.example.appcenter_project.domain.fcm.enums.FcmRoutingType;
 import com.example.appcenter_project.domain.fcm.enums.OutboxStatus;
 import com.example.appcenter_project.domain.fcm.repository.FcmOutboxRepository;
 import com.example.appcenter_project.domain.user.repository.FcmTokenRepository;
+import com.example.appcenter_project.global.mixpanel.MixpanelService;
 import com.google.firebase.messaging.AndroidConfig;
 import com.google.firebase.messaging.AndroidNotification;
 import com.google.firebase.messaging.ApnsConfig;
@@ -30,7 +32,10 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.concurrent.CompletableFuture;
+import java.util.stream.Collectors;
+import org.json.JSONObject;
 
 /**
  * FCM 전송을 fcmExecutor 스레드 풀에서 비동기로 처리하는 컴포넌트.
@@ -57,6 +62,7 @@ public class FcmAsyncSender {
     private final FcmOutboxRepository fcmOutboxRepository;
     private final RedisTemplate<String, Object> redisTemplate;
     private final FirebaseMessaging firebaseMessaging;
+    private final MixpanelService mixpanelService;
 
     public record RetryKey(int retryCount, String errorCode) {}
 
@@ -223,7 +229,34 @@ public class FcmAsyncSender {
                 }
             }
 
-            if (!sentIds.isEmpty()) fcmOutboxRepository.bulkUpdateStatus(sentIds, OutboxStatus.SENT);
+            if (!sentIds.isEmpty()) {
+                fcmOutboxRepository.bulkUpdateStatus(sentIds, OutboxStatus.SENT);
+
+                List<String> sentTokens = batch.stream()
+                        .filter(o -> sentIds.contains(o.getId()))
+                        .map(FcmOutbox::getToken)
+                        .toList();
+                List<FcmToken> fcmTokens = fcmTokenRepository.findAllByTokenIn(sentTokens);
+                Map<String, Long> tokenToUserId = fcmTokens.stream()
+                        .collect(Collectors.toMap(FcmToken::getToken, t -> t.getUser().getId(), (a, b) -> a));
+                for (FcmOutbox outbox : batch) {
+                    if (sentIds.contains(outbox.getId())) {
+                        Long ownerId = tokenToUserId.get(outbox.getToken());
+                        if (ownerId != null) {
+                            try {
+                                JSONObject props = new JSONObject();
+                                if (outbox.getRoutingType() != null) {
+                                    props.put("routing_type", outbox.getRoutingType().name());
+                                    props.put("routing_id", outbox.getRoutingId());
+                                }
+                                mixpanelService.trackEvent(ownerId.toString(), "push_sent", props);
+                            } catch (Exception ex) {
+                                log.warn("Mixpanel push_sent 이벤트 추적 실패 - userId: {}", ownerId);
+                            }
+                        }
+                    }
+                }
+            }
             deadPermMap.forEach((ec, ids) -> fcmOutboxRepository.bulkUpdateStatusWithError(ids, OutboxStatus.DEAD_PERMANENT, ec));
             exhaustedMap.forEach((ec, ids) -> fcmOutboxRepository.bulkUpdateStatusWithError(ids, OutboxStatus.DEAD_EXHAUSTED, ec));
             failedMap.forEach((key, ids) -> {

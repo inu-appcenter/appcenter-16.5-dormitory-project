@@ -1,5 +1,6 @@
 package com.example.appcenter_project.domain.roommate.controller;
 
+import com.example.appcenter_project.domain.roommate.dto.response.ResponseRoommateChatRoomDetailDto;
 import com.example.appcenter_project.domain.roommate.dto.response.ResponseRoommateChatRoomDto;
 import com.example.appcenter_project.domain.roommate.dto.response.ResponseRoommateCheckListDto;
 import com.example.appcenter_project.global.security.CustomUserDetails;
@@ -60,6 +61,23 @@ public interface RoommateChattingRoomApiSpecification {
     ResponseEntity<List<ResponseRoommateChatRoomDto>> getRoommateChatRoomList(
             @Parameter(hidden = true) CustomUserDetails userDetails,
             @Parameter(hidden = true) HttpServletRequest request   // 추가
+    );
+
+    @Operation(
+            summary = "룸메이트 채팅방 상세 조회",
+            description = "채팅방 ID로 상세 정보(상대방 이름, 프로필, 나간 여부, 차단 여부, 게시글 제목)를 조회합니다.",
+            responses = {
+                    @ApiResponse(responseCode = "200", description = "조회 성공",
+                            content = @Content(mediaType = "application/json",
+                                    schema = @Schema(implementation = ResponseRoommateChatRoomDetailDto.class))),
+                    @ApiResponse(responseCode = "404", description = "채팅방이 존재하지 않음"),
+                    @ApiResponse(responseCode = "403", description = "해당 채팅방 참여자가 아님")
+            }
+    )
+    ResponseEntity<ResponseRoommateChatRoomDetailDto> getRoommateChatRoomDetail(
+            @Parameter(hidden = true) CustomUserDetails userDetails,
+            @Parameter(description = "채팅방 ID") Long chatRoomId,
+            @Parameter(hidden = true) HttpServletRequest request
     );
 
     @Operation(

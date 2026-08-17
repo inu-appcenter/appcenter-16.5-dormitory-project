@@ -77,7 +77,9 @@ public class RoommateChattingChatQuerydslRepositoryImpl implements RoommateChatt
                 .where(
                         chat.readByReceiver.isFalse(),
                         chat.member.id.eq(room.guest.id),
-                        room.hostNotificationMode.eq(ChatNotificationMode.BUNDLED)
+                        room.hostNotificationMode.eq(ChatNotificationMode.BUNDLED),
+                        room.hostLastBundledNotifiedAt.isNull()
+                                .or(chat.createdDate.gt(room.hostLastBundledNotifiedAt))
                 )
                 .groupBy(room.id, room.host.id)
                 .fetch();
@@ -89,7 +91,9 @@ public class RoommateChattingChatQuerydslRepositoryImpl implements RoommateChatt
                 .where(
                         chat.readByReceiver.isFalse(),
                         chat.member.id.eq(room.host.id),
-                        room.guestNotificationMode.eq(ChatNotificationMode.BUNDLED)
+                        room.guestNotificationMode.eq(ChatNotificationMode.BUNDLED),
+                        room.guestLastBundledNotifiedAt.isNull()
+                                .or(chat.createdDate.gt(room.guestLastBundledNotifiedAt))
                 )
                 .groupBy(room.id, room.guest.id)
                 .fetch();
@@ -97,11 +101,11 @@ public class RoommateChattingChatQuerydslRepositoryImpl implements RoommateChatt
         List<RoommateUnreadNotificationInfo> infos = new java.util.ArrayList<>();
         for (Tuple t : hostResults) {
             infos.add(new RoommateUnreadNotificationInfo(
-                    t.get(room.host.id), t.get(room.id), t.get(chat.count())));
+                    t.get(room.host.id), t.get(room.id), t.get(chat.count()), true));
         }
         for (Tuple t : guestResults) {
             infos.add(new RoommateUnreadNotificationInfo(
-                    t.get(room.guest.id), t.get(room.id), t.get(chat.count())));
+                    t.get(room.guest.id), t.get(room.id), t.get(chat.count()), false));
         }
         return infos;
     }

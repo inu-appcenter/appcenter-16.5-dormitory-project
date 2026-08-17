@@ -34,6 +34,8 @@ public class OpenChatParticipant {
 
     private Long lastReadMessageId;
 
+    private LocalDateTime lastBundledNotifiedAt;
+
     @Column(name = "is_host", nullable = false)
     private boolean isHost = false;
 
@@ -77,6 +79,10 @@ public class OpenChatParticipant {
 
     public void updateLastReadMessageId(Long messageId) {
         this.lastReadMessageId = messageId;
+    }
+
+    public void updateLastBundledNotifiedAt(LocalDateTime at) {
+        this.lastBundledNotifiedAt = at;
     }
 
     public void updateNotificationMode(ChatNotificationMode mode) {

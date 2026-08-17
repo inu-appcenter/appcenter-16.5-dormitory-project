@@ -135,6 +135,21 @@ public interface RoommateApiSpecification {
     );
 
     @Operation(
+            summary = "현재 학기 내 게시물 번호 조회",
+            description = "로그인한 사용자의 현재 학기 룸메이트 게시물 ID를 반환합니다. " +
+                    "페이지 밖으로 밀려난 경우에도 게시물을 특정하기 위해 사용합니다.",
+            responses = {
+                    @ApiResponse(responseCode = "200", description = "조회 성공",
+                            content = @Content(mediaType = "application/json",
+                                    schema = @Schema(implementation = ResponseMyRoommateBoardIdDto.class))),
+                    @ApiResponse(responseCode = "404", description = "게시물을 찾을 수 없습니다. (ROOMMATE_BOARD_NOT_FOUND)")
+            }
+    )
+    ResponseEntity<ResponseMyRoommateBoardIdDto> getMyBoardId(
+            @Parameter(hidden = true) CustomUserDetails userDetails
+    );
+
+    @Operation(
             summary = "이전 학기 체크리스트 내용 조회",
             description = "현재 학기를 제외한, 로그인한 사용자의 가장 최근 과거 체크리스트 내용을 반환합니다. " +
                     "신규 학기 체크리스트 작성 시 '이전 학기에서 불러오기'에 사용합니다. " +

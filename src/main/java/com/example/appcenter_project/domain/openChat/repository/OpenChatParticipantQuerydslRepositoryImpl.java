@@ -103,8 +103,8 @@ public class OpenChatParticipantQuerydslRepositoryImpl implements OpenChatPartic
                 .from(openChatParticipant)
                 .join(message).on(
                         message.roomId.eq(openChatParticipant.roomId),
-                        openChatParticipant.lastReadMessageId.isNull()
-                                .or(message.id.gt(openChatParticipant.lastReadMessageId))
+                        openChatParticipant.lastBundledNotifiedAt.isNull()
+                                .or(message.createdDate.gt(openChatParticipant.lastBundledNotifiedAt))
                 )
                 .where(openChatParticipant.notificationMode.eq(ChatNotificationMode.BUNDLED))
                 .groupBy(openChatParticipant.roomId, openChatParticipant.userId)
