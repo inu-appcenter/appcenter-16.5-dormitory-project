@@ -179,6 +179,8 @@ public class SecurityConfig {
 
                         /** 오픈 채팅 **/
                         .requestMatchers("/admin/open-chat-reports/**").hasRole("ADMIN")
+                        .requestMatchers(GET, "/admin/open-chat-rooms").hasRole("ADMIN")
+                        .requestMatchers(POST, "/admin/open-chat-rooms/*/bot").hasRole("ADMIN")
                         .requestMatchers("/open-chat-rooms/**").authenticated()
 
                         /** 학번 공개 **/
