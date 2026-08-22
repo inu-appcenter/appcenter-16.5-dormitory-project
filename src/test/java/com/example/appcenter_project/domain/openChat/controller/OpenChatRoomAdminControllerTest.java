@@ -3,6 +3,7 @@ package com.example.appcenter_project.domain.openChat.controller;
 import com.example.appcenter_project.domain.openChat.dto.request.RequestCreateDormOfficialRoomDto;
 import com.example.appcenter_project.domain.openChat.fixture.OpenChatDormOfficialRoomFixture;
 import com.example.appcenter_project.domain.openChat.service.OpenChatDormOfficialRoomService;
+import com.example.appcenter_project.domain.openChat.service.OpenChatMessageService;
 import com.example.appcenter_project.domain.user.enums.DormType;
 import com.example.appcenter_project.global.exception.CustomException;
 import com.example.appcenter_project.global.exception.ErrorCode;
@@ -35,6 +36,9 @@ class OpenChatRoomAdminControllerTest {
 
     @MockBean
     OpenChatDormOfficialRoomService openChatDormOfficialRoomService;
+
+    @MockBean
+    OpenChatMessageService openChatMessageService;
 
     @MockBean
     SlackErrorNotifier slackErrorNotifier;

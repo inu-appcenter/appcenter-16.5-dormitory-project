@@ -5,9 +5,11 @@ import com.example.appcenter_project.common.image.enums.ImageType;
 import com.example.appcenter_project.common.image.repository.ImageRepository;
 import com.example.appcenter_project.common.image.service.ImageService;
 import com.example.appcenter_project.domain.openChat.dto.request.RequestOpenChatMessageDto;
+import com.example.appcenter_project.domain.openChat.dto.response.ResponseAdminChatRoomDto;
 import com.example.appcenter_project.domain.openChat.dto.response.ResponseOpenChatMessageDto;
 import com.example.appcenter_project.domain.openChat.dto.response.ResponseOpenChatMessageListDto;
 import com.example.appcenter_project.domain.openChat.dto.response.ResponseOpenChatReadEventDto;
+import com.example.appcenter_project.domain.openChat.enums.OpenChatRoomType;
 import com.example.appcenter_project.domain.openChat.entity.OpenChatMessage;
 import com.example.appcenter_project.domain.openChat.entity.OpenChatRoom;
 import com.example.appcenter_project.domain.openChat.enums.OpenChatMessageType;
@@ -308,6 +310,47 @@ public class OpenChatMessageService {
 
         openChatMessageRepository.findLatestMessageIdByRoomId(roomId).ifPresent(latestId ->
                 openChatParticipantRepository.updateLastReadMessageId(roomId, userId, latestId));
+    }
+
+    @Transactional(readOnly = true)
+    public List<ResponseAdminChatRoomDto> getAdminChatRooms() {
+        return openChatRoomRepository.findByRoomTypeNot(OpenChatRoomType.PERSONAL).stream()
+                .map(ResponseAdminChatRoomDto::from)
+                .toList();
+    }
+
+    public void sendBotMessage(Long adminId, Long roomId, String content) {
+        OpenChatRoom room = openChatRoomRepository.findById(roomId)
+                .orElseThrow(() -> new CustomException(ErrorCode.OPEN_CHAT_ROOM_NOT_FOUND));
+
+        if (room.getRoomType() == OpenChatRoomType.PERSONAL) {
+            throw new CustomException(ErrorCode.OPEN_CHAT_BOT_TARGET_PERSONAL);
+        }
+
+        User sender = userRepository.findById(adminId)
+                .orElseThrow(() -> new CustomException(ErrorCode.USER_NOT_FOUND));
+
+        OpenChatMessage message = OpenChatMessage.create(roomId, adminId, content, OpenChatMessageType.BOT);
+        openChatMessageRepository.save(message);
+
+        room.updateLastMessage(content, message.getCreatedDate());
+
+        Set<Long> subscribers = sessionRegistry.getSubscriberUserIds(roomId);
+        if (!subscribers.isEmpty()) {
+            openChatParticipantRepository.updateLastReadMessageIdByRoomIdAndUserIdIn(roomId, subscribers, message.getId());
+        }
+
+        int unreadCount = calculateUnreadCount(roomId, message.getId());
+
+        ResponseOpenChatMessageDto response = ResponseOpenChatMessageDto.from(message, sender.getName(), unreadCount);
+        messagingTemplate.convertAndSend("/sub/openchat/" + roomId, response);
+        messagingTemplate.convertAndSend("/sub/openchat/" + roomId + "/read",
+                ResponseOpenChatReadEventDto.of(message.getId(), unreadCount));
+
+        if (openChatNotificationService != null) {
+            openChatNotificationService.sendImmediateNotifications(
+                    roomId, room.getRoomType(), subscribers, room.getName(), content);
+        }
     }
 
     public int calculateUnreadCount(Long roomId, Long messageId) {
