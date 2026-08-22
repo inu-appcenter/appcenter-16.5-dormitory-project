@@ -27,7 +27,7 @@ import java.util.Map;
 @RestController
 @RequestMapping("/admin/open-chat-rooms")
 @RequiredArgsConstructor
-public class OpenChatRoomAdminController {
+public class OpenChatRoomAdminController implements OpenChatRoomAdminApiSpecification {
 
     private final OpenChatDormOfficialRoomService openChatDormOfficialRoomService;
     private final OpenChatMessageService openChatMessageService;
