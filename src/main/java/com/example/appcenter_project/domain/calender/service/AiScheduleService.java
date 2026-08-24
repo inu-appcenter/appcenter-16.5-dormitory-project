@@ -17,6 +17,8 @@ import java.util.List;
 import java.util.Optional;
 import java.util.Set;
 
+import org.jsoup.Jsoup;
+
 import static org.apache.commons.lang3.StringUtils.abbreviate;
 
 @Slf4j
@@ -92,8 +94,9 @@ public class AiScheduleService {
     }
 
     private String buildRequest(CrawledAnnouncement a) {
+        String plainContent = Jsoup.parse(nullSafe(a.getContent())).text();
         return "[제목]\n" + nullSafe(a.getTitle())
-                + "\n\n[내용]\n" + nullSafe(a.getContent());
+                + "\n\n[내용]\n" + plainContent;
     }
 
     private String nullSafe(String s) {
