@@ -190,6 +190,7 @@ public enum ErrorCode {
     OPEN_CHAT_NOT_HOST(FORBIDDEN, 22025, "[OpenChat] 방장만 채팅방 정보를 수정할 수 있습니다."),
     OPEN_CHAT_MAX_PARTICIPANTS_TOO_SMALL(BAD_REQUEST, 22026, "[OpenChat] 최대 인원은 현재 참여자 수 이상이어야 합니다."),
     OPEN_CHAT_DORM_OFFICIAL_ROOM_ALREADY_EXISTS(CONFLICT, 22027, "[OpenChat] 해당 기숙사의 공식 채팅방이 이미 존재합니다."),
+    OPEN_CHAT_BOT_TARGET_PERSONAL(BAD_REQUEST, 22028, "[OpenChat] 개인 채팅방에는 챗봇 메시지를 전송할 수 없습니다."),
 
     // STUDENT_ID_DISCLOSURE
     DISCLOSURE_REQUEST_NOT_FOUND(NOT_FOUND, 23001, "[StudentIdDisclosure] 학번 공개 요청을 찾을 수 없습니다."),
