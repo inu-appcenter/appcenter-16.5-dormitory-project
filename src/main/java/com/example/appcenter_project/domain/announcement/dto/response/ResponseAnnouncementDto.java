@@ -9,6 +9,8 @@ import io.swagger.v3.oas.annotations.media.Schema;
 import lombok.Builder;
 import lombok.Getter;
 
+import org.jsoup.Jsoup;
+
 import java.time.LocalDateTime;
 
 @Schema(description = "공지사항 목록 응답 DTO")
@@ -70,8 +72,11 @@ public class ResponseAnnouncementDto {
         if (announcement instanceof CrawledAnnouncement) {
             CrawledAnnouncement crawledAnnouncement = (CrawledAnnouncement) announcement;
             String truncatedContent = crawledAnnouncement.getContent();
-            if (truncatedContent != null && truncatedContent.length() > 70) {
-                truncatedContent = truncatedContent.substring(0, 70);
+            if (truncatedContent != null) {
+                truncatedContent = Jsoup.parse(truncatedContent).text();
+                if (truncatedContent.length() > 70) {
+                    truncatedContent = truncatedContent.substring(0, 70);
+                }
             }
 
             return ResponseAnnouncementDto.builder()

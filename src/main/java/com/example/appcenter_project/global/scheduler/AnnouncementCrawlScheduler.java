@@ -19,6 +19,8 @@ import com.example.appcenter_project.domain.user.repository.UserRepository;
 import com.example.appcenter_project.domain.fcm.service.FcmMessageService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.jsoup.Jsoup;
+import org.jsoup.safety.Safelist;
 import org.openqa.selenium.By;
 import org.openqa.selenium.JavascriptExecutor;
 import org.openqa.selenium.WebDriver;
@@ -224,8 +226,15 @@ public class AnnouncementCrawlScheduler {
             String content = "";
             try {
                 WebElement contentElement = driver.findElement(By.cssSelector(".view-con"));
+                JavascriptExecutor jsExec = (JavascriptExecutor) driver;
                 for (WebElement child : contentElement.findElements(By.xpath("./*"))) {
-                    content = content + child.getText().trim() + "\n";
+                    String childHtml = (String) jsExec.executeScript("return arguments[0].innerHTML;", child);
+                    String cleaned = Jsoup.clean(childHtml,
+                            Safelist.none()
+                                    .addTags("a")
+                                    .addAttributes("a", "href")
+                                    .addProtocols("a", "href", "http", "https"));
+                    content = content + cleaned.trim() + "\n";
                 }
                 content = content.replaceAll("[^\\u0000-\\uFFFF]", "");
             } catch (Exception e) { log.debug("본문 내용 추출 실패"); }

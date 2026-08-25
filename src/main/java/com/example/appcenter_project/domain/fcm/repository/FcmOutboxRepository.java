@@ -66,4 +66,9 @@ public interface FcmOutboxRepository extends JpaRepository<FcmOutbox, Long> {
     @Modifying
     @Query("DELETE FROM FcmOutbox o WHERE o.status IN :statuses AND o.modifiedDate < :threshold")
     int deleteOldOutboxes(@Param("statuses") List<OutboxStatus> statuses, @Param("threshold") LocalDateTime threshold);
+
+    @Transactional
+    @Modifying
+    @Query(value = "DELETE FROM fcm_outbox WHERE token IN :tokens AND routing_id = :roomId AND routing_type IN ('CHAT_OPEN', 'CHAT_PERSONAL') AND status = 'PENDING'", nativeQuery = true)
+    void cancelPendingChatOutboxesByTokensAndRoom(@Param("tokens") List<String> tokens, @Param("roomId") Long roomId);
 }

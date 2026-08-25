@@ -25,6 +25,7 @@ public class ResponseOpenChatMessageDto {
     private String linkedRoomDescription;
     private Integer linkedRoomMaxParticipants;
     private Long disclosureRequestId;
+    private boolean isBot;
 
     public static ResponseOpenChatMessageDto from(OpenChatMessage message, String senderNickname, int unreadCount) {
         return from(message, senderNickname, unreadCount, List.of());
@@ -41,6 +42,7 @@ public class ResponseOpenChatMessageDto {
                 .imageUrls(imageUrls != null ? imageUrls : List.of())
                 .unreadCount(unreadCount)
                 .createdAt(message.getCreatedDate())
+                .isBot(message.getType() == OpenChatMessageType.BOT)
                 .build();
     }
 
@@ -57,6 +59,7 @@ public class ResponseOpenChatMessageDto {
                 .unreadCount(unreadCount)
                 .createdAt(message.getCreatedDate())
                 .disclosureRequestId(disclosureRequestId)
+                .isBot(false)
                 .build();
     }
 
@@ -77,6 +80,7 @@ public class ResponseOpenChatMessageDto {
                 .linkedRoomName(linkedRoomName)
                 .linkedRoomDescription(linkedRoomDescription)
                 .linkedRoomMaxParticipants(linkedRoomMaxParticipants)
+                .isBot(false)
                 .build();
     }
 }
