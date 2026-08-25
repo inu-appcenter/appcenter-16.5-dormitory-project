@@ -238,6 +238,7 @@ public class FcmAsyncSender {
                         .toList();
                 List<FcmToken> fcmTokens = fcmTokenRepository.findAllByTokenIn(sentTokens);
                 Map<String, Long> tokenToUserId = fcmTokens.stream()
+                        .filter(t -> t.getUser() != null)
                         .collect(Collectors.toMap(FcmToken::getToken, t -> t.getUser().getId(), (a, b) -> a));
                 for (FcmOutbox outbox : batch) {
                     if (sentIds.contains(outbox.getId())) {

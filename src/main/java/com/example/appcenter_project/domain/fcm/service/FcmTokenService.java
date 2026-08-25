@@ -8,9 +8,11 @@ import com.example.appcenter_project.domain.user.repository.FcmTokenRepository;
 import com.example.appcenter_project.domain.user.repository.UserRepository;
 import com.example.appcenter_project.global.security.CustomUserDetails;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+@Slf4j
 @Service
 @RequiredArgsConstructor
 public class FcmTokenService {
@@ -20,67 +22,79 @@ public class FcmTokenService {
 
     @Transactional
     public void saveToken(Long userId, String token) {
-        if (token == null || token.isBlank()) return;
+        if (token == null || token.isBlank()) {
+            log.warn("[FCM] saveToken(userId) 거부 - null 또는 빈 토큰 (userId={})", userId);
+            return;
+        }
         User user = userRepository.findById(userId)
                 .orElseThrow(() -> new CustomException(ErrorCode.USER_NOT_FOUND));
 
-        // 이미 등록된 토큰이면 중복 저장 방지
         if (fcmTokenRepository.existsByToken(token)) {
+            log.debug("[FCM] 토큰 이미 존재 - 저장 스킵 (userId={})", userId);
             return;
         }
 
-        // 해당 유저의 기존 토큰 찾기
         fcmTokenRepository.findByUser(user)
                 .ifPresentOrElse(
-                        existing -> existing.updateToken(token), // 기존 토큰 갱신
-                        () -> { // 없으면 새로 생성
+                        existing -> {
+                            existing.updateToken(token);
+                            log.info("[FCM] 기존 토큰 갱신 (userId={})", userId);
+                        },
+                        () -> {
                             FcmToken newToken = FcmToken.builder()
                                     .user(user)
                                     .token(token)
                                     .build();
                             fcmTokenRepository.save(newToken);
                             user.addFcmToken(newToken);
+                            log.info("[FCM] 신규 토큰 저장 (userId={})", userId);
                         }
                 );
     }
 
     @Transactional
     public void saveToken(CustomUserDetails userDetails, String token) {
-        if (token == null || token.isBlank()) return;
+        if (token == null || token.isBlank()) {
+            Long uid = userDetails != null ? userDetails.getId() : null;
+            log.warn("[FCM] saveToken 거부 - null 또는 빈 토큰 (userId={})", uid);
+            return;
+        }
 
-        // 로그인한 경우
-        if(!(userDetails == null)) {
+        if (userDetails != null) {
             User user = userRepository.findById(userDetails.getId())
                     .orElseThrow(() -> new CustomException(ErrorCode.USER_NOT_FOUND));
 
-            // 이미 등록된 토큰이면 중복 저장 방지
             if (fcmTokenRepository.existsByToken(token)) {
                 FcmToken fcmToken = fcmTokenRepository.findByToken(token);
-
-                if (fcmToken.getUser() == null ||  fcmToken.getUser() != user){
+                if (fcmToken.getUser() == null || !fcmToken.getUser().getId().equals(user.getId())) {
                     fcmToken.updateUser(user);
+                    log.info("[FCM] 토큰 소유자 교정 (userId={}, 기존 소유자={})",
+                            user.getId(), fcmToken.getUser() == null ? "none" : fcmToken.getUser().getId());
+                } else {
+                    log.debug("[FCM] 토큰 이미 존재 - 저장 스킵 (userId={})", user.getId());
                 }
                 return;
             }
 
-            FcmToken newToken = FcmToken.builder()
-                    .user(user)
-                    .token(token)
-                    .build();
-
-            fcmTokenRepository.save(newToken);
+            fcmTokenRepository.findByUser(user)
+                    .ifPresentOrElse(
+                            existing -> {
+                                existing.updateToken(token);
+                                log.info("[FCM] 기존 토큰 갱신 (userId={})", user.getId());
+                            },
+                            () -> {
+                                fcmTokenRepository.save(FcmToken.builder().user(user).token(token).build());
+                                log.info("[FCM] 신규 토큰 저장 (userId={})", user.getId());
+                            }
+                    );
 
         } else {
-            // 이미 등록된 토큰이면 중복 저장 방지
             if (fcmTokenRepository.existsByToken(token)) {
+                log.debug("[FCM] 비로그인 토큰 이미 존재 - 저장 스킵");
                 return;
             }
-
-            FcmToken fcmToken = FcmToken.builder()
-                    .token(token)
-                    .build();
-            fcmTokenRepository.save(fcmToken);
+            fcmTokenRepository.save(FcmToken.builder().token(token).build());
+            log.info("[FCM] 비로그인 신규 토큰 저장");
         }
-
     }
 }
