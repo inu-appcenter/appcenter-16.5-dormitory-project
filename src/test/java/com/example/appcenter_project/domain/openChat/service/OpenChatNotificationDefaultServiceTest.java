@@ -39,8 +39,8 @@ class OpenChatNotificationDefaultServiceTest {
     private static final Long USER_ID = 10L;
 
     @Test
-    @DisplayName("joinRoom — 공식 기숙사방 입장 시 기본 알림 = BUNDLED")
-    void official_room_join_defaults_bundled() {
+    @DisplayName("joinRoom — 공식 기숙사방 입장 시 기본 알림 = EVERY")
+    void official_room_join_defaults_every() {
         OpenChatRoom room = OpenChatRoom.createDormOfficialForTest(1L, "1기숙사 공식방", DormType.DORM_1);
         User user = User.createForTest(USER_ID, "tester");
         given(openChatRoomRepository.findByIdWithLock(1L)).willReturn(Optional.of(room));
@@ -52,7 +52,7 @@ class OpenChatNotificationDefaultServiceTest {
         openChatRoomService.joinRoom(USER_ID, 1L, null);
 
         then(openChatParticipantRepository).should().save(captor.capture());
-        assertThat(captor.getValue().getNotificationMode()).isEqualTo(ChatNotificationMode.BUNDLED);
+        assertThat(captor.getValue().getNotificationMode()).isEqualTo(ChatNotificationMode.EVERY);
     }
 
     @Test

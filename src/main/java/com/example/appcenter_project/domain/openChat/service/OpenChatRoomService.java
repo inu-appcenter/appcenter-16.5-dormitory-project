@@ -329,9 +329,7 @@ public class OpenChatRoomService {
             throw new CustomException(ErrorCode.OPEN_CHAT_ROOM_FULL);
         }
 
-        ChatNotificationMode defaultMode = (room.isOfficial() && room.getTargetDorm() != null)
-                ? ChatNotificationMode.BUNDLED
-                : ChatNotificationMode.EVERY;
+        ChatNotificationMode defaultMode = ChatNotificationMode.EVERY;
         openChatParticipantRepository.save(
                 OpenChatParticipant.create(roomId, userId, LocalDateTime.now(), defaultMode));
         openChatMessageService.sendSystemMessage(roomId, user.getName() + "님이 입장했습니다.");

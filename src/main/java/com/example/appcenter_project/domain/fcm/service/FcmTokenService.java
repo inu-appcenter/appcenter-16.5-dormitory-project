@@ -64,20 +64,17 @@ public class FcmTokenService {
             User user = userRepository.findById(userDetails.getId())
                     .orElseThrow(() -> new CustomException(ErrorCode.USER_NOT_FOUND));
 
-            if (fcmTokenRepository.existsByToken(token)) {
-                FcmToken fcmToken = fcmTokenRepository.findByToken(token);
-                if (fcmToken.getUser() == null || !fcmToken.getUser().getId().equals(user.getId())) {
-                    fcmToken.updateUser(user);
-                    log.info("[FCM] 토큰 소유자 교정 (userId={}, 기존 소유자={})",
-                            user.getId(), fcmToken.getUser() == null ? "none" : fcmToken.getUser().getId());
-                } else {
-                    log.debug("[FCM] 토큰 이미 존재 - 저장 스킵 (userId={})", user.getId());
-                }
-                return;
-            }
-
-            fcmTokenRepository.findByUser(user)
-                    .ifPresentOrElse(
+            fcmTokenRepository.findFirstByToken(token).ifPresentOrElse(
+                    fcmToken -> {
+                        if (fcmToken.getUser() == null || !fcmToken.getUser().getId().equals(user.getId())) {
+                            fcmToken.updateUser(user);
+                            log.info("[FCM] 토큰 소유자 교정 (userId={}, 기존 소유자={})",
+                                    user.getId(), fcmToken.getUser() == null ? "none" : fcmToken.getUser().getId());
+                        } else {
+                            log.debug("[FCM] 토큰 이미 존재 - 저장 스킵 (userId={})", user.getId());
+                        }
+                    },
+                    () -> fcmTokenRepository.findByUser(user).ifPresentOrElse(
                             existing -> {
                                 existing.updateToken(token);
                                 log.info("[FCM] 기존 토큰 갱신 (userId={})", user.getId());
@@ -86,7 +83,8 @@ public class FcmTokenService {
                                 fcmTokenRepository.save(FcmToken.builder().user(user).token(token).build());
                                 log.info("[FCM] 신규 토큰 저장 (userId={})", user.getId());
                             }
-                    );
+                    )
+            );
 
         } else {
             if (fcmTokenRepository.existsByToken(token)) {
