@@ -43,7 +43,7 @@ public class OpenChatDormOfficialRoomService {
         List<User> users = userRepository.findAllByDormType(dormType);
         List<OpenChatParticipant> participants = users.stream()
                 .map(u -> OpenChatParticipant.create(savedRoom.getId(), u.getId(),
-                        LocalDateTime.now(), ChatNotificationMode.BUNDLED))
+                        LocalDateTime.now(), ChatNotificationMode.EVERY))
                 .toList();
         openChatParticipantRepository.saveAll(participants);
 
@@ -80,7 +80,7 @@ public class OpenChatDormOfficialRoomService {
             openChatRoomRepository.findByTargetDorm(newDorm).ifPresent(room -> {
                 if (!openChatParticipantRepository.existsByRoomIdAndUserId(room.getId(), userId)) {
                     openChatParticipantRepository.save(
-                            OpenChatParticipant.create(room.getId(), userId, LocalDateTime.now(), ChatNotificationMode.BUNDLED)
+                            OpenChatParticipant.create(room.getId(), userId, LocalDateTime.now(), ChatNotificationMode.EVERY)
                     );
                 }
             });

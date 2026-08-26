@@ -334,8 +334,8 @@ class OpenChatDormOfficialRoomServiceTest {
     }
 
     @Test
-    @DisplayName("공식방 참여자 기본 알림 = BUNDLED — 벌크 생성 시 전원 1시간 묶음")
-    void should_create_participants_with_bundled_when_official_room() {
+    @DisplayName("공식방 참여자 기본 알림 = EVERY — 벌크 생성 시 전원 즉시 알림")
+    void should_create_participants_with_every_when_official_room() {
         RequestCreateDormOfficialRoomDto request = OpenChatDormOfficialRoomFixture.createRequest();
         List<User> users = OpenChatDormOfficialRoomFixture.createUsersWithDorm(DormType.DORM_1, 3);
         OpenChatRoom savedRoom = OpenChatDormOfficialRoomFixture.createDormOfficialRoom(DormType.DORM_1);
@@ -347,13 +347,13 @@ class OpenChatDormOfficialRoomServiceTest {
 
         then(openChatParticipantRepository).should().saveAll(argThat(list ->
                 ((List<OpenChatParticipant>) list).stream()
-                        .allMatch(p -> p.getNotificationMode() == ChatNotificationMode.BUNDLED)
+                        .allMatch(p -> p.getNotificationMode() == ChatNotificationMode.EVERY)
         ));
     }
 
     @Test
-    @DisplayName("재배정 재입장 참여자 기본 알림 = BUNDLED")
-    void should_create_participant_with_bundled_on_reassign() {
+    @DisplayName("재배정 재입장 참여자 기본 알림 = EVERY")
+    void should_create_participant_with_every_on_reassign() {
         OpenChatRoom newRoom = OpenChatDormOfficialRoomFixture.createDormOfficialRoom(DormType.DORM_1);
         given(openChatRoomRepository.findByTargetDorm(DormType.DORM_1)).willReturn(Optional.of(newRoom));
         given(openChatParticipantRepository.existsByRoomIdAndUserId(any(), eq(10L))).willReturn(false);
@@ -362,6 +362,6 @@ class OpenChatDormOfficialRoomServiceTest {
         openChatDormOfficialRoomService.reassignDormRoom(10L, DormType.NONE, DormType.DORM_1);
 
         then(openChatParticipantRepository).should().save(captor.capture());
-        assertThat(captor.getValue().getNotificationMode()).isEqualTo(ChatNotificationMode.BUNDLED);
+        assertThat(captor.getValue().getNotificationMode()).isEqualTo(ChatNotificationMode.EVERY);
     }
 }
