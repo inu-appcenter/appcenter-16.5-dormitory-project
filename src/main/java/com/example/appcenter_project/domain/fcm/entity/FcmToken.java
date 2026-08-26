@@ -19,6 +19,7 @@ public class FcmToken {
     @JoinColumn(name = "user_id")
     private User user;
 
+    @Column(unique = true)
     private String token;
 
     @Builder

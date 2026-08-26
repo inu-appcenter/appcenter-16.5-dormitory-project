@@ -27,7 +27,7 @@ public interface FcmTokenRepository extends JpaRepository<FcmToken,Long> {
     Optional<FcmToken> findByUser(User user);
     List<FcmToken> findAllByUser(User user);
 
-    FcmToken findByToken(String token);
+    Optional<FcmToken> findFirstByToken(String token);
 
     @Query("SELECT ft FROM FcmToken ft WHERE ft.user.id IN :userIds")
     List<FcmToken> findAllByUserIdIn(@Param("userIds") List<Long> userIds);
