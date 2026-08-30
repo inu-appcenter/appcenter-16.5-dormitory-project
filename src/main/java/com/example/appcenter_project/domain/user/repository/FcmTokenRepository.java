@@ -22,6 +22,11 @@ public interface FcmTokenRepository extends JpaRepository<FcmToken,Long> {
     @Query("DELETE FROM FcmToken ft WHERE ft.token IN :tokens")
     void deleteAllByTokenIn(@Param("tokens") List<String> tokens);
 
+    @Modifying
+    @Transactional
+    @Query("UPDATE FcmToken ft SET ft.user = null WHERE ft.user.id = :userId")
+    void unlinkAllByUserId(@Param("userId") Long userId);
+
     List<FcmToken> findAllByUserIn(List<User> users);
     boolean existsByToken(String token);
     Optional<FcmToken> findByUser(User user);

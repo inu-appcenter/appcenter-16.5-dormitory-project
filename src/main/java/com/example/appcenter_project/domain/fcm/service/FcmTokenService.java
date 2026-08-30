@@ -98,9 +98,6 @@ public class FcmTokenService {
 
     @Transactional
     public void unlinkTokens(CustomUserDetails userDetails) {
-        User user = userRepository.findById(userDetails.getId())
-                .orElseThrow(() -> new CustomException(ErrorCode.USER_NOT_FOUND));
-        fcmTokenRepository.findAllByUser(user)
-                .forEach(FcmToken::unlinkUser);
+        fcmTokenRepository.unlinkAllByUserId(userDetails.getId());
     }
 }
