@@ -31,6 +31,7 @@ import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.multipart.MultipartFile;
 
 import java.nio.file.Paths;
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
@@ -243,7 +244,7 @@ public class OpenChatMessageService {
 
         boolean hasNext = messages.size() > size;
         if (hasNext) {
-            messages = messages.subList(0, size);
+            messages = new ArrayList<>(messages.subList(1, messages.size()));
         }
 
         Long latestId = messages.isEmpty() ? null : messages.get(messages.size() - 1).getId();
