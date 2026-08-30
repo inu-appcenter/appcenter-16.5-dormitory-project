@@ -45,7 +45,7 @@ public interface OpenChatParticipantRepository extends JpaRepository<OpenChatPar
 
     @Modifying
     @Transactional
-    @Query("UPDATE OpenChatParticipant p SET p.lastReadMessageId = :messageId WHERE p.roomId = :roomId AND p.userId = :userId")
+    @Query("UPDATE OpenChatParticipant p SET p.lastReadMessageId = :messageId WHERE p.roomId = :roomId AND p.userId = :userId AND (p.lastReadMessageId IS NULL OR p.lastReadMessageId < :messageId)")
     void updateLastReadMessageId(@Param("roomId") Long roomId, @Param("userId") Long userId, @Param("messageId") Long messageId);
 
     @Modifying
