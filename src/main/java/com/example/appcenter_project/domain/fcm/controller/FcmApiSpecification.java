@@ -35,6 +35,18 @@ public interface FcmApiSpecification {
     );
 
     @Operation(
+            summary = "FCM 토큰 연결 해제",
+            description = "현재 로그인한 사용자의 모든 FCM 토큰에서 user_id를 제거합니다. 이후 같은 토큰으로 POST /fcm/token 호출 시 user_id가 재매핑됩니다.",
+            responses = {
+                    @ApiResponse(responseCode = "200", description = "연결 해제 성공"),
+                    @ApiResponse(responseCode = "404", description = "유저 없음 (USER_NOT_FOUND)", content = @Content())
+            }
+    )
+    ResponseEntity<Void> unlinkToken(
+            @Parameter(hidden = true) CustomUserDetails userDetails
+    );
+
+    @Operation(
             summary = "FCM 발송 통계 조회 (ADMIN)",
             description = "오늘 날짜 기준 FCM 알림 발송 성공/실패 건수를 조회합니다. Redis TTL 24시간 기준이므로 당일 데이터만 제공됩니다.",
             responses = {

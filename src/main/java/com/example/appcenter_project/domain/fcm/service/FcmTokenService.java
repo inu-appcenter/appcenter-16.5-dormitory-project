@@ -95,4 +95,12 @@ public class FcmTokenService {
             log.info("[FCM] 비로그인 신규 토큰 저장");
         }
     }
+
+    @Transactional
+    public void unlinkTokens(CustomUserDetails userDetails) {
+        User user = userRepository.findById(userDetails.getId())
+                .orElseThrow(() -> new CustomException(ErrorCode.USER_NOT_FOUND));
+        fcmTokenRepository.findAllByUser(user)
+                .forEach(FcmToken::unlinkUser);
+    }
 }
