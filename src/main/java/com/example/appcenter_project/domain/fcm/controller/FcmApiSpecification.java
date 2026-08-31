@@ -36,14 +36,14 @@ public interface FcmApiSpecification {
 
     @Operation(
             summary = "FCM 토큰 연결 해제",
-            description = "현재 로그인한 사용자의 모든 FCM 토큰에서 user_id를 제거합니다. 이후 같은 토큰으로 POST /fcm/token 호출 시 user_id가 재매핑됩니다.",
+            description = "전달받은 FCM 토큰의 user_id를 제거합니다. JWT 만료 상태에서도 호출 가능합니다. 이후 같은 토큰으로 POST /fcm/token 호출 시 user_id가 재매핑됩니다.",
             responses = {
-                    @ApiResponse(responseCode = "200", description = "연결 해제 성공"),
-                    @ApiResponse(responseCode = "404", description = "유저 없음 (USER_NOT_FOUND)", content = @Content())
+                    @ApiResponse(responseCode = "200", description = "연결 해제 성공 (토큰이 존재하지 않아도 200 반환)")
             }
     )
     ResponseEntity<Void> unlinkToken(
-            @Parameter(hidden = true) CustomUserDetails userDetails
+            @RequestBody @Parameter(description = "FCM 토큰 요청 DTO", required = true)
+            RequestFcmTokenDto requestDto
     );
 
     @Operation(

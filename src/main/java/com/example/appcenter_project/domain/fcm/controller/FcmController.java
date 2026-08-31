@@ -50,9 +50,9 @@ public class FcmController implements FcmApiSpecification{
 
     @DeleteMapping("/token")
     public ResponseEntity<Void> unlinkToken(
-            @AuthenticationPrincipal CustomUserDetails userDetails
+            @RequestBody RequestFcmTokenDto requestDto
     ) {
-        fcmTokenService.unlinkTokens(userDetails);
+        fcmTokenService.unlinkToken(requestDto.getFcmToken());
         return ResponseEntity.ok().build();
     }
 

@@ -97,7 +97,8 @@ public class FcmTokenService {
     }
 
     @Transactional
-    public void unlinkTokens(CustomUserDetails userDetails) {
-        fcmTokenRepository.unlinkAllByUserId(userDetails.getId());
+    public void unlinkToken(String fcmToken) {
+        fcmTokenRepository.findFirstByToken(fcmToken)
+                .ifPresent(FcmToken::unlinkUser);
     }
 }
