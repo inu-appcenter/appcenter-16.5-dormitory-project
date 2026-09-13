@@ -35,4 +35,8 @@ public class FcmToken {
     public void updateUser(User user) {
         this.user = user;
     }
+
+    public void unlinkUser() {
+        this.user = null;
+    }
 }

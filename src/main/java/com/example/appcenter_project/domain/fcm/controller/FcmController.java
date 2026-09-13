@@ -48,6 +48,14 @@ public class FcmController implements FcmApiSpecification{
         return ResponseEntity.ok(fcmMessageService.getFcmStats());
     }
 
+    @DeleteMapping("/token")
+    public ResponseEntity<Void> unlinkToken(
+            @RequestBody RequestFcmTokenDto requestDto
+    ) {
+        fcmTokenService.unlinkToken(requestDto.getFcmToken());
+        return ResponseEntity.ok().build();
+    }
+
     @PostMapping("/send/all")
     public ResponseEntity<ResponseFcmMessageDto> sendMessageToAllUsers(
             @RequestBody RequestFcmMessageDto requestDto

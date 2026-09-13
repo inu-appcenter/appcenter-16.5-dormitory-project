@@ -95,4 +95,10 @@ public class FcmTokenService {
             log.info("[FCM] 비로그인 신규 토큰 저장");
         }
     }
+
+    @Transactional
+    public void unlinkToken(String fcmToken) {
+        fcmTokenRepository.findFirstByToken(fcmToken)
+                .ifPresent(FcmToken::unlinkUser);
+    }
 }
