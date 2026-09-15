@@ -364,10 +364,6 @@ public class OpenChatRoomService {
             newHostParticipant.grantHost();
             openChatParticipantRepository.delete(self);
 
-            User user = userRepository.findById(userId)
-                    .orElseThrow(() -> new CustomException(ErrorCode.USER_NOT_FOUND));
-            openChatMessageService.sendSystemMessage(roomId, user.getName() + "님이 퇴장했습니다.");
-
             log.info("[OpenChat-Exit] exitType=VOLUNTARY roomId={} targetUserId={} actorId={} processedAt={}",
                     roomId, userId, userId, Instant.now());
             return ResponseLeaveOpenChatRoomDto.builder().roomDeleted(false).build();
@@ -392,10 +388,6 @@ public class OpenChatRoomService {
         }
 
         openChatParticipantRepository.delete(self);
-
-        User user = userRepository.findById(userId)
-                .orElseThrow(() -> new CustomException(ErrorCode.USER_NOT_FOUND));
-        openChatMessageService.sendSystemMessage(roomId, user.getName() + "님이 퇴장했습니다.");
 
         log.info("[OpenChat-Exit] exitType=VOLUNTARY roomId={} targetUserId={} actorId={} processedAt={}",
                 roomId, userId, userId, Instant.now());
@@ -502,12 +494,9 @@ public class OpenChatRoomService {
             openChatParticipantRepository.delete(targetParticipant);
             if (!othersExist) {
                 openChatRoomRepository.delete(room);
-            } else {
-                openChatMessageService.sendSystemMessage(roomId, targetUser.getName() + "님이 강제퇴장되었습니다.");
             }
         } else {
             openChatParticipantRepository.delete(targetParticipant);
-            openChatMessageService.sendSystemMessage(roomId, targetUser.getName() + "님이 강제퇴장되었습니다.");
         }
 
         log.info("[OpenChat-Exit] exitType={} roomId={} targetUserId={} actorId={} reason={} processedAt={}",

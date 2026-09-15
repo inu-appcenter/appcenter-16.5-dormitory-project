@@ -101,7 +101,6 @@ class OpenChatExitCompletionServiceTest {
         given(hostUser.getRole()).willReturn(Role.ROLE_USER);
         User targetUser = mock(User.class);
         given(targetUser.getRole()).willReturn(Role.ROLE_USER);
-        given(targetUser.getName()).willReturn("참여자");
 
         given(openChatRoomRepository.findByIdWithLock(ROOM_ID)).willReturn(Optional.of(room));
         given(userRepository.findById(HOST_USER_ID)).willReturn(Optional.of(hostUser));
@@ -133,7 +132,6 @@ class OpenChatExitCompletionServiceTest {
         given(adminUser.getRole()).willReturn(Role.ROLE_ADMIN);
         User targetUser = mock(User.class);
         given(targetUser.getRole()).willReturn(Role.ROLE_USER);
-        given(targetUser.getName()).willReturn("방장A");
 
         given(openChatRoomRepository.findByIdWithLock(ROOM_ID)).willReturn(Optional.of(room));
         given(userRepository.findById(ADMIN_USER_ID)).willReturn(Optional.of(adminUser));
@@ -299,7 +297,6 @@ class OpenChatExitCompletionServiceTest {
         given(hostUser.getRole()).willReturn(Role.ROLE_USER);
         User targetUser = mock(User.class);
         given(targetUser.getRole()).willReturn(Role.ROLE_USER);
-        given(targetUser.getName()).willReturn("참여자");
 
         given(openChatRoomRepository.findByIdWithLock(ROOM_ID)).willReturn(Optional.of(room));
         given(userRepository.findById(HOST_USER_ID)).willReturn(Optional.of(hostUser));
