@@ -277,6 +277,18 @@ public class OpenChatMessageService {
         final Map<Long, String> nicknameByUserId = userRepository.findAllById(senderIds).stream()
                 .collect(Collectors.toMap(User::getId, u -> u.getName() != null ? u.getName() : ""));
 
+        List<Long> linkedRoomIds = messages.stream()
+                .filter(msg -> msg.getType() == OpenChatMessageType.ROOM_LINK)
+                .map(this::extractLinkedRoomId)
+                .filter(id -> id != null)
+                .distinct()
+                .toList();
+
+        final Map<Long, OpenChatRoom> linkedRoomMap = linkedRoomIds.isEmpty()
+                ? Map.of()
+                : openChatRoomRepository.findAllById(linkedRoomIds).stream()
+                        .collect(Collectors.toMap(OpenChatRoom::getId, r -> r));
+
         List<ResponseOpenChatMessageDto> dtos = messages.stream()
                 .map(msg -> {
                     String nickname = msg.getType() == OpenChatMessageType.SYSTEM
@@ -284,7 +296,7 @@ public class OpenChatMessageService {
                             : nicknameByUserId.get(msg.getSenderId());
                     int unreadCount = calculateUnreadCount(roomId, msg.getId());
                     if (msg.getType() == OpenChatMessageType.ROOM_LINK) {
-                        return toRoomLinkDto(msg, nickname, unreadCount);
+                        return toRoomLinkDto(msg, nickname, unreadCount, linkedRoomMap);
                     }
                     if (msg.getType() == OpenChatMessageType.STUDENT_ID_REQUEST) {
                         return toStudentIdRequestDto(msg, nickname, unreadCount);
@@ -361,6 +373,11 @@ public class OpenChatMessageService {
     }
 
     private ResponseOpenChatMessageDto toRoomLinkDto(OpenChatMessage msg, String nickname, int unreadCount) {
+        return toRoomLinkDto(msg, nickname, unreadCount, Map.of());
+    }
+
+    private ResponseOpenChatMessageDto toRoomLinkDto(OpenChatMessage msg, String nickname, int unreadCount,
+                                                     Map<Long, OpenChatRoom> linkedRoomMap) {
         try {
             Map<?, ?> parsed = objectMapper.readValue(msg.getContent(), Map.class);
             Long derivedRoomId = ((Number) parsed.get("derivedRoomId")).longValue();
@@ -368,10 +385,22 @@ public class OpenChatMessageService {
             String description = (String) parsed.get("description");
             Integer maxParticipants = parsed.get("maxParticipants") != null
                     ? ((Number) parsed.get("maxParticipants")).intValue() : null;
+            OpenChatRoom linkedRoom = linkedRoomMap.get(derivedRoomId);
+            boolean recruitmentClosed = linkedRoom != null && linkedRoom.isRecruitmentClosed();
             return ResponseOpenChatMessageDto.fromRoomLink(msg, nickname, unreadCount,
-                    derivedRoomId, roomName, description, maxParticipants);
+                    derivedRoomId, roomName, description, maxParticipants, recruitmentClosed);
         } catch (Exception e) {
             return ResponseOpenChatMessageDto.from(msg, nickname, unreadCount, List.of());
+        }
+    }
+
+    private Long extractLinkedRoomId(OpenChatMessage msg) {
+        try {
+            Map<?, ?> parsed = objectMapper.readValue(msg.getContent(), Map.class);
+            Object raw = parsed.get("derivedRoomId");
+            return raw != null ? ((Number) raw).longValue() : null;
+        } catch (Exception e) {
+            return null;
         }
     }
 

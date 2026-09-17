@@ -128,6 +128,14 @@ public class OpenChatRoomController implements OpenChatRoomApiSpecification {
         return ResponseEntity.noContent().build();
     }
 
+    @PatchMapping("/{roomId}/close-recruitment")
+    public ResponseEntity<Void> closeRecruitment(
+            @AuthenticationPrincipal CustomUserDetails user,
+            @PathVariable Long roomId) {
+        openChatRoomService.closeRecruitment(user.getId(), roomId);
+        return ResponseEntity.noContent().build();
+    }
+
     @PostMapping("/{roomId}/hosts/{targetUserId}")
     public ResponseEntity<Void> grantHost(
             @AuthenticationPrincipal CustomUserDetails user,

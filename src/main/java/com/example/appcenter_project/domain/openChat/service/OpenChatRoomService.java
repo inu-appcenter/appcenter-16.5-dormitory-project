@@ -54,6 +54,7 @@ import java.util.Collections;
 import java.util.Comparator;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
 import java.util.stream.Collectors;
@@ -307,6 +308,10 @@ public class OpenChatRoomService {
             return toDetailDtoWithBlockedCheck(room, roomId, userId);
         }
 
+        if (room.isRecruitmentClosed()) {
+            throw new CustomException(ErrorCode.OPEN_CHAT_ROOM_CLOSED_FOR_JOIN);
+        }
+
         User user = userRepository.findById(userId)
                 .orElseThrow(() -> new CustomException(ErrorCode.USER_NOT_FOUND));
 
@@ -501,6 +506,22 @@ public class OpenChatRoomService {
 
         log.info("[OpenChat-Exit] exitType={} roomId={} targetUserId={} actorId={} reason={} processedAt={}",
                 isAdmin ? "ADMIN_KICK" : "HOST_KICK", roomId, targetUserId, actorId, reason, Instant.now());
+    }
+
+    @Transactional
+    public void closeRecruitment(Long actorId, Long roomId) {
+        OpenChatRoom room = openChatRoomRepository.findById(roomId)
+                .orElseThrow(() -> new CustomException(ErrorCode.OPEN_CHAT_ROOM_NOT_FOUND));
+
+        User actor = userRepository.findById(actorId)
+                .orElseThrow(() -> new CustomException(ErrorCode.USER_NOT_FOUND));
+
+        if (actor.getRole() != Role.ROLE_ADMIN
+                && !Objects.equals(room.getCreatedBy(), actorId)) {
+            throw new CustomException(ErrorCode.OPEN_CHAT_ROOM_FORBIDDEN);
+        }
+
+        room.closeRecruitment(actorId);
     }
 
     @Transactional
@@ -715,6 +736,7 @@ public class OpenChatRoomService {
                 .maxParticipants(room.getMaxParticipants())
                 .isOfficial(room.isOfficial())
                 .createdAt(room.getCreatedDate())
+                .recruitmentClosed(room.isRecruitmentClosed())
                 .build();
     }
 

@@ -267,6 +267,31 @@ public interface OpenChatRoomApiSpecification {
             Long roomId);
 
     @Operation(
+            summary = "파생 톡방 모집 마감",
+            description = """
+                    파생 톡방(`DERIVED`)의 모집을 마감합니다.
+
+                    - 방장(`createdBy`) 또는 ADMIN 권한 사용자만 호출할 수 있습니다.
+                    - 마감 후에는 비참여자의 입장이 차단됩니다. 기존 참여자의 채팅·활동은 계속 가능합니다.
+                    - 단방향(재개 불가). 이미 마감된 방을 다시 마감 시도 시 409.
+                    - `OPEN` / `PERSONAL` / 공식방은 400 반환.
+                    """,
+            responses = {
+                    @ApiResponse(responseCode = "204", description = "마감 성공"),
+                    @ApiResponse(responseCode = "400", description = "DERIVED 타입이 아닌 방"),
+                    @ApiResponse(responseCode = "401", description = "인증 필요"),
+                    @ApiResponse(responseCode = "403", description = "방장 또는 ADMIN 권한 없음"),
+                    @ApiResponse(responseCode = "404", description = "채팅방을 찾을 수 없음"),
+                    @ApiResponse(responseCode = "409", description = "이미 마감된 채팅방")
+            }
+    )
+    ResponseEntity<Void> closeRecruitment(
+            @AuthenticationPrincipal CustomUserDetails user,
+            @PathVariable
+            @Parameter(description = "마감할 파생 톡방 ID", required = true, example = "1")
+            Long roomId);
+
+    @Operation(
             summary = "방장 권한 부여",
             description = """
                     방장이 다른 참여자에게 방장 권한을 추가로 부여합니다.

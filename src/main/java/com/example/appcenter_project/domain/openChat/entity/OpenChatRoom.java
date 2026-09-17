@@ -4,6 +4,8 @@ import com.example.appcenter_project.common.BaseTimeEntity;
 import com.example.appcenter_project.domain.openChat.enums.OpenChatRoomScope;
 import com.example.appcenter_project.domain.openChat.enums.OpenChatRoomType;
 import com.example.appcenter_project.domain.user.enums.DormType;
+import com.example.appcenter_project.global.exception.CustomException;
+import com.example.appcenter_project.global.exception.ErrorCode;
 import jakarta.persistence.*;
 import lombok.AccessLevel;
 import lombok.Getter;
@@ -58,6 +60,13 @@ public class OpenChatRoom extends BaseTimeEntity {
 
     @Enumerated(EnumType.STRING)
     private DormType targetDorm;
+
+    @Column(nullable = false)
+    private boolean recruitmentClosed = false;
+
+    private LocalDateTime closedAt;
+
+    private Long closedBy;
 
     public boolean matchesPassword(String input) {
         return this.password == null || this.password.equals(input);
@@ -225,5 +234,17 @@ public class OpenChatRoom extends BaseTimeEntity {
     public void updateLastMessage(String content, LocalDateTime at) {
         this.lastMessage = content != null && content.length() > 500 ? content.substring(0, 500) : content;
         this.lastMessageAt = at;
+    }
+
+    public void closeRecruitment(Long actorId) {
+        if (this.roomType != OpenChatRoomType.DERIVED) {
+            throw new CustomException(ErrorCode.OPEN_CHAT_ROOM_NOT_DERIVED);
+        }
+        if (this.recruitmentClosed) {
+            throw new CustomException(ErrorCode.OPEN_CHAT_ROOM_ALREADY_CLOSED);
+        }
+        this.recruitmentClosed = true;
+        this.closedAt = LocalDateTime.now();
+        this.closedBy = actorId;
     }
 }
