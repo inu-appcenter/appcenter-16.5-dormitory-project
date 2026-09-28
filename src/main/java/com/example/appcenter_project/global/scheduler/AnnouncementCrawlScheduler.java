@@ -1,26 +1,24 @@
 package com.example.appcenter_project.global.scheduler;
 
 import com.example.appcenter_project.common.file.entity.CrawledAnnouncementFile;
+import com.example.appcenter_project.common.file.repository.CrawledAnnouncementFileRepository;
 import com.example.appcenter_project.domain.announcement.entity.CrawledAnnouncement;
 import com.example.appcenter_project.domain.announcement.enums.AnnouncementCategory;
+import com.example.appcenter_project.domain.announcement.enums.AnnouncementType;
+import com.example.appcenter_project.domain.announcement.repository.CrawledAnnouncementRepository;
 import com.example.appcenter_project.domain.announcement.service.CrawledAnnouncementUpdateService;
+import com.example.appcenter_project.domain.fcm.service.FcmMessageService;
 import com.example.appcenter_project.domain.notification.entity.Notification;
 import com.example.appcenter_project.domain.notification.entity.UserNotification;
-import com.example.appcenter_project.domain.user.entity.User;
-import com.example.appcenter_project.shared.enums.ApiType;
-import com.example.appcenter_project.domain.announcement.enums.AnnouncementType;
-import com.example.appcenter_project.domain.user.enums.NotificationType;
-import com.example.appcenter_project.domain.user.enums.Role;
-import com.example.appcenter_project.domain.announcement.repository.CrawledAnnouncementRepository;
-import com.example.appcenter_project.common.file.repository.CrawledAnnouncementFileRepository;
 import com.example.appcenter_project.domain.notification.repository.NotificationRepository;
 import com.example.appcenter_project.domain.notification.repository.UserNotificationRepository;
+import com.example.appcenter_project.domain.user.entity.User;
+import com.example.appcenter_project.domain.user.enums.NotificationType;
+import com.example.appcenter_project.domain.user.enums.Role;
 import com.example.appcenter_project.domain.user.repository.UserRepository;
-import com.example.appcenter_project.domain.fcm.service.FcmMessageService;
+import com.example.appcenter_project.shared.enums.ApiType;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.jsoup.Jsoup;
-import org.jsoup.safety.Safelist;
 import org.openqa.selenium.By;
 import org.openqa.selenium.JavascriptExecutor;
 import org.openqa.selenium.WebDriver;
@@ -37,7 +35,6 @@ import org.springframework.transaction.annotation.Transactional;
 import java.time.Duration;
 import java.time.LocalDate;
 import java.util.*;
-import java.util.stream.Collectors;
 
 import static com.example.appcenter_project.domain.calender.service.AiScheduleService.CHANGE_DETECT_WEEKS;
 
@@ -207,7 +204,10 @@ public class AnnouncementCrawlScheduler {
             try {
                 WebElement numberElement = driver.findElement(By.cssSelector("dl.view-num dd"));
                 number = numberElement.getText().trim();
-                if (number.isEmpty()) { log.warn("빈 글번호, 건너뛰기"); return; }
+                if (number.isEmpty()) {
+                    log.warn("빈 글번호, 건너뛰기");
+                    return;
+                }
             } catch (Exception e) {
                 log.error("글번호 추출 실패: {}", e.getMessage());
                 return;
@@ -216,28 +216,25 @@ public class AnnouncementCrawlScheduler {
             String createDate = "";
             try {
                 createDate = driver.findElement(By.cssSelector("dl.write dd")).getText().trim();
-            } catch (Exception e) { log.debug("작성일 추출 실패"); }
+            } catch (Exception e) {
+                log.debug("작성일 추출 실패");
+            }
 
             String writer = "";
             try {
                 writer = driver.findElement(By.cssSelector("dl.writer dd")).getText().trim();
-            } catch (Exception e) { log.debug("작성자 추출 실패"); }
+            } catch (Exception e) {
+                log.debug("작성자 추출 실패");
+            }
 
             String content = "";
             try {
                 WebElement contentElement = driver.findElement(By.cssSelector(".view-con"));
-                JavascriptExecutor jsExec = (JavascriptExecutor) driver;
-                for (WebElement child : contentElement.findElements(By.xpath("./*"))) {
-                    String childHtml = (String) jsExec.executeScript("return arguments[0].innerHTML;", child);
-                    String cleaned = Jsoup.clean(childHtml,
-                            Safelist.none()
-                                    .addTags("a")
-                                    .addAttributes("a", "href")
-                                    .addProtocols("a", "href", "http", "https"));
-                    content = content + cleaned.trim() + "\n";
-                }
+                content = contentElement.getAttribute("outerHTML");
                 content = content.replaceAll("[^\\u0000-\\uFFFF]", "");
-            } catch (Exception e) { log.debug("본문 내용 추출 실패"); }
+            } catch (Exception e) {
+                log.debug("본문 내용 추출 실패");
+            }
 
             List<CrawledAnnouncementFile> crawledAnnouncementFiles = new ArrayList<>();
             try {
@@ -252,9 +249,13 @@ public class AnnouncementCrawlScheduler {
                             crawledAnnouncementFiles.add(CrawledAnnouncementFile.builder()
                                     .fileName(fileName).filePath(downloadUrl).build());
                         }
-                    } catch (Exception e) { log.debug("개별 파일 추출 실패: {}", e.getMessage()); }
+                    } catch (Exception e) {
+                        log.debug("개별 파일 추출 실패: {}", e.getMessage());
+                    }
                 }
-            } catch (Exception e) { log.debug("첨부파일 목록 추출 실패"); }
+            } catch (Exception e) {
+                log.debug("첨부파일 목록 추출 실패");
+            }
 
             log.info("상세 정보 크롤링 완료: {}", title);
 

@@ -24,6 +24,7 @@ public class ResponseOpenChatMessageDto {
     private String linkedRoomName;
     private String linkedRoomDescription;
     private Integer linkedRoomMaxParticipants;
+    private Boolean linkedRoomRecruitmentClosed;
     private Long disclosureRequestId;
     private boolean isBot;
 
@@ -66,6 +67,14 @@ public class ResponseOpenChatMessageDto {
     public static ResponseOpenChatMessageDto fromRoomLink(
             OpenChatMessage message, String senderNickname, int unreadCount,
             Long linkedRoomId, String linkedRoomName, String linkedRoomDescription, Integer linkedRoomMaxParticipants) {
+        return fromRoomLink(message, senderNickname, unreadCount,
+                linkedRoomId, linkedRoomName, linkedRoomDescription, linkedRoomMaxParticipants, false);
+    }
+
+    public static ResponseOpenChatMessageDto fromRoomLink(
+            OpenChatMessage message, String senderNickname, int unreadCount,
+            Long linkedRoomId, String linkedRoomName, String linkedRoomDescription, Integer linkedRoomMaxParticipants,
+            boolean linkedRoomRecruitmentClosed) {
         return ResponseOpenChatMessageDto.builder()
                 .messageId(message.getId())
                 .roomId(message.getRoomId())
@@ -80,6 +89,7 @@ public class ResponseOpenChatMessageDto {
                 .linkedRoomName(linkedRoomName)
                 .linkedRoomDescription(linkedRoomDescription)
                 .linkedRoomMaxParticipants(linkedRoomMaxParticipants)
+                .linkedRoomRecruitmentClosed(linkedRoomRecruitmentClosed)
                 .isBot(false)
                 .build();
     }

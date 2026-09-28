@@ -203,10 +203,8 @@ class OpenChatMultiHostServiceTest {
         OpenChatParticipant host = createHostParticipant();
         OpenChatParticipant participant = createParticipant();
         List<OpenChatParticipant> lockedList = List.of(host, participant);
-        User user = mockUser(PARTICIPANT_USER_ID);
 
         given(openChatParticipantRepository.findAllByRoomIdWithLock(ROOM_ID)).willReturn(lockedList);
-        given(userRepository.findById(PARTICIPANT_USER_ID)).willReturn(Optional.of(user));
 
         assertThatCode(() -> openChatRoomService.leaveRoom(ROOM_ID, PARTICIPANT_USER_ID, null)).doesNotThrowAnyException();
         then(openChatParticipantRepository).should().delete(participant);
@@ -220,10 +218,8 @@ class OpenChatMultiHostServiceTest {
         OpenChatParticipant anotherHost = createAnotherHostParticipant();
         OpenChatParticipant participant = createParticipant();
         List<OpenChatParticipant> lockedList = List.of(leavingHost, anotherHost, participant);
-        User user = mockUser(HOST_USER_ID);
 
         given(openChatParticipantRepository.findAllByRoomIdWithLock(ROOM_ID)).willReturn(lockedList);
-        given(userRepository.findById(HOST_USER_ID)).willReturn(Optional.of(user));
 
         openChatRoomService.leaveRoom(ROOM_ID, HOST_USER_ID, null);
 
@@ -237,10 +233,8 @@ class OpenChatMultiHostServiceTest {
         OpenChatParticipant soleHost = createHostParticipant();
         OpenChatParticipant newHostTarget = createParticipant();
         List<OpenChatParticipant> lockedList = List.of(soleHost, newHostTarget);
-        User user = mockUser(HOST_USER_ID);
 
         given(openChatParticipantRepository.findAllByRoomIdWithLock(ROOM_ID)).willReturn(lockedList);
-        given(userRepository.findById(HOST_USER_ID)).willReturn(Optional.of(user));
 
         openChatRoomService.leaveRoom(ROOM_ID, HOST_USER_ID, PARTICIPANT_USER_ID);
 
@@ -269,10 +263,8 @@ class OpenChatMultiHostServiceTest {
         OpenChatParticipant leavingHost = createHostParticipant();
         OpenChatParticipant anotherHost = createAnotherHostParticipant();
         List<OpenChatParticipant> lockedList = List.of(leavingHost, anotherHost, createParticipant());
-        User user = mockUser(HOST_USER_ID);
 
         given(openChatParticipantRepository.findAllByRoomIdWithLock(ROOM_ID)).willReturn(lockedList);
-        given(userRepository.findById(HOST_USER_ID)).willReturn(Optional.of(user));
 
         assertThatCode(() -> openChatRoomService.leaveRoom(ROOM_ID, HOST_USER_ID, null)).doesNotThrowAnyException();
         then(openChatParticipantRepository).should().delete(leavingHost);
@@ -299,10 +291,8 @@ class OpenChatMultiHostServiceTest {
         OpenChatParticipant soleHost = createHostParticipant();
         OpenChatParticipant newHostTarget = createParticipant();
         List<OpenChatParticipant> lockedList = List.of(soleHost, newHostTarget);
-        User user = mockUser(HOST_USER_ID);
 
         given(openChatParticipantRepository.findAllByRoomIdWithLock(ROOM_ID)).willReturn(lockedList);
-        given(userRepository.findById(HOST_USER_ID)).willReturn(Optional.of(user));
 
         openChatRoomService.leaveRoom(ROOM_ID, HOST_USER_ID, PARTICIPANT_USER_ID);
 

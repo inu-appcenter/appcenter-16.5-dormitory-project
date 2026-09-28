@@ -19,6 +19,7 @@ public class ResponseOpenChatRoomDetailDto {
     private boolean isOfficial;
     private LocalDateTime createdAt;
     private boolean isBlockedByPartner;
+    private boolean recruitmentClosed;
 
     public void updateIsBlockedByPartner(boolean v) {
         this.isBlockedByPartner = v;
