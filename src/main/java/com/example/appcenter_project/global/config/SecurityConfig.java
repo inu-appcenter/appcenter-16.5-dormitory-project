@@ -143,7 +143,7 @@ public class SecurityConfig {
                         // 알림 조회(로그인한 사용자)
                         .requestMatchers(GET, "/notifications/**").permitAll()
                         // 알림 등록, 수정, 삭제(관리자)
-                        .requestMatchers("/notifications/**").hasAnyRole("ADMIN", "DORM_LIFE_MANAGER", "DORM_ROOMMATE_MANAGER", "DORM_EXPEDITED_COMPLAINT_MANAGER","DORM_MANAGER")
+                        .requestMatchers("/notifications/**").hasAnyRole("ADMIN", "DORM_LIFE_MANAGER", "DORM_ROOMMATE_MANAGER", "DORM_EXPEDITED_COMPLAINT_MANAGER","DORM_MANAGER", "DORM_SUPPORTERS")
 
                         /** 팝업 알림 **/
                         // 팝업 알림 조회
