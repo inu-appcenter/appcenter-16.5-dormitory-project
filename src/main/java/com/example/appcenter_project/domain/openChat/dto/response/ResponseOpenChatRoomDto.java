@@ -2,6 +2,7 @@ package com.example.appcenter_project.domain.openChat.dto.response;
 
 import com.example.appcenter_project.domain.openChat.entity.OpenChatRoom;
 import com.example.appcenter_project.domain.openChat.enums.ChatCategory;
+import com.example.appcenter_project.domain.openChat.enums.OpenChatRoomRecruitmentStatus;
 import com.example.appcenter_project.domain.openChat.enums.OpenChatRoomScope;
 import com.example.appcenter_project.domain.openChat.enums.OpenChatRoomType;
 import lombok.Builder;
@@ -31,6 +32,9 @@ public class ResponseOpenChatRoomDto {
     private boolean isBlockedByPartner;
     private boolean isDormOfficial;
     private boolean recruitmentClosed;
+    private OpenChatRoomRecruitmentStatus recruitmentStatus;
+    private LocalDateTime lastStatusChangedAt;
+    private Long lastStatusChangedBy;
 
     public void updateIsBlockedByPartner(boolean v) {
         this.isBlockedByPartner = v;
@@ -54,6 +58,11 @@ public class ResponseOpenChatRoomDto {
                 .unreadCount(0)
                 .isDormOfficial(room.getTargetDorm() != null)
                 .recruitmentClosed(room.isRecruitmentClosed())
+                .recruitmentStatus(room.isRecruitmentClosed()
+                        ? OpenChatRoomRecruitmentStatus.CLOSED
+                        : OpenChatRoomRecruitmentStatus.OPEN)
+                .lastStatusChangedAt(room.getLastStatusChangedAt())
+                .lastStatusChangedBy(room.getLastStatusChangedBy())
                 .build();
     }
 
@@ -75,6 +84,11 @@ public class ResponseOpenChatRoomDto {
                 .unreadCount(unreadCount)
                 .isDormOfficial(room.getTargetDorm() != null)
                 .recruitmentClosed(room.isRecruitmentClosed())
+                .recruitmentStatus(room.isRecruitmentClosed()
+                        ? OpenChatRoomRecruitmentStatus.CLOSED
+                        : OpenChatRoomRecruitmentStatus.OPEN)
+                .lastStatusChangedAt(room.getLastStatusChangedAt())
+                .lastStatusChangedBy(room.getLastStatusChangedBy())
                 .build();
     }
 
@@ -98,6 +112,7 @@ public class ResponseOpenChatRoomDto {
                 .lastMessage(lastMessage)
                 .unreadCount(unreadCount)
                 .isMyRoommate(isMyRoommate)
+                .recruitmentStatus(OpenChatRoomRecruitmentStatus.OPEN)
                 .build();
     }
 }

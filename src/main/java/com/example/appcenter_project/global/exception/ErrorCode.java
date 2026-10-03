@@ -194,6 +194,7 @@ public enum ErrorCode {
     OPEN_CHAT_ROOM_NOT_DERIVED(BAD_REQUEST, 22029, "[OpenChat] 파생 톡방이 아닌 방은 마감할 수 없습니다."),
     OPEN_CHAT_ROOM_ALREADY_CLOSED(CONFLICT, 22030, "[OpenChat] 이미 마감된 채팅방입니다."),
     OPEN_CHAT_ROOM_CLOSED_FOR_JOIN(CONFLICT, 22031, "[OpenChat] 마감된 채팅방에는 참여할 수 없습니다."),
+    OPEN_CHAT_ROOM_ALREADY_OPEN(CONFLICT, 22032, "[OpenChat] 이미 모집 중인 채팅방입니다."),
 
     // STUDENT_ID_DISCLOSURE
     DISCLOSURE_REQUEST_NOT_FOUND(NOT_FOUND, 23001, "[StudentIdDisclosure] 학번 공개 요청을 찾을 수 없습니다."),

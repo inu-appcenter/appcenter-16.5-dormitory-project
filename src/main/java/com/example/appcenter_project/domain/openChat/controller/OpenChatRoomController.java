@@ -5,6 +5,7 @@ import com.example.appcenter_project.domain.openChat.dto.request.RequestCreateOp
 import com.example.appcenter_project.domain.openChat.dto.request.RequestCreatePersonalRoomDto;
 import com.example.appcenter_project.domain.openChat.dto.request.RequestUpdateNotificationModeDto;
 import com.example.appcenter_project.domain.openChat.dto.request.RequestUpdateOpenChatRoomDto;
+import com.example.appcenter_project.domain.openChat.dto.request.RequestUpdateRecruitmentStatusDto;
 import com.example.appcenter_project.domain.openChat.dto.response.*;
 import com.example.appcenter_project.domain.openChat.enums.KickReason;
 import com.example.appcenter_project.domain.openChat.enums.OpenChatRoomTab;
@@ -133,6 +134,15 @@ public class OpenChatRoomController implements OpenChatRoomApiSpecification {
             @AuthenticationPrincipal CustomUserDetails user,
             @PathVariable Long roomId) {
         openChatRoomService.closeRecruitment(user.getId(), roomId);
+        return ResponseEntity.noContent().build();
+    }
+
+    @PatchMapping("/{roomId}/recruitment-status")
+    public ResponseEntity<Void> updateRecruitmentStatus(
+            @AuthenticationPrincipal CustomUserDetails user,
+            @PathVariable Long roomId,
+            @RequestBody @Valid RequestUpdateRecruitmentStatusDto request) {
+        openChatRoomService.updateRecruitmentStatus(user.getId(), roomId, request.getStatus());
         return ResponseEntity.noContent().build();
     }
 
