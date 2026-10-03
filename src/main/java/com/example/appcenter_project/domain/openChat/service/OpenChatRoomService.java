@@ -4,6 +4,7 @@ import com.example.appcenter_project.domain.openChat.dto.request.RequestCreateDe
 import com.example.appcenter_project.domain.openChat.dto.request.RequestCreateOpenChatRoomDto;
 import com.example.appcenter_project.domain.openChat.dto.request.RequestCreatePersonalRoomDto;
 import com.example.appcenter_project.domain.openChat.dto.request.RequestUpdateOpenChatRoomDto;
+import com.example.appcenter_project.domain.openChat.enums.OpenChatRoomRecruitmentStatus;
 import com.example.appcenter_project.domain.openChat.enums.ChatNotificationMode;
 import com.example.appcenter_project.domain.openChat.dto.response.ResponseChatRoomListDto;
 import com.example.appcenter_project.domain.openChat.dto.response.ResponseDerivedRoomCreatedDto;
@@ -509,6 +510,22 @@ public class OpenChatRoomService {
     }
 
     @Transactional
+    public void updateRecruitmentStatus(Long actorId, Long roomId, OpenChatRoomRecruitmentStatus status) {
+        OpenChatRoom room = openChatRoomRepository.findById(roomId)
+                .orElseThrow(() -> new CustomException(ErrorCode.OPEN_CHAT_ROOM_NOT_FOUND));
+
+        User actor = userRepository.findById(actorId)
+                .orElseThrow(() -> new CustomException(ErrorCode.USER_NOT_FOUND));
+
+        if (actor.getRole() != Role.ROLE_ADMIN
+                && !Objects.equals(room.getCreatedBy(), actorId)) {
+            throw new CustomException(ErrorCode.OPEN_CHAT_ROOM_FORBIDDEN);
+        }
+
+        room.updateRecruitmentStatus(status, actorId);
+    }
+
+    @Transactional
     public void closeRecruitment(Long actorId, Long roomId) {
         OpenChatRoom room = openChatRoomRepository.findById(roomId)
                 .orElseThrow(() -> new CustomException(ErrorCode.OPEN_CHAT_ROOM_NOT_FOUND));
@@ -737,6 +754,11 @@ public class OpenChatRoomService {
                 .isOfficial(room.isOfficial())
                 .createdAt(room.getCreatedDate())
                 .recruitmentClosed(room.isRecruitmentClosed())
+                .recruitmentStatus(room.isRecruitmentClosed()
+                        ? OpenChatRoomRecruitmentStatus.CLOSED
+                        : OpenChatRoomRecruitmentStatus.OPEN)
+                .lastStatusChangedAt(room.getLastStatusChangedAt())
+                .lastStatusChangedBy(room.getLastStatusChangedBy())
                 .build();
     }
 
