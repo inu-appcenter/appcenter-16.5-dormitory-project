@@ -4,6 +4,7 @@ import com.example.appcenter_project.domain.openChat.dto.request.RequestCreateDe
 import com.example.appcenter_project.domain.openChat.dto.request.RequestCreateOpenChatRoomDto;
 import com.example.appcenter_project.domain.openChat.dto.request.RequestCreatePersonalRoomDto;
 import com.example.appcenter_project.domain.openChat.dto.request.RequestUpdateNotificationModeDto;
+import com.example.appcenter_project.domain.openChat.dto.request.RequestUpdateRecruitmentStatusDto;
 import com.example.appcenter_project.domain.openChat.dto.response.*;
 import com.example.appcenter_project.domain.openChat.enums.KickReason;
 import com.example.appcenter_project.domain.openChat.enums.OpenChatRoomTab;
@@ -290,6 +291,35 @@ public interface OpenChatRoomApiSpecification {
             @PathVariable
             @Parameter(description = "마감할 파생 톡방 ID", required = true, example = "1")
             Long roomId);
+
+    @Operation(
+            summary = "파생 톡방 모집 상태 변경",
+            description = """
+                    파생 톡방(`DERIVED`)의 모집 상태를 `OPEN` ↔ `CLOSED` 로 전환합니다.
+
+                    - 방장(`createdBy`) 또는 `ROLE_ADMIN` 사용자만 호출 가능합니다.
+                    - `CLOSED` 상태에서는 비참여자 입장이 차단되고, `OPEN` 으로 재개 시 가드가 풀립니다.
+                    - 현재 상태와 동일한 상태로의 전환은 409 로 거절됩니다.
+                    - 성공 시 `lastStatusChangedBy` / `lastStatusChangedAt` 이 갱신됩니다.
+                    - `OPEN` / `PERSONAL` / 공식방은 400 반환.
+                    """,
+            responses = {
+                    @ApiResponse(responseCode = "204", description = "상태 전환 성공"),
+                    @ApiResponse(responseCode = "400", description = "DERIVED 타입이 아닌 방, 또는 status 필드 누락/잘못된 enum 값"),
+                    @ApiResponse(responseCode = "401", description = "인증 필요"),
+                    @ApiResponse(responseCode = "403", description = "방장 또는 ADMIN 권한 없음"),
+                    @ApiResponse(responseCode = "404", description = "채팅방 또는 요청자 계정을 찾을 수 없음"),
+                    @ApiResponse(responseCode = "409", description = "이미 요청한 상태(OPEN→OPEN 또는 CLOSED→CLOSED)")
+            }
+    )
+    ResponseEntity<Void> updateRecruitmentStatus(
+            @AuthenticationPrincipal CustomUserDetails user,
+            @PathVariable
+            @Parameter(description = "상태를 변경할 파생 톡방 ID", required = true, example = "1")
+            Long roomId,
+            @RequestBody @Valid
+            @Parameter(description = "전환하려는 모집 상태", required = true)
+            RequestUpdateRecruitmentStatusDto request);
 
     @Operation(
             summary = "방장 권한 부여",
