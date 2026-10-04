@@ -295,6 +295,8 @@ public class OpenChatMessageService {
                 : openChatRoomRepository.findAllById(linkedRoomIds).stream()
                         .collect(Collectors.toMap(OpenChatRoom::getId, r -> r));
 
+        Map<Long, ReplySourceDto> replySources = buildReplySources(messages);
+
         List<ResponseOpenChatMessageDto> dtos = messages.stream()
                 .map(msg -> {
                     String nickname = msg.getType() == OpenChatMessageType.SYSTEM
@@ -311,7 +313,7 @@ public class OpenChatMessageService {
                     List<String> imageUrls = msg.getType() == OpenChatMessageType.IMAGE
                             ? imageUrlsMap.getOrDefault(msg.getId(), List.of())
                             : List.of();
-                    return ResponseOpenChatMessageDto.from(msg, nickname, unreadCount, imageUrls);
+                    return ResponseOpenChatMessageDto.from(msg, nickname, unreadCount, imageUrls, replySources.get(msg.getId()));
                 })
                 .toList();
 
