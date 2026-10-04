@@ -29,6 +29,7 @@ public class ResponseOpenChatMessageDto {
     private Boolean linkedRoomRecruitmentClosed;
     private Long disclosureRequestId;
     private boolean isBot;
+    private Boolean isDeleted;
 
 
     public static ResponseOpenChatMessageDto from(OpenChatMessage message, String senderNickname, int unreadCount) {
@@ -47,6 +48,7 @@ public class ResponseOpenChatMessageDto {
                 .unreadCount(unreadCount)
                 .createdAt(message.getCreatedDate())
                 .isBot(message.getType() == OpenChatMessageType.BOT)
+                .isDeleted(message.getDeletedState().isDeleted())
                 .build();
     }
 
@@ -64,6 +66,7 @@ public class ResponseOpenChatMessageDto {
                 .createdAt(message.getCreatedDate())
                 .disclosureRequestId(disclosureRequestId)
                 .isBot(false)
+                .isDeleted(message.getDeletedState().isDeleted())
                 .build();
     }
 
@@ -94,6 +97,7 @@ public class ResponseOpenChatMessageDto {
                 .linkedRoomMaxParticipants(linkedRoomMaxParticipants)
                 .linkedRoomRecruitmentClosed(linkedRoomRecruitmentClosed)
                 .isBot(false)
+                .isDeleted(message.getDeletedState().isDeleted())
                 .build();
     }
 
