@@ -14,6 +14,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.messaging.handler.annotation.MessageMapping;
 import org.springframework.messaging.simp.SimpMessageHeaderAccessor;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
+import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -50,7 +51,8 @@ public class OpenChatMessageController implements OpenChatMessageApiSpecificatio
             @RequestParam(required = false) Long lastMessageId,
             @RequestParam(defaultValue = "30") int size,
             HttpServletRequest request) {
-        return ResponseEntity.ok(openChatMessageService.getMessages(user.getId(), roomId, lastMessageId, size, request));
+        Long userId = user != null ? user.getId() : -1L;
+        return ResponseEntity.ok(openChatMessageService.getMessages(userId, roomId, lastMessageId, size, request));
     }
 
     @PostMapping(value = "/{roomId}/messages/image", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
@@ -61,5 +63,15 @@ public class OpenChatMessageController implements OpenChatMessageApiSpecificatio
             HttpServletRequest request) {
         return ResponseEntity.status(HttpStatus.CREATED)
                 .body(openChatMessageService.sendImageMessage(user.getId(), roomId, images, request));
+    }
+
+    @DeleteMapping("/{roomId}/messages/{messageId}")
+    public ResponseEntity<Void> deleteMessage(
+            @AuthenticationPrincipal CustomUserDetails user,
+            @PathVariable Long roomId,
+            @PathVariable Long messageId) {
+        Long userId = user != null ? user.getId() : -1L;
+        openChatMessageService.deleteMessage(roomId, messageId, userId);
+        return ResponseEntity.noContent().build();
     }
 }

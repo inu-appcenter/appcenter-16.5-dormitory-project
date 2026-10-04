@@ -23,6 +23,9 @@ import com.example.appcenter_project.domain.user.repository.UserRepository;
 import com.example.appcenter_project.global.config.OpenChatSessionRegistry;
 import com.example.appcenter_project.global.exception.CustomException;
 import com.example.appcenter_project.global.exception.ErrorCode;
+import com.example.appcenter_project.shared.dto.ReplySourceDto;
+import com.example.appcenter_project.shared.enums.ChatRoomType;
+import com.example.appcenter_project.shared.enums.ReplySourceStatus;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import jakarta.servlet.http.HttpServletRequest;
@@ -463,6 +466,207 @@ public class OpenChatMessageService {
                 derivedRoomId, roomName, description, maxParticipants, false,
                 OpenChatRoomRecruitmentStatus.OPEN);
         messagingTemplate.convertAndSend("/sub/openchat/" + parentRoomId, response);
+    }
+
+    @Transactional
+    public void sendMessageWithReply(Long roomId, Long senderId, String content, Long replyToMessageId) {
+        OpenChatMessage originalMessage = openChatMessageRepository.findById(replyToMessageId)
+                .orElseThrow(() -> new CustomException(ErrorCode.OPEN_CHAT_MESSAGE_NOT_FOUND));
+
+        if (originalMessage.isDeleted()) {
+            throw new CustomException(ErrorCode.OPEN_CHAT_MESSAGE_ALREADY_DELETED);
+        }
+
+        if (!originalMessage.getRoomId().equals(roomId)) {
+            throw new CustomException(ErrorCode.OPEN_CHAT_REPLY_TARGET_NOT_IN_SAME_ROOM);
+        }
+
+        if (originalMessage.getReplyToMessageId() != null) {
+            throw new CustomException(ErrorCode.OPEN_CHAT_NESTED_REPLY_NOT_ALLOWED);
+        }
+
+        OpenChatMessageType originalType = originalMessage.getType();
+        if (originalType == OpenChatMessageType.SYSTEM
+                || originalType == OpenChatMessageType.BOT
+                || originalType == OpenChatMessageType.ROOM_LINK
+                || originalType == OpenChatMessageType.STUDENT_ID_REQUEST) {
+            throw new CustomException(ErrorCode.OPEN_CHAT_REPLY_NOT_ALLOWED_FOR_TYPE);
+        }
+
+        Long derivedRoomId = null;
+        if (originalType == OpenChatMessageType.REOPEN_CARD) {
+            derivedRoomId = parseDerivedRoomId(originalMessage.getContent());
+            if (derivedRoomId == null) {
+                throw new CustomException(ErrorCode.OPEN_CHAT_DERIVED_ROOM_ID_PARSE_FAILED);
+            }
+        }
+
+        ChatRoomType roomType = ChatRoomType.OPEN;
+        if (openChatRoomRepository != null) {
+            roomType = openChatRoomRepository.findById(roomId)
+                    .map(room -> room.getRoomType() == OpenChatRoomType.DERIVED ? ChatRoomType.DERIVED : ChatRoomType.OPEN)
+                    .orElse(ChatRoomType.OPEN);
+        }
+
+        OpenChatMessage reply = OpenChatMessage.create(roomId, senderId, content, OpenChatMessageType.TEXT);
+        reply.attachReply(replyToMessageId, originalType, originalMessage.getSenderId(), roomId, roomType, derivedRoomId);
+        openChatMessageRepository.save(reply);
+    }
+
+    @Transactional
+    public void deleteMessage(Long roomId, Long messageId, Long requesterId) {
+        OpenChatMessage message = openChatMessageRepository.findById(messageId)
+                .orElseThrow(() -> new CustomException(ErrorCode.OPEN_CHAT_MESSAGE_NOT_FOUND));
+
+        if (!message.getSenderId().equals(requesterId)) {
+            throw new CustomException(ErrorCode.OPEN_CHAT_MESSAGE_NOT_OWNED_BY_USER);
+        }
+
+        if (message.isDeleted()) {
+            throw new CustomException(ErrorCode.OPEN_CHAT_MESSAGE_ALREADY_DELETED);
+        }
+
+        message.softDelete();
+        openChatMessageRepository.save(message);
+    }
+
+    @Transactional(readOnly = true)
+    public Map<Long, ReplySourceDto> buildReplySources(List<OpenChatMessage> messages) {
+        Map<Long, ReplySourceDto> result = new HashMap<>();
+
+        List<OpenChatMessage> replyMessages = messages.stream()
+                .filter(msg -> msg.getReplyToMessageId() != null)
+                .toList();
+
+        if (replyMessages.isEmpty()) {
+            return result;
+        }
+
+        List<Long> originalIds = replyMessages.stream()
+                .map(OpenChatMessage::getReplyToMessageId)
+                .distinct()
+                .toList();
+
+        Map<Long, OpenChatMessage> originalMap = openChatMessageRepository.findAllById(originalIds).stream()
+                .collect(Collectors.toMap(OpenChatMessage::getId, m -> m));
+
+        Map<Long, Long> derivedRoomIdByOriginalId = new HashMap<>();
+        for (OpenChatMessage m : originalMap.values()) {
+            if (m.getType() == OpenChatMessageType.REOPEN_CARD) {
+                Long drid = m.getReplyToDerivedRoomId() != null
+                        ? m.getReplyToDerivedRoomId()
+                        : parseDerivedRoomId(m.getContent());
+                if (drid != null) {
+                    derivedRoomIdByOriginalId.put(m.getId(), drid);
+                }
+            }
+        }
+
+        List<Long> derivedRoomIds = new ArrayList<>(derivedRoomIdByOriginalId.values().stream()
+                .distinct()
+                .toList());
+
+        Map<Long, OpenChatRoom> derivedRoomMap = derivedRoomIds.isEmpty()
+                ? Map.of()
+                : openChatRoomRepository.findAllById(derivedRoomIds).stream()
+                        .collect(Collectors.toMap(OpenChatRoom::getId, r -> r));
+
+        List<Long> senderIds = originalMap.values().stream()
+                .filter(m -> !m.isDeleted())
+                .map(OpenChatMessage::getSenderId)
+                .distinct()
+                .toList();
+
+        Map<Long, String> nicknameMap = userRepository.findAllById(senderIds).stream()
+                .collect(Collectors.toMap(User::getId, u -> u.getName() != null ? u.getName() : ""));
+
+        for (OpenChatMessage replyMsg : replyMessages) {
+            Long origId = replyMsg.getReplyToMessageId();
+            OpenChatMessage orig = originalMap.get(origId);
+
+            if (orig == null) {
+                result.put(replyMsg.getId(), ReplySourceDto.builder()
+                        .replyToMessageId(origId)
+                        .status(ReplySourceStatus.NOT_FOUND)
+                        .replyToRoomType(replyMsg.getReplyToRoomType())
+                        .replyToRoomId(replyMsg.getReplyToRoomId())
+                        .build());
+                continue;
+            }
+
+            if (orig.isDeleted()) {
+                result.put(replyMsg.getId(), ReplySourceDto.builder()
+                        .replyToMessageId(origId)
+                        .status(ReplySourceStatus.DELETED)
+                        .replyToRoomType(replyMsg.getReplyToRoomType())
+                        .replyToRoomId(replyMsg.getReplyToRoomId())
+                        .build());
+                continue;
+            }
+
+            if (orig.getType() == OpenChatMessageType.REOPEN_CARD) {
+                Long derivedRoomId = derivedRoomIdByOriginalId.get(orig.getId());
+                OpenChatRoom derivedRoom = derivedRoomId != null ? derivedRoomMap.get(derivedRoomId) : null;
+                ReplySourceStatus status;
+                if (derivedRoom == null) {
+                    status = ReplySourceStatus.NOT_FOUND;
+                } else {
+                    status = derivedRoom.isRecruitmentClosed()
+                            ? ReplySourceStatus.RECRUITMENT_CLOSED
+                            : ReplySourceStatus.RECRUITING;
+                }
+                result.put(replyMsg.getId(), ReplySourceDto.builder()
+                        .replyToMessageId(origId)
+                        .status(status)
+                        .replyToSenderId(orig.getSenderId())
+                        .replyToSenderNickname(nicknameMap.get(orig.getSenderId()))
+                        .replyToRoomType(replyMsg.getReplyToRoomType())
+                        .replyToRoomId(replyMsg.getReplyToRoomId())
+                        .replyToDerivedRoomId(derivedRoomId)
+                        .build());
+                continue;
+            }
+
+            String preview = orig.getContent();
+            if (preview != null && preview.length() > 100) {
+                preview = preview.substring(0, 100);
+            }
+            result.put(replyMsg.getId(), ReplySourceDto.builder()
+                    .replyToMessageId(origId)
+                    .status(ReplySourceStatus.NORMAL)
+                    .replyToSenderId(orig.getSenderId())
+                    .replyToSenderNickname(nicknameMap.get(orig.getSenderId()))
+                    .contentPreview(preview)
+                    .replyToRoomType(replyMsg.getReplyToRoomType())
+                    .replyToRoomId(replyMsg.getReplyToRoomId())
+                    .build());
+        }
+
+        return result;
+    }
+
+    private Long parseDerivedRoomId(String content) {
+        if (content == null) return null;
+        if (objectMapper != null) {
+            try {
+                Map<?, ?> parsed = objectMapper.readValue(content, Map.class);
+                Object raw = parsed.get("derivedRoomId");
+                return raw != null ? ((Number) raw).longValue() : null;
+            } catch (Exception e) {
+                return null;
+            }
+        }
+        try {
+            int idx = content.indexOf("\"derivedRoomId\":");
+            if (idx < 0) return null;
+            String after = content.substring(idx + 16).trim();
+            int end = 0;
+            while (end < after.length() && Character.isDigit(after.charAt(end))) end++;
+            if (end == 0) return null;
+            return Long.parseLong(after.substring(0, end));
+        } catch (Exception e) {
+            return null;
+        }
     }
 
     private void validateImageFiles(List<MultipartFile> images) {
