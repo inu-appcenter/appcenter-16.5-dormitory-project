@@ -126,7 +126,7 @@ public class ResponseOpenChatRoomDto {
             return "[이미지]";
         }
 
-        return message.getContent().length() > 500 ? message.getContent().substring(500) : message.getContent();
+        return message.getContent().length() > 500 ? message.getContent().substring(0, 500) : message.getContent();
     }
 
     private static String toResponseContent(RoommateChattingChat message) {
@@ -136,6 +136,6 @@ public class ResponseOpenChatRoomDto {
             return "삭제된 메시지입니다.";
         }
 
-        return message.getContent().length() > 500 ? message.getContent().substring(500) : message.getContent();
+        return message.getContent().length() > 500 ? message.getContent().substring(0, 500) : message.getContent();
     }
 }
