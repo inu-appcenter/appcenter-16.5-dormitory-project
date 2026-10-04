@@ -68,7 +68,6 @@ public enum ErrorCode {
 
 
     // ROOMMATE
-    // ROOMMATE
     ROOMMATE_USER_NOT_FOUND(NOT_FOUND, 7001, "[Roommate] 해당 유저가 존재하지 않습니다."),
     ROOMMATE_BOARD_NOT_FOUND(NOT_FOUND, 7002, "[Roommate] 게시글을 찾을 수 없습니다."),
     ROOMMATE_CHECKLIST_NOT_FOUND(NOT_FOUND, 7003, "[Roommate] 체크리스트를 찾을 수 없습니다."),
@@ -98,11 +97,13 @@ public enum ErrorCode {
 
     // ROOMMATE_CHAT
     ROOMMATE_CHAT_CANNOT_CHAT_WITH_SELF(BAD_REQUEST, 10001, "[RoommateChat] 자신에게는 채팅을 보낼 수 없습니다."),
-    DUPLICATE_CHAT_ROOM(CONFLICT, 10001, "[RoommateChat] 이미 존재하는 채팅방입니다."),
-    ROOMMATE_CHAT_ROOM_NOT_FOUND(NOT_FOUND, 7013, "[RoommateChat] 채팅방을 찾을 수 없습니다."),
-    ROOMMATE_CHAT_ROOM_FORBIDDEN(FORBIDDEN, 10004, "[RoommateChat] 이 채팅방에 속하지 않은 사용자입니다."),
-    ROOMMATE_CHAT_ROOM_DENIED(PRECONDITION_FAILED, 10004, "[RoommateChat] 양방향 채팅방 생성은 할 수 없습니다."),
-
+    DUPLICATE_CHAT_ROOM(CONFLICT, 10002, "[RoommateChat] 이미 존재하는 채팅방입니다."),
+    ROOMMATE_CHAT_ROOM_NOT_FOUND(NOT_FOUND, 10003, "[RoommateChat] 채팅방을 찾을 수 없습니다."),
+    ROOMMATE_CHAT_PARTICIPANT_FORBIDDEN(FORBIDDEN, 10004, "[RoommateChat] 이 채팅방에 속하지 않은 사용자입니다."),
+    ROOMMATE_CHAT_ROOM_DENIED(PRECONDITION_FAILED, 10005, "[RoommateChat] 양방향 채팅방 생성은 할 수 없습니다."),
+    ROOMMATE_CHAT_MESSAGE_NOT_FOUND(NOT_FOUND, 10006, "[RoommateChat] 메시지를 찾을 수 없습니다."),
+    ROOMMATE_CHAT_NOT_SENDER(FORBIDDEN, 10007, "[RoommateChat] 메시지 작성자만 메시지를 삭제할 수 있습니다."),
+    ROOMMATE_CHAT_MESSAGE_ROOM_MISMATCH(BAD_REQUEST, 10008, "[RoommateChat] 해당 채팅방의 메시지가 아닙니다."),
 
     // REPORT
     REPORT_NOT_REGISTERED(NOT_FOUND, 11001, "[Report] 해당 신고 정보를 찾을 수 없습니다"),
@@ -197,6 +198,7 @@ public enum ErrorCode {
     OPEN_CHAT_ROOM_ALREADY_OPEN(CONFLICT, 22032, "[OpenChat] 이미 모집 중인 채팅방입니다."),
     OPEN_CHAT_NOT_SENDER(FORBIDDEN, 22033, "[OpenChat] 메시지 작성자만 메시지를 삭제할 수 있습니다."),
     OPEN_CHAT_MESSAGE_ROOM_MISMATCH(BAD_REQUEST, 22034, "[OpenChat] 해당 채팅방의 메시지가 아닙니다."),
+    OPEN_CHAT_PARTICIPANT_FORBIDDEN(FORBIDDEN, 22035, "[OpenChat] 해당 채팅방의 참여자가 아닙니다."),
 
     // STUDENT_ID_DISCLOSURE
     DISCLOSURE_REQUEST_NOT_FOUND(NOT_FOUND, 23001, "[StudentIdDisclosure] 학번 공개 요청을 찾을 수 없습니다."),
