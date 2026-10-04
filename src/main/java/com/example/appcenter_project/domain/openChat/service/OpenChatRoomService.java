@@ -284,7 +284,9 @@ public class OpenChatRoomService {
         merged.addAll(openChatDtos);
         merged.addAll(roommateDtos);
         merged.sort(Comparator
-                .comparing(ResponseOpenChatRoomDto::isMyRoommate, Comparator.reverseOrder())
+                .comparingInt((ResponseOpenChatRoomDto r) ->
+                        r.getRecruitmentStatus() == OpenChatRoomRecruitmentStatus.OPEN ? 0 : 1)
+                .thenComparing(ResponseOpenChatRoomDto::isMyRoommate, Comparator.reverseOrder())
                 .thenComparing(ResponseOpenChatRoomDto::getLastMessageAt,
                         Comparator.nullsLast(Comparator.reverseOrder())));
 
