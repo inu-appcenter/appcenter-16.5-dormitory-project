@@ -262,7 +262,7 @@ public class RoommateChattingChatService {
 
         // 접근 권한 확인
         if (!room.getGuest().getId().equals(userId) && !room.getHost().getId().equals(userId)) {
-            throw new CustomException(ROOMMATE_CHAT_ROOM_FORBIDDEN); // 이 채팅방에 속하지 않은 사용자입니다.
+            throw new CustomException(ROOMMATE_CHAT_PARTICIPANT_FORBIDDEN); // 이 채팅방에 속하지 않은 사용자입니다.
         }
 
         // 채팅 내역 조회
