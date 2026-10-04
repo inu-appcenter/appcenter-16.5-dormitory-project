@@ -375,8 +375,9 @@ public class OpenChatMessageService {
                 .orElseThrow(() -> new CustomException(ErrorCode.OPEN_CHAT_MESSAGE_NOT_FOUND));
 
         //채팅방 참여자가 아니면 삭제 불가
-        if (!openChatParticipantRepository.existsByRoomIdAndUserId(openChatRoom.getId(), requesterId))
-            throw new CustomException(ErrorCode.OPEN_CHAT_PARTICIPANT_NOT_FOUND);
+        if (!openChatParticipantRepository.existsByRoomIdAndUserId(openChatRoom.getId(), requesterId)) {
+            throw new CustomException(ErrorCode.OPEN_CHAT_PARTICIPANT_FORBIDDEN);
+        }
         //해당 채팅방의 메시지가 아니면 삭제 불가
         if (!openChatMessage.getRoomId().equals(openChatRoom.getId()))
             throw new CustomException(ErrorCode.OPEN_CHAT_MESSAGE_ROOM_MISMATCH);
