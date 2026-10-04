@@ -293,7 +293,7 @@ public class RoommateChattingChatService {
                     String imageUrl = chat.getMember() != null
                             ? imageService.findImage(ImageType.USER, chat.getMember().getId(), request).getImageUrl()
                             : null;
-                        return ResponseRoommateChatDto.entityToDto(chat, imageUrl);
+                    return ResponseRoommateChatDto.entityToDto(chat, imageUrl);
                 })
                 .toList();
     }
@@ -320,7 +320,7 @@ public class RoommateChattingChatService {
         //soft delete
         roommateChatMessage.delete();
 
-        ResponseRoommateChatDeleteEventDto deleteEventDto = new ResponseRoommateChatDeleteEventDto(roomId, messageId);
+        ResponseRoommateChatDeleteEventDto deleteEventDto = new ResponseRoommateChatDeleteEventDto(roommateChatMessage.getId(), roommateChatRoom.getId());
         messagingTemplate.convertAndSend(ROOMMATE_CHAT_TOPIC_PREFIX + roomId, deleteEventDto);
     }
 }
