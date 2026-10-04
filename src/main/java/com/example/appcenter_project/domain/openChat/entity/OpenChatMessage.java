@@ -26,6 +26,9 @@ public class OpenChatMessage extends BaseTimeEntity {
     @Column(nullable = false, columnDefinition = "TEXT")
     private String content;
 
+    @Embedded
+    private DeletedMessageState deletedState = new DeletedMessageState();
+
     @Enumerated(EnumType.STRING)
     @Column(nullable = false)
     private OpenChatMessageType type;
