@@ -9,6 +9,8 @@ import com.example.appcenter_project.domain.openChat.dto.response.ResponseAdminC
 import com.example.appcenter_project.domain.openChat.dto.response.ResponseOpenChatMessageDto;
 import com.example.appcenter_project.domain.openChat.dto.response.ResponseOpenChatMessageListDto;
 import com.example.appcenter_project.domain.openChat.dto.response.ResponseOpenChatReadEventDto;
+import com.example.appcenter_project.domain.openChat.dto.response.ResponseRecruitmentStatusEventDto;
+import com.example.appcenter_project.domain.openChat.enums.OpenChatRoomRecruitmentStatus;
 import com.example.appcenter_project.domain.openChat.enums.OpenChatRoomType;
 import com.example.appcenter_project.domain.openChat.entity.OpenChatMessage;
 import com.example.appcenter_project.domain.openChat.entity.OpenChatRoom;
@@ -278,7 +280,8 @@ public class OpenChatMessageService {
                 .collect(Collectors.toMap(User::getId, u -> u.getName() != null ? u.getName() : ""));
 
         List<Long> linkedRoomIds = messages.stream()
-                .filter(msg -> msg.getType() == OpenChatMessageType.ROOM_LINK)
+                .filter(msg -> msg.getType() == OpenChatMessageType.ROOM_LINK
+                        || msg.getType() == OpenChatMessageType.REOPEN_CARD)
                 .map(this::extractLinkedRoomId)
                 .filter(id -> id != null)
                 .distinct()
@@ -295,7 +298,8 @@ public class OpenChatMessageService {
                             ? null
                             : nicknameByUserId.get(msg.getSenderId());
                     int unreadCount = calculateUnreadCount(roomId, msg.getId());
-                    if (msg.getType() == OpenChatMessageType.ROOM_LINK) {
+                    if (msg.getType() == OpenChatMessageType.ROOM_LINK
+                            || msg.getType() == OpenChatMessageType.REOPEN_CARD) {
                         return toRoomLinkDto(msg, nickname, unreadCount, linkedRoomMap);
                     }
                     if (msg.getType() == OpenChatMessageType.STUDENT_ID_REQUEST) {
@@ -387,8 +391,11 @@ public class OpenChatMessageService {
                     ? ((Number) parsed.get("maxParticipants")).intValue() : null;
             OpenChatRoom linkedRoom = linkedRoomMap.get(derivedRoomId);
             boolean recruitmentClosed = linkedRoom != null && linkedRoom.isRecruitmentClosed();
+            OpenChatRoomRecruitmentStatus recruitmentStatus = recruitmentClosed
+                    ? OpenChatRoomRecruitmentStatus.CLOSED
+                    : OpenChatRoomRecruitmentStatus.OPEN;
             return ResponseOpenChatMessageDto.fromRoomLink(msg, nickname, unreadCount,
-                    derivedRoomId, roomName, description, maxParticipants, recruitmentClosed);
+                    derivedRoomId, roomName, description, maxParticipants, recruitmentClosed, recruitmentStatus);
         } catch (Exception e) {
             return ResponseOpenChatMessageDto.from(msg, nickname, unreadCount, List.of());
         }
@@ -412,6 +419,50 @@ public class OpenChatMessageService {
         } catch (Exception e) {
             return ResponseOpenChatMessageDto.from(msg, nickname, unreadCount, List.of());
         }
+    }
+
+    public void sendRecruitmentStatusEvent(Long parentRoomId, Long derivedRoomId, OpenChatRoomRecruitmentStatus status) {
+        messagingTemplate.convertAndSend(
+                "/sub/openchat/" + parentRoomId + "/recruitment-status",
+                ResponseRecruitmentStatusEventDto.of(derivedRoomId, status));
+    }
+
+    public void sendReopenCardMessage(Long parentRoomId, Long actorId, Long derivedRoomId,
+                                      String roomName, String description, int maxParticipants, int transitionCount) {
+        String duplKey = derivedRoomId + "_reopen_" + transitionCount;
+        if (openChatMessageRepository.existsByDuplKey(duplKey)) {
+            return;
+        }
+
+        Map<String, Object> payload = new HashMap<>();
+        payload.put("derivedRoomId", derivedRoomId);
+        payload.put("roomName", roomName);
+        payload.put("description", description);
+        payload.put("maxParticipants", maxParticipants);
+
+        String content;
+        try {
+            content = objectMapper.writeValueAsString(payload);
+        } catch (JsonProcessingException e) {
+            throw new CustomException(ErrorCode.UNHANDLED_EXCEPTION);
+        }
+
+        OpenChatMessage message = OpenChatMessage.createReopenCard(parentRoomId, actorId, content, duplKey);
+        openChatMessageRepository.save(message);
+
+        openChatRoomRepository.findById(parentRoomId).ifPresent(room ->
+                room.updateLastMessage(content, message.getCreatedDate()));
+
+        int unreadCount = calculateUnreadCount(parentRoomId, message.getId());
+
+        User sender = userRepository.findById(actorId).orElse(null);
+        String senderNickname = sender != null ? sender.getName() : null;
+
+        ResponseOpenChatMessageDto response = ResponseOpenChatMessageDto.fromRoomLink(
+                message, senderNickname, unreadCount,
+                derivedRoomId, roomName, description, maxParticipants, false,
+                OpenChatRoomRecruitmentStatus.OPEN);
+        messagingTemplate.convertAndSend("/sub/openchat/" + parentRoomId, response);
     }
 
     private void validateImageFiles(List<MultipartFile> images) {

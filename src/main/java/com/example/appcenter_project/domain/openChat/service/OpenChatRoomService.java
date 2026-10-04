@@ -121,6 +121,7 @@ public class OpenChatRoomService {
                 originRoom.getCreatorDormitory(),
                 originRoom.getScope()
         );
+        derivedRoom.setOriginRoomId(request.getOriginRoomId());
         OpenChatRoom savedRoom = openChatRoomRepository.save(derivedRoom);
         openChatParticipantRepository.save(OpenChatParticipant.create(savedRoom.getId(), userId, true));
 
@@ -523,6 +524,21 @@ public class OpenChatRoomService {
         }
 
         room.updateRecruitmentStatus(status, actorId);
+
+        Long originRoomId = room.getOriginRoomId();
+        if (originRoomId == null) {
+            return;
+        }
+
+        openChatMessageService.sendRecruitmentStatusEvent(originRoomId, roomId, status);
+
+        if (status == OpenChatRoomRecruitmentStatus.OPEN) {
+            room.incrementTransitionCount();
+            openChatMessageService.sendReopenCardMessage(
+                    originRoomId, actorId, roomId,
+                    room.getName(), room.getDescription(), room.getMaxParticipants(),
+                    room.getTransitionCount());
+        }
     }
 
     @Transactional

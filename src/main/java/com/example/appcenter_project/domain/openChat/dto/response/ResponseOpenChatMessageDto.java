@@ -2,6 +2,7 @@ package com.example.appcenter_project.domain.openChat.dto.response;
 
 import com.example.appcenter_project.domain.openChat.entity.OpenChatMessage;
 import com.example.appcenter_project.domain.openChat.enums.OpenChatMessageType;
+import com.example.appcenter_project.domain.openChat.enums.OpenChatRoomRecruitmentStatus;
 import lombok.Builder;
 import lombok.Getter;
 
@@ -25,6 +26,7 @@ public class ResponseOpenChatMessageDto {
     private String linkedRoomDescription;
     private Integer linkedRoomMaxParticipants;
     private Boolean linkedRoomRecruitmentClosed;
+    private OpenChatRoomRecruitmentStatus linkedRoomRecruitmentStatus;
     private Long disclosureRequestId;
     private boolean isBot;
 
@@ -75,6 +77,16 @@ public class ResponseOpenChatMessageDto {
             OpenChatMessage message, String senderNickname, int unreadCount,
             Long linkedRoomId, String linkedRoomName, String linkedRoomDescription, Integer linkedRoomMaxParticipants,
             boolean linkedRoomRecruitmentClosed) {
+        return fromRoomLink(message, senderNickname, unreadCount,
+                linkedRoomId, linkedRoomName, linkedRoomDescription, linkedRoomMaxParticipants,
+                linkedRoomRecruitmentClosed,
+                linkedRoomRecruitmentClosed ? OpenChatRoomRecruitmentStatus.CLOSED : OpenChatRoomRecruitmentStatus.OPEN);
+    }
+
+    public static ResponseOpenChatMessageDto fromRoomLink(
+            OpenChatMessage message, String senderNickname, int unreadCount,
+            Long linkedRoomId, String linkedRoomName, String linkedRoomDescription, Integer linkedRoomMaxParticipants,
+            boolean linkedRoomRecruitmentClosed, OpenChatRoomRecruitmentStatus recruitmentStatus) {
         return ResponseOpenChatMessageDto.builder()
                 .messageId(message.getId())
                 .roomId(message.getRoomId())
@@ -90,6 +102,7 @@ public class ResponseOpenChatMessageDto {
                 .linkedRoomDescription(linkedRoomDescription)
                 .linkedRoomMaxParticipants(linkedRoomMaxParticipants)
                 .linkedRoomRecruitmentClosed(linkedRoomRecruitmentClosed)
+                .linkedRoomRecruitmentStatus(recruitmentStatus)
                 .isBot(false)
                 .build();
     }

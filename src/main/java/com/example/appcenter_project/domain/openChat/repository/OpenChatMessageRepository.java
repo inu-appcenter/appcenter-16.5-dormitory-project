@@ -8,4 +8,6 @@ import org.springframework.data.jpa.repository.JpaRepository;
 public interface OpenChatMessageRepository extends JpaRepository<OpenChatMessage, Long>, OpenChatMessageQuerydslRepository {
 
     Slice<OpenChatMessage> findByRoomIdOrderByCreatedDateAsc(Long roomId, Pageable pageable);
+
+    boolean existsByDuplKey(String duplKey);
 }

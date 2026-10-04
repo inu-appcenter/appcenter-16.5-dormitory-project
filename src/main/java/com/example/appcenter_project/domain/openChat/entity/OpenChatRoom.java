@@ -73,6 +73,11 @@ public class OpenChatRoom extends BaseTimeEntity {
 
     private LocalDateTime lastStatusChangedAt;
 
+    private Long originRoomId;
+
+    @Column(nullable = false)
+    private int transitionCount = 0;
+
     public boolean matchesPassword(String input) {
         return this.password == null || this.password.equals(input);
     }
@@ -251,6 +256,14 @@ public class OpenChatRoom extends BaseTimeEntity {
         this.recruitmentClosed = true;
         this.closedAt = LocalDateTime.now();
         this.closedBy = actorId;
+    }
+
+    public void setOriginRoomId(Long originRoomId) {
+        this.originRoomId = originRoomId;
+    }
+
+    public void incrementTransitionCount() {
+        this.transitionCount += 1;
     }
 
     public void updateRecruitmentStatus(OpenChatRoomRecruitmentStatus status, Long actorId) {
