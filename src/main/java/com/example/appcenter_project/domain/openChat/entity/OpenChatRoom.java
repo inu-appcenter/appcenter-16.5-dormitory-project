@@ -231,6 +231,19 @@ public class OpenChatRoom extends BaseTimeEntity {
         return room;
     }
 
+    public static OpenChatRoom createForTest(Long id, boolean recruitmentClosed) {
+        OpenChatRoom room = new OpenChatRoom();
+        room.id = id;
+        room.name = "test-room";
+        room.scope = OpenChatRoomScope.ALL;
+        room.maxParticipants = 10;
+        room.isOfficial = false;
+        room.roomType = OpenChatRoomType.DERIVED;
+        room.isPublic = true;
+        room.recruitmentClosed = recruitmentClosed;
+        return room;
+    }
+
     public void update(String name, String description, OpenChatRoomScope scope,
                        Integer maxParticipants, String password, Boolean isPublic) {
         if (name != null)            this.name = name;

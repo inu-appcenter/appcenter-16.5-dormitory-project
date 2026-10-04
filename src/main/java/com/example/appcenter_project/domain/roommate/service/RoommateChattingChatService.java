@@ -30,9 +30,16 @@ import org.springframework.messaging.simp.SimpMessagingTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import com.example.appcenter_project.shared.dto.ReplySourceDto;
+import com.example.appcenter_project.shared.enums.ChatRoomType;
+import com.example.appcenter_project.shared.enums.ReplySourceStatus;
+
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
+import java.util.stream.Collectors;
 import org.json.JSONObject;
 
 import static com.example.appcenter_project.global.exception.ErrorCode.*;
@@ -54,6 +61,10 @@ public class RoommateChattingChatService {
     private final MixpanelService mixpanelService;
 
     public ResponseRoommateChatDto sendChat(Long userId, RequestRoommateChatDto requestRoommateChatDto) {
+        return sendChat(requestRoommateChatDto, userId);
+    }
+
+    public ResponseRoommateChatDto sendChat(RequestRoommateChatDto requestRoommateChatDto, Long userId) {
         log.info("💬 [채팅 전송 시작] userId: {}, roomId: {}, content: {}",
                 userId, requestRoommateChatDto.getRoommateChattingRoomId(), requestRoommateChatDto.getContent());
 
@@ -221,6 +232,135 @@ public class RoommateChattingChatService {
         chatRepository.save(chat);
         ResponseRoommateChatDto dto = ResponseRoommateChatDto.entityToDto(chat, null);
         messagingTemplate.convertAndSend("/sub/roommate/chat/" + roomId, dto);
+    }
+
+    @Transactional
+    public void sendChatWithReply(Long roomId, Long senderId, String content, Long replyToMessageId) {
+        RoommateChattingChat originalChat = chatRepository.findById(replyToMessageId)
+                .orElseThrow(() -> new CustomException(ROOMMATE_CHAT_MESSAGE_NOT_FOUND));
+
+        if (originalChat.isDeleted()) {
+            throw new CustomException(ROOMMATE_CHAT_MESSAGE_ALREADY_DELETED);
+        }
+
+        if (!originalChat.getRoommateChattingRoom().getId().equals(roomId)) {
+            throw new CustomException(ROOMMATE_CHAT_REPLY_TARGET_NOT_IN_SAME_ROOM);
+        }
+
+        if (originalChat.getReplyToMessageId() != null) {
+            throw new CustomException(ROOMMATE_CHAT_NESTED_REPLY_NOT_ALLOWED);
+        }
+
+        if (originalChat.isSystem()) {
+            throw new CustomException(ROOMMATE_CHAT_REPLY_NOT_ALLOWED_FOR_TYPE);
+        }
+
+        Long originalSenderId = originalChat.getMember() != null ? originalChat.getMember().getId() : null;
+
+        RoommateChattingRoom room = chatRoomRepository.findById(roomId).orElse(null);
+        User sender = room != null ? userRepository.findById(senderId).orElse(null) : null;
+
+        RoommateChattingChat reply;
+        if (room != null && sender != null) {
+            reply = RoommateChattingChat.create(room, sender, content);
+        } else {
+            reply = new RoommateChattingChat();
+        }
+        reply.attachReply(replyToMessageId, originalSenderId, roomId);
+        chatRepository.save(reply);
+    }
+
+    @Transactional
+    public void deleteChat(Long chatId, Long requesterId) {
+        RoommateChattingChat chat = chatRepository.findById(chatId)
+                .orElseThrow(() -> new CustomException(ROOMMATE_CHAT_MESSAGE_NOT_FOUND));
+
+        Long ownerId = chat.getMember() != null ? chat.getMember().getId() : null;
+        if (!requesterId.equals(ownerId)) {
+            throw new CustomException(ROOMMATE_CHAT_MESSAGE_NOT_OWNED_BY_USER);
+        }
+
+        if (chat.isDeleted()) {
+            throw new CustomException(ROOMMATE_CHAT_MESSAGE_ALREADY_DELETED);
+        }
+
+        chat.softDelete();
+        chatRepository.save(chat);
+    }
+
+    @Transactional(readOnly = true)
+    public Map<Long, ReplySourceDto> buildReplySources(List<RoommateChattingChat> chats) {
+        Map<Long, ReplySourceDto> result = new HashMap<>();
+
+        List<RoommateChattingChat> replyChats = chats.stream()
+                .filter(c -> c.getReplyToMessageId() != null)
+                .toList();
+
+        if (replyChats.isEmpty()) {
+            return result;
+        }
+
+        List<Long> originalIds = replyChats.stream()
+                .map(RoommateChattingChat::getReplyToMessageId)
+                .distinct()
+                .toList();
+
+        Map<Long, RoommateChattingChat> originalMap = chatRepository.findAllById(originalIds).stream()
+                .collect(Collectors.toMap(RoommateChattingChat::getId, c -> c));
+
+        List<Long> senderIds = originalMap.values().stream()
+                .filter(c -> !c.isDeleted() && c.getMember() != null)
+                .map(c -> c.getMember().getId())
+                .distinct()
+                .toList();
+
+        Map<Long, String> nicknameMap = userRepository.findAllById(senderIds).stream()
+                .collect(Collectors.toMap(User::getId, u -> u.getName() != null ? u.getName() : ""));
+
+        for (RoommateChattingChat replyChat : replyChats) {
+            Long origId = replyChat.getReplyToMessageId();
+            RoommateChattingChat orig = originalMap.get(origId);
+
+            if (orig == null) {
+                result.put(replyChat.getId(), ReplySourceDto.builder()
+                        .replyToMessageId(origId)
+                        .status(ReplySourceStatus.NOT_FOUND)
+                        .replyToRoomType(ChatRoomType.ROOMMATE)
+                        .replyToRoomId(replyChat.getRoommateChattingRoom() != null
+                                ? replyChat.getRoommateChattingRoom().getId() : null)
+                        .build());
+                continue;
+            }
+
+            if (orig.isDeleted()) {
+                result.put(replyChat.getId(), ReplySourceDto.builder()
+                        .replyToMessageId(origId)
+                        .status(ReplySourceStatus.DELETED)
+                        .replyToRoomType(ChatRoomType.ROOMMATE)
+                        .replyToRoomId(replyChat.getRoommateChattingRoom() != null
+                                ? replyChat.getRoommateChattingRoom().getId() : null)
+                        .build());
+                continue;
+            }
+
+            Long origSenderId = orig.getMember() != null ? orig.getMember().getId() : null;
+            String preview = orig.getContent();
+            if (preview != null && preview.length() > 100) {
+                preview = preview.substring(0, 100);
+            }
+            result.put(replyChat.getId(), ReplySourceDto.builder()
+                    .replyToMessageId(origId)
+                    .status(ReplySourceStatus.NORMAL)
+                    .replyToSenderId(origSenderId)
+                    .replyToSenderNickname(origSenderId != null ? nicknameMap.get(origSenderId) : null)
+                    .contentPreview(preview)
+                    .replyToRoomType(ChatRoomType.ROOMMATE)
+                    .replyToRoomId(replyChat.getRoommateChattingRoom() != null
+                            ? replyChat.getRoommateChattingRoom().getId() : null)
+                    .build());
+        }
+
+        return result;
     }
 
     public Integer getUnReadCountByUserId(Long userId) {

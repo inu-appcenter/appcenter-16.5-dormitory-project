@@ -2,6 +2,7 @@ package com.example.appcenter_project.domain.openChat.entity;
 
 import com.example.appcenter_project.common.BaseTimeEntity;
 import com.example.appcenter_project.domain.openChat.enums.OpenChatMessageType;
+import com.example.appcenter_project.shared.enums.ChatRoomType;
 import jakarta.persistence.*;
 import lombok.AccessLevel;
 import lombok.Getter;
@@ -33,6 +34,23 @@ public class OpenChatMessage extends BaseTimeEntity {
     @Column(length = 100, unique = true)
     private String duplKey;
 
+    @Column(nullable = false)
+    private boolean isDeleted = false;
+
+    private Long replyToMessageId;
+
+    @Enumerated(EnumType.STRING)
+    private OpenChatMessageType replyToMessageType;
+
+    private Long replyToSenderId;
+
+    private Long replyToRoomId;
+
+    @Enumerated(EnumType.STRING)
+    private ChatRoomType replyToRoomType;
+
+    private Long replyToDerivedRoomId;
+
     public static OpenChatMessage create(Long roomId, Long senderId, String content, OpenChatMessageType type) {
         OpenChatMessage message = new OpenChatMessage();
         message.roomId = roomId;
@@ -50,5 +68,33 @@ public class OpenChatMessage extends BaseTimeEntity {
         message.type = OpenChatMessageType.REOPEN_CARD;
         message.duplKey = duplKey;
         return message;
+    }
+
+    public static OpenChatMessage createForTest(Long id, Long roomId, Long senderId, String content,
+                                                OpenChatMessageType type, boolean isDeleted, Long replyToMessageId) {
+        OpenChatMessage message = new OpenChatMessage();
+        message.id = id;
+        message.roomId = roomId;
+        message.senderId = senderId;
+        message.content = content;
+        message.type = type;
+        message.isDeleted = isDeleted;
+        message.replyToMessageId = replyToMessageId;
+        return message;
+    }
+
+    public void softDelete() {
+        this.isDeleted = true;
+    }
+
+    public void attachReply(Long replyToMessageId, OpenChatMessageType replyToMessageType,
+                            Long replyToSenderId, Long replyToRoomId, ChatRoomType replyToRoomType,
+                            Long replyToDerivedRoomId) {
+        this.replyToMessageId = replyToMessageId;
+        this.replyToMessageType = replyToMessageType;
+        this.replyToSenderId = replyToSenderId;
+        this.replyToRoomId = replyToRoomId;
+        this.replyToRoomType = replyToRoomType;
+        this.replyToDerivedRoomId = replyToDerivedRoomId;
     }
 }

@@ -195,6 +195,18 @@ public enum ErrorCode {
     OPEN_CHAT_ROOM_ALREADY_CLOSED(CONFLICT, 22030, "[OpenChat] 이미 마감된 채팅방입니다."),
     OPEN_CHAT_ROOM_CLOSED_FOR_JOIN(CONFLICT, 22031, "[OpenChat] 마감된 채팅방에는 참여할 수 없습니다."),
     OPEN_CHAT_ROOM_ALREADY_OPEN(CONFLICT, 22032, "[OpenChat] 이미 모집 중인 채팅방입니다."),
+    OPEN_CHAT_MESSAGE_ALREADY_DELETED(BAD_REQUEST, 22033, "[OpenChat] 이미 삭제된 메시지입니다."),
+    OPEN_CHAT_REPLY_NOT_ALLOWED_FOR_TYPE(BAD_REQUEST, 22034, "[OpenChat] 답장할 수 없는 메시지 유형입니다."),
+    OPEN_CHAT_REPLY_TARGET_NOT_IN_SAME_ROOM(BAD_REQUEST, 22035, "[OpenChat] 원본 메시지가 다른 채팅방 소속입니다."),
+    OPEN_CHAT_NESTED_REPLY_NOT_ALLOWED(BAD_REQUEST, 22036, "[OpenChat] 답장에 대한 답장은 불가합니다."),
+    OPEN_CHAT_DERIVED_ROOM_ID_PARSE_FAILED(INTERNAL_SERVER_ERROR, 22037, "[OpenChat] REOPEN_CARD content에서 derivedRoomId 파싱 실패."),
+    OPEN_CHAT_MESSAGE_NOT_OWNED_BY_USER(FORBIDDEN, 22038, "[OpenChat] 메시지 발신자가 아닙니다."),
+    ROOMMATE_CHAT_MESSAGE_NOT_FOUND(NOT_FOUND, 10005, "[RoommateChat] 메시지를 찾을 수 없습니다."),
+    ROOMMATE_CHAT_MESSAGE_ALREADY_DELETED(BAD_REQUEST, 10006, "[RoommateChat] 이미 삭제된 메시지입니다."),
+    ROOMMATE_CHAT_REPLY_NOT_ALLOWED_FOR_TYPE(BAD_REQUEST, 10007, "[RoommateChat] 답장할 수 없는 메시지 유형입니다."),
+    ROOMMATE_CHAT_REPLY_TARGET_NOT_IN_SAME_ROOM(BAD_REQUEST, 10008, "[RoommateChat] 원본 메시지가 다른 채팅방 소속입니다."),
+    ROOMMATE_CHAT_NESTED_REPLY_NOT_ALLOWED(BAD_REQUEST, 10009, "[RoommateChat] 답장에 대한 답장은 불가합니다."),
+    ROOMMATE_CHAT_MESSAGE_NOT_OWNED_BY_USER(FORBIDDEN, 10010, "[RoommateChat] 메시지 발신자가 아닙니다."),
 
     // STUDENT_ID_DISCLOSURE
     DISCLOSURE_REQUEST_NOT_FOUND(NOT_FOUND, 23001, "[StudentIdDisclosure] 학번 공개 요청을 찾을 수 없습니다."),
