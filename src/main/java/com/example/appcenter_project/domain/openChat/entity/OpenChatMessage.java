@@ -30,12 +30,25 @@ public class OpenChatMessage extends BaseTimeEntity {
     @Column(nullable = false)
     private OpenChatMessageType type;
 
+    @Column(length = 100, unique = true)
+    private String duplKey;
+
     public static OpenChatMessage create(Long roomId, Long senderId, String content, OpenChatMessageType type) {
         OpenChatMessage message = new OpenChatMessage();
         message.roomId = roomId;
         message.senderId = senderId;
         message.content = content;
         message.type = type;
+        return message;
+    }
+
+    public static OpenChatMessage createReopenCard(Long roomId, Long senderId, String content, String duplKey) {
+        OpenChatMessage message = new OpenChatMessage();
+        message.roomId = roomId;
+        message.senderId = senderId;
+        message.content = content;
+        message.type = OpenChatMessageType.REOPEN_CARD;
+        message.duplKey = duplKey;
         return message;
     }
 }
