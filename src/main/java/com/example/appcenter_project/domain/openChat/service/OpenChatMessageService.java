@@ -386,6 +386,9 @@ public class OpenChatMessageService {
         if(!openChatMessage.getSenderId().equals(requesterId)) throw new CustomException(ErrorCode.OPEN_CHAT_NOT_SENDER);
 
         openChatMessage.delete();
+
+        ResponseOpenChatDeleteEventDto deleteEventDto = new ResponseOpenChatDeleteEventDto(openChatMessage.getId(), openChatRoom.getId());
+        messagingTemplate.convertAndSend("/sub/openchat/" + roomId, deleteEventDto);
     }
 
     // ========== Private Methods ========== //
