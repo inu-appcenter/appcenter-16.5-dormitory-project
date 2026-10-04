@@ -372,6 +372,24 @@ public class OpenChatMessageService {
         return (int) (total - readCount);
     }
 
+    public void deleteMessage(Long requesterId, RequestDeleteMessageDto deleteMessageDto) {
+        OpenChatRoom openChatRoom = openChatRoomRepository.findById(deleteMessageDto.getRoomId())
+                .orElseThrow(() -> new CustomException(ErrorCode.OPEN_CHAT_ROOM_NOT_FOUND));
+        OpenChatMessage openChatMessage = openChatMessageRepository.findById(deleteMessageDto.getMessageId())
+                .orElseThrow(() -> new CustomException(ErrorCode.OPEN_CHAT_MESSAGE_NOT_FOUND));
+
+        //채팅방 참여자가 아니면 삭제 불가
+        if(!openChatParticipantRepository.existsByRoomIdAndUserId(openChatRoom.getId(), requesterId)) throw new CustomException(ErrorCode.OPEN_CHAT_NOT_PARTICIPANT);
+        //해당 채팅방의 메시지가 아니면 삭제 불가
+        if(!openChatMessage.getRoomId().equals(openChatRoom.getId())) throw new CustomException(ErrorCode.OPEN_CHAT_MESSAGE_ROOM_MISMATCH);
+        //메시지 작성자가 아니면 삭제 불가
+        if(!openChatMessage.getSenderId().equals(requesterId)) throw new CustomException(ErrorCode.OPEN_CHAT_NOT_SENDER);
+
+        openChatMessage.delete();
+    }
+
+    // ========== Private Methods ========== //
+
     private ResponseOpenChatMessageDto toRoomLinkDto(OpenChatMessage msg, String nickname, int unreadCount) {
         return toRoomLinkDto(msg, nickname, unreadCount, Map.of());
     }

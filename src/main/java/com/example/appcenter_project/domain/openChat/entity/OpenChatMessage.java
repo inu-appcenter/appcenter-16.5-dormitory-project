@@ -1,6 +1,7 @@
 package com.example.appcenter_project.domain.openChat.entity;
 
 import com.example.appcenter_project.common.BaseTimeEntity;
+import com.example.appcenter_project.common.DeletedMessageState;
 import com.example.appcenter_project.domain.openChat.enums.OpenChatMessageType;
 import jakarta.persistence.*;
 import lombok.AccessLevel;
@@ -40,5 +41,9 @@ public class OpenChatMessage extends BaseTimeEntity {
         message.content = content;
         message.type = type;
         return message;
+    }
+
+    public void delete() {
+        this.deletedState.delete();
     }
 }
