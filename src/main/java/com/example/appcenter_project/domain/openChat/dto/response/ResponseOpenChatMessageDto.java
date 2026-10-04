@@ -11,6 +11,8 @@ import java.util.List;
 @Getter
 @Builder
 public class ResponseOpenChatMessageDto {
+    private static final String DELETED_MESSAGE_PLACEHOLDER = "삭제된 메시지입니다.";
+
     private Long messageId;
     private Long roomId;
     private Long senderId;
@@ -28,6 +30,7 @@ public class ResponseOpenChatMessageDto {
     private Long disclosureRequestId;
     private boolean isBot;
 
+
     public static ResponseOpenChatMessageDto from(OpenChatMessage message, String senderNickname, int unreadCount) {
         return from(message, senderNickname, unreadCount, List.of());
     }
@@ -38,7 +41,7 @@ public class ResponseOpenChatMessageDto {
                 .roomId(message.getRoomId())
                 .senderId(message.getSenderId())
                 .senderNickname(senderNickname)
-                .content(message.getContent())
+                .content(getResponseContent(message))
                 .type(message.getType())
                 .imageUrls(imageUrls != null ? imageUrls : List.of())
                 .unreadCount(unreadCount)
@@ -54,7 +57,7 @@ public class ResponseOpenChatMessageDto {
                 .roomId(message.getRoomId())
                 .senderId(message.getSenderId())
                 .senderNickname(senderNickname)
-                .content(message.getContent())
+                .content(getResponseContent(message))
                 .type(message.getType())
                 .imageUrls(List.of())
                 .unreadCount(unreadCount)
@@ -80,7 +83,7 @@ public class ResponseOpenChatMessageDto {
                 .roomId(message.getRoomId())
                 .senderId(message.getSenderId())
                 .senderNickname(senderNickname)
-                .content(message.getContent())
+                .content(getResponseContent(message))
                 .type(message.getType())
                 .imageUrls(List.of())
                 .unreadCount(unreadCount)
@@ -92,5 +95,9 @@ public class ResponseOpenChatMessageDto {
                 .linkedRoomRecruitmentClosed(linkedRoomRecruitmentClosed)
                 .isBot(false)
                 .build();
+    }
+
+    private static String getResponseContent(OpenChatMessage message) {
+        return message.getDeletedState().isDeleted() ? DELETED_MESSAGE_PLACEHOLDER : message.getContent();
     }
 }

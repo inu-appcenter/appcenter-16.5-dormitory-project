@@ -5,14 +5,11 @@ import com.example.appcenter_project.common.image.enums.ImageType;
 import com.example.appcenter_project.common.image.repository.ImageRepository;
 import com.example.appcenter_project.common.image.service.ImageService;
 import com.example.appcenter_project.domain.openChat.dto.request.RequestOpenChatMessageDto;
-import com.example.appcenter_project.domain.openChat.dto.response.ResponseAdminChatRoomDto;
-import com.example.appcenter_project.domain.openChat.dto.response.ResponseOpenChatMessageDto;
-import com.example.appcenter_project.domain.openChat.dto.response.ResponseOpenChatMessageListDto;
-import com.example.appcenter_project.domain.openChat.dto.response.ResponseOpenChatReadEventDto;
-import com.example.appcenter_project.domain.openChat.enums.OpenChatRoomType;
+import com.example.appcenter_project.domain.openChat.dto.response.*;
 import com.example.appcenter_project.domain.openChat.entity.OpenChatMessage;
 import com.example.appcenter_project.domain.openChat.entity.OpenChatRoom;
 import com.example.appcenter_project.domain.openChat.enums.OpenChatMessageType;
+import com.example.appcenter_project.domain.openChat.enums.OpenChatRoomType;
 import com.example.appcenter_project.domain.openChat.repository.OpenChatMessageRepository;
 import com.example.appcenter_project.domain.openChat.repository.OpenChatParticipantRepository;
 import com.example.appcenter_project.domain.openChat.repository.OpenChatRoomRepository;
@@ -31,12 +28,7 @@ import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.multipart.MultipartFile;
 
 import java.nio.file.Paths;
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.HashSet;
-import java.util.List;
-import java.util.Map;
-import java.util.Set;
+import java.util.*;
 import java.util.stream.Collectors;
 
 @Service
@@ -60,6 +52,8 @@ public class OpenChatMessageService {
     private final OpenChatNotificationService openChatNotificationService;
     private final ObjectMapper objectMapper;
 
+    // ========== Public Methods ========== //
+
     public void sendMessage(Long userId, RequestOpenChatMessageDto request) {
         OpenChatRoom room = openChatRoomRepository.findById(request.getRoomId()).orElse(null);
         if (room == null) return;
@@ -72,7 +66,7 @@ public class OpenChatMessageService {
         OpenChatMessage message = OpenChatMessage.create(request.getRoomId(), userId, request.getContent(), OpenChatMessageType.TEXT);
         openChatMessageRepository.save(message);
 
-        room.updateLastMessage(message.getContent(), message.getCreatedDate());
+        room.updateLastMessage(message.getId(), message.getCreatedDate());
 
         Set<Long> usersToRead = new HashSet<>(sessionRegistry.getSubscriberUserIds(request.getRoomId()));
         usersToRead.add(userId);
@@ -132,7 +126,7 @@ public class OpenChatMessageService {
         }
 
         if (!results.isEmpty()) {
-            room.updateLastMessage("[이미지]", results.get(results.size() - 1).getCreatedAt());
+            room.updateLastMessage(results.get(results.size() - 1).getMessageId(), results.get(results.size() - 1).getCreatedAt());
         }
 
         return results;
@@ -145,7 +139,7 @@ public class OpenChatMessageService {
         OpenChatMessage message = OpenChatMessage.create(roomId, 0L, content, OpenChatMessageType.SYSTEM);
         openChatMessageRepository.save(message);
 
-        room.updateLastMessage(message.getContent(), message.getCreatedDate());
+        room.updateLastMessage(message.getId(), message.getCreatedDate());
 
         Set<Long> subscribers = sessionRegistry.getSubscriberUserIds(roomId);
         if (!subscribers.isEmpty()) {
@@ -182,7 +176,7 @@ public class OpenChatMessageService {
         OpenChatMessage message = OpenChatMessage.create(originRoomId, senderId, content, OpenChatMessageType.ROOM_LINK);
         openChatMessageRepository.save(message);
 
-        originRoom.updateLastMessage(content, message.getCreatedDate());
+        originRoom.updateLastMessage(message.getId(), message.getCreatedDate());
 
         Set<Long> usersToRead = new HashSet<>(sessionRegistry.getSubscriberUserIds(originRoomId));
         usersToRead.add(senderId);
@@ -214,11 +208,12 @@ public class OpenChatMessageService {
             throw new CustomException(ErrorCode.UNHANDLED_EXCEPTION);
         }
 
+        OpenChatRoom room = openChatRoomRepository.findById(roomId)
+                .orElseThrow(() -> new CustomException(ErrorCode.OPEN_CHAT_ROOM_NOT_FOUND));
         OpenChatMessage message = OpenChatMessage.create(roomId, requesterId, content, OpenChatMessageType.STUDENT_ID_REQUEST);
         openChatMessageRepository.save(message);
 
-        openChatRoomRepository.findById(roomId).ifPresent(room ->
-                room.updateLastMessage(content, message.getCreatedDate()));
+        room.updateLastMessage(message.getId(), message.getCreatedDate());
 
         Set<Long> usersToRead = new HashSet<>(sessionRegistry.getSubscriberUserIds(roomId));
         usersToRead.add(requesterId);
@@ -256,17 +251,18 @@ public class OpenChatMessageService {
         }
 
         List<Long> imageMessageIds = messages.stream()
-                .filter(msg -> msg.getType() == OpenChatMessageType.IMAGE)
+                //삭제하지 않은 이미지 메시지만 조회
+                .filter(msg -> !msg.getDeletedState().isDeleted() && msg.getType() == OpenChatMessageType.IMAGE)
                 .map(OpenChatMessage::getId)
                 .toList();
 
         final Map<Long, List<String>> imageUrlsMap = imageMessageIds.isEmpty()
                 ? Map.of()
                 : imageRepository.findByImageTypeAndEntityIdIn(ImageType.OPEN_CHAT_MESSAGE, imageMessageIds).stream()
-                        .collect(Collectors.groupingBy(
-                                Image::getEntityId,
-                                Collectors.mapping(img -> imageService.getImageUrl(ImageType.OPEN_CHAT_MESSAGE, img, request), Collectors.toList())
-                        ));
+                .collect(Collectors.groupingBy(
+                        Image::getEntityId,
+                        Collectors.mapping(img -> imageService.getImageUrl(ImageType.OPEN_CHAT_MESSAGE, img, request), Collectors.toList())
+                ));
 
         List<Long> senderIds = messages.stream()
                 .filter(msg -> msg.getType() != OpenChatMessageType.SYSTEM)
@@ -287,7 +283,7 @@ public class OpenChatMessageService {
         final Map<Long, OpenChatRoom> linkedRoomMap = linkedRoomIds.isEmpty()
                 ? Map.of()
                 : openChatRoomRepository.findAllById(linkedRoomIds).stream()
-                        .collect(Collectors.toMap(OpenChatRoom::getId, r -> r));
+                .collect(Collectors.toMap(OpenChatRoom::getId, r -> r));
 
         List<ResponseOpenChatMessageDto> dtos = messages.stream()
                 .map(msg -> {
@@ -346,7 +342,7 @@ public class OpenChatMessageService {
         OpenChatMessage message = OpenChatMessage.create(roomId, adminId, content, OpenChatMessageType.BOT);
         openChatMessageRepository.save(message);
 
-        room.updateLastMessage(content, message.getCreatedDate());
+        room.updateLastMessage(message.getId(), message.getCreatedDate());
 
         Set<Long> subscribers = sessionRegistry.getSubscriberUserIds(roomId);
         if (!subscribers.isEmpty()) {
@@ -372,18 +368,21 @@ public class OpenChatMessageService {
         return (int) (total - readCount);
     }
 
-    public void deleteMessage(Long requesterId, RequestDeleteMessageDto deleteMessageDto) {
-        OpenChatRoom openChatRoom = openChatRoomRepository.findById(deleteMessageDto.getRoomId())
+    public void deleteMessage(Long requesterId, Long roomId, Long messageId) {
+        OpenChatRoom openChatRoom = openChatRoomRepository.findById(roomId)
                 .orElseThrow(() -> new CustomException(ErrorCode.OPEN_CHAT_ROOM_NOT_FOUND));
-        OpenChatMessage openChatMessage = openChatMessageRepository.findById(deleteMessageDto.getMessageId())
+        OpenChatMessage openChatMessage = openChatMessageRepository.findById(messageId)
                 .orElseThrow(() -> new CustomException(ErrorCode.OPEN_CHAT_MESSAGE_NOT_FOUND));
 
         //채팅방 참여자가 아니면 삭제 불가
-        if(!openChatParticipantRepository.existsByRoomIdAndUserId(openChatRoom.getId(), requesterId)) throw new CustomException(ErrorCode.OPEN_CHAT_NOT_PARTICIPANT);
+        if (!openChatParticipantRepository.existsByRoomIdAndUserId(openChatRoom.getId(), requesterId))
+            throw new CustomException(ErrorCode.OPEN_CHAT_PARTICIPANT_NOT_FOUND);
         //해당 채팅방의 메시지가 아니면 삭제 불가
-        if(!openChatMessage.getRoomId().equals(openChatRoom.getId())) throw new CustomException(ErrorCode.OPEN_CHAT_MESSAGE_ROOM_MISMATCH);
+        if (!openChatMessage.getRoomId().equals(openChatRoom.getId()))
+            throw new CustomException(ErrorCode.OPEN_CHAT_MESSAGE_ROOM_MISMATCH);
         //메시지 작성자가 아니면 삭제 불가
-        if(!openChatMessage.getSenderId().equals(requesterId)) throw new CustomException(ErrorCode.OPEN_CHAT_NOT_SENDER);
+        if (!openChatMessage.getSenderId().equals(requesterId))
+            throw new CustomException(ErrorCode.OPEN_CHAT_NOT_SENDER);
 
         openChatMessage.delete();
 
