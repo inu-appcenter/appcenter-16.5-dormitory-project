@@ -36,7 +36,7 @@ public class OpenChatRoomFixture {
 
     public static OpenChatRoom createRoomWithLastMessageAt(LocalDateTime lastMessageAt) {
         OpenChatRoom room = OpenChatRoom.create("테스트 채팅방", "설명", OpenChatRoomScope.ALL, 10, 1L, null, false);
-        room.updateLastMessage("마지막 메시지", lastMessageAt);
+        room.updateLastMessage(1L, lastMessageAt);
         return room;
     }
 

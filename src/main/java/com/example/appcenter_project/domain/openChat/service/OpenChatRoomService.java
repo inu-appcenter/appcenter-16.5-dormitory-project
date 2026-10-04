@@ -1,34 +1,19 @@
 package com.example.appcenter_project.domain.openChat.service;
 
+import com.example.appcenter_project.domain.block.service.BlockService;
 import com.example.appcenter_project.domain.openChat.dto.request.RequestCreateDerivedRoomDto;
 import com.example.appcenter_project.domain.openChat.dto.request.RequestCreateOpenChatRoomDto;
 import com.example.appcenter_project.domain.openChat.dto.request.RequestCreatePersonalRoomDto;
 import com.example.appcenter_project.domain.openChat.dto.request.RequestUpdateOpenChatRoomDto;
-import com.example.appcenter_project.domain.openChat.enums.OpenChatRoomRecruitmentStatus;
-import com.example.appcenter_project.domain.openChat.enums.ChatNotificationMode;
-import com.example.appcenter_project.domain.openChat.dto.response.ResponseChatRoomListDto;
-import com.example.appcenter_project.domain.openChat.dto.response.ResponseDerivedRoomCreatedDto;
-import com.example.appcenter_project.domain.openChat.dto.response.ResponseLeaveOpenChatRoomDto;
-import com.example.appcenter_project.domain.openChat.dto.response.ResponseOpenChatParticipantDto;
-import com.example.appcenter_project.domain.openChat.dto.response.ResponseOpenChatParticipantListDto;
-import com.example.appcenter_project.domain.openChat.dto.response.ResponseOpenChatRoomDetailDto;
-import com.example.appcenter_project.domain.openChat.dto.response.ResponseOpenChatRoomDto;
-import com.example.appcenter_project.domain.openChat.dto.response.ResponsePersonalRoomCreatedDto;
-import com.example.appcenter_project.domain.openChat.dto.response.ResponseSimpleParticipantDto;
-import com.example.appcenter_project.domain.openChat.dto.response.ResponseSimpleParticipantListDto;
+import com.example.appcenter_project.domain.openChat.dto.response.*;
+import com.example.appcenter_project.domain.openChat.entity.OpenChatMessage;
 import com.example.appcenter_project.domain.openChat.entity.OpenChatParticipant;
 import com.example.appcenter_project.domain.openChat.entity.OpenChatRoom;
-import com.example.appcenter_project.domain.openChat.enums.KickReason;
-import com.example.appcenter_project.domain.openChat.enums.OpenChatRoomScope;
-import com.example.appcenter_project.domain.openChat.enums.OpenChatRoomTab;
-import com.example.appcenter_project.domain.openChat.enums.OpenChatRoomType;
+import com.example.appcenter_project.domain.openChat.enums.*;
 import com.example.appcenter_project.domain.openChat.repository.OpenChatMessageRepository;
 import com.example.appcenter_project.domain.openChat.repository.OpenChatParticipantRepository;
 import com.example.appcenter_project.domain.openChat.repository.OpenChatRoomQuerydslRepository;
 import com.example.appcenter_project.domain.openChat.repository.OpenChatRoomRepository;
-import com.example.appcenter_project.domain.openChat.dto.response.ResponseNotificationModeDto;
-import org.springframework.beans.factory.annotation.Qualifier;
-import com.example.appcenter_project.domain.block.service.BlockService;
 import com.example.appcenter_project.domain.roommate.entity.RoommateChattingChat;
 import com.example.appcenter_project.domain.roommate.entity.RoommateChattingRoom;
 import com.example.appcenter_project.domain.roommate.repository.MyRoommateRepository;
@@ -41,6 +26,7 @@ import com.example.appcenter_project.global.exception.CustomException;
 import com.example.appcenter_project.global.exception.ErrorCode;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.context.annotation.Lazy;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageImpl;
@@ -50,14 +36,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.time.Instant;
 import java.time.LocalDateTime;
-import java.util.ArrayList;
-import java.util.Collections;
-import java.util.Comparator;
-import java.util.List;
-import java.util.Map;
-import java.util.Objects;
-import java.util.Optional;
-import java.util.Set;
+import java.util.*;
 import java.util.stream.Collectors;
 
 @Slf4j
@@ -692,6 +671,7 @@ public class OpenChatRoomService {
 
     private List<ResponseOpenChatRoomDto> buildOpenChatDtos(List<OpenChatRoom> rooms, Long userId, boolean withUnread) {
         if (rooms.isEmpty()) return Collections.emptyList();
+        Map<Long, OpenChatMessage> latestMessages = findLatestMessages(rooms);
         List<Long> roomIds = rooms.stream().map(OpenChatRoom::getId).toList();
 
         Map<Long, Long> countMap = openChatParticipantRepository != null
@@ -708,6 +688,7 @@ public class OpenChatRoomService {
                         Long lastReadMessageId = lastReadMap.get(room.getId());
                         int unread = (int) openChatMessageRepository.countByRoomIdAndIdGreaterThan(room.getId(), lastReadMessageId);
                         return ResponseOpenChatRoomDto.from(room,
+                                latestMessages.get(room.getLastMessageId()),
                                 countMap.getOrDefault(room.getId(), 0L).intValue(),
                                 joinedRoomIds.contains(room.getId()),
                                 unread);
@@ -717,6 +698,7 @@ public class OpenChatRoomService {
         return rooms.stream()
                 .map(room -> ResponseOpenChatRoomDto.from(
                         room,
+                        latestMessages.get(room.getLastMessageId()),
                         countMap.getOrDefault(room.getId(), 0L).intValue(),
                         joinedRoomIds.contains(room.getId())))
                 .toList();
@@ -730,12 +712,14 @@ public class OpenChatRoomService {
         if (rooms.isEmpty()) {
             return new PageImpl<>(Collections.emptyList(), pageable, 0);
         }
+        Map<Long, OpenChatMessage> latestMessages = findLatestMessages(rooms);
         List<Long> roomIds = rooms.stream().map(OpenChatRoom::getId).toList();
         Map<Long, Long> countMap = openChatParticipantRepository.countByRoomIds(roomIds);
         Set<Long> joinedRoomIds = openChatParticipantRepository.findJoinedRoomIds(userId, roomIds);
         List<ResponseOpenChatRoomDto> dtos = rooms.stream()
                 .map(room -> ResponseOpenChatRoomDto.from(
                         room,
+                        latestMessages.get(room.getLastMessageId()),
                         countMap.getOrDefault(room.getId(), 0L).intValue(),
                         joinedRoomIds.contains(room.getId())))
                 .toList();
@@ -775,5 +759,18 @@ public class OpenChatRoomService {
                     });
         }
         return dto;
+    }
+
+    private Map<Long, OpenChatMessage> findLatestMessages(List<OpenChatRoom> rooms) {
+        List<Long> ids = rooms.stream()
+                .map(OpenChatRoom::getLastMessageId)
+                .filter(Objects::nonNull)
+                .distinct()
+                .toList();
+
+        if (ids.isEmpty()) return Collections.emptyMap();
+
+        return openChatMessageRepository.findAllById(ids).stream()
+                .collect(Collectors.toMap(OpenChatMessage::getId, message -> message));
     }
 }

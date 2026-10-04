@@ -1,5 +1,6 @@
 package com.example.appcenter_project.domain.openChat.dto.response;
 
+import com.example.appcenter_project.domain.openChat.entity.OpenChatMessage;
 import com.example.appcenter_project.domain.openChat.entity.OpenChatRoom;
 import com.example.appcenter_project.domain.openChat.enums.ChatCategory;
 import com.example.appcenter_project.domain.openChat.enums.OpenChatRoomRecruitmentStatus;
@@ -40,7 +41,7 @@ public class ResponseOpenChatRoomDto {
         this.isBlockedByPartner = v;
     }
 
-    public static ResponseOpenChatRoomDto from(OpenChatRoom room, int currentParticipants, boolean joined) {
+    public static ResponseOpenChatRoomDto from(OpenChatRoom room, OpenChatMessage message, int currentParticipants, boolean joined) {
         return ResponseOpenChatRoomDto.builder()
                 .roomId(room.getId())
                 .name(room.getName())
@@ -54,7 +55,7 @@ public class ResponseOpenChatRoomDto {
                 .maxParticipants(room.getMaxParticipants())
                 .isJoined(joined)
                 .lastMessageAt(room.getLastMessageAt())
-                .lastMessage(room.getLastMessage())
+                .lastMessage(toResponse(message))
                 .unreadCount(0)
                 .isDormOfficial(room.getTargetDorm() != null)
                 .recruitmentClosed(room.isRecruitmentClosed())
@@ -66,7 +67,7 @@ public class ResponseOpenChatRoomDto {
                 .build();
     }
 
-    public static ResponseOpenChatRoomDto from(OpenChatRoom room, int currentParticipants, boolean joined, int unreadCount) {
+    public static ResponseOpenChatRoomDto from(OpenChatRoom room, OpenChatMessage message, int currentParticipants, boolean joined, int unreadCount) {
         return ResponseOpenChatRoomDto.builder()
                 .roomId(room.getId())
                 .name(room.getName())
@@ -80,7 +81,7 @@ public class ResponseOpenChatRoomDto {
                 .maxParticipants(room.getMaxParticipants())
                 .isJoined(joined)
                 .lastMessageAt(room.getLastMessageAt())
-                .lastMessage(room.getLastMessage())
+                .lastMessage(toResponse(message))
                 .unreadCount(unreadCount)
                 .isDormOfficial(room.getTargetDorm() != null)
                 .recruitmentClosed(room.isRecruitmentClosed())
@@ -114,5 +115,15 @@ public class ResponseOpenChatRoomDto {
                 .isMyRoommate(isMyRoommate)
                 .recruitmentStatus(OpenChatRoomRecruitmentStatus.OPEN)
                 .build();
+    }
+
+    private static String toResponse(OpenChatMessage message) {
+        if (message == null) return null;
+
+        if (message.getDeletedState().isDeleted()) {
+            return "삭제된 메시지입니다.";
+        }
+
+        return message.getContent().length() > 500 ? message.getContent().substring(500) : message.getContent();
     }
 }
