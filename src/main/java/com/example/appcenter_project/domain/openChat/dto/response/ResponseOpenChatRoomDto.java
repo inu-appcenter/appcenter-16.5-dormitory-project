@@ -35,6 +35,7 @@ public class ResponseOpenChatRoomDto {
     private OpenChatRoomRecruitmentStatus recruitmentStatus;
     private LocalDateTime lastStatusChangedAt;
     private Long lastStatusChangedBy;
+    private boolean isJoinable;
 
     public void updateIsBlockedByPartner(boolean v) {
         this.isBlockedByPartner = v;
@@ -63,6 +64,7 @@ public class ResponseOpenChatRoomDto {
                         : OpenChatRoomRecruitmentStatus.OPEN)
                 .lastStatusChangedAt(room.getLastStatusChangedAt())
                 .lastStatusChangedBy(room.getLastStatusChangedBy())
+                .isJoinable(!room.isRecruitmentClosed() && currentParticipants < room.getMaxParticipants())
                 .build();
     }
 
@@ -89,6 +91,7 @@ public class ResponseOpenChatRoomDto {
                         : OpenChatRoomRecruitmentStatus.OPEN)
                 .lastStatusChangedAt(room.getLastStatusChangedAt())
                 .lastStatusChangedBy(room.getLastStatusChangedBy())
+                .isJoinable(!room.isRecruitmentClosed() && currentParticipants < room.getMaxParticipants())
                 .build();
     }
 
@@ -113,6 +116,7 @@ public class ResponseOpenChatRoomDto {
                 .unreadCount(unreadCount)
                 .isMyRoommate(isMyRoommate)
                 .recruitmentStatus(OpenChatRoomRecruitmentStatus.OPEN)
+                .isJoinable(false)
                 .build();
     }
 }
