@@ -297,4 +297,30 @@ public class RoommateChattingChatService {
                 })
                 .toList();
     }
+
+    public void deleteMessage(Long requesterId, Long roomId, Long messageId) {
+        RoommateChattingRoom roommateChatRoom = chatRoomRepository.findById(roomId)
+                .orElseThrow(() -> new CustomException(ErrorCode.ROOMMATE_CHAT_ROOM_NOT_FOUND));
+        RoommateChattingChat roommateChatMessage = chatRepository.findById(messageId)
+                .orElseThrow(() -> new CustomException(ErrorCode.ROOMMATE_CHAT_MESSAGE_NOT_FOUND));
+
+        //채팅방 참여자가 아니면 삭제 불가
+        if (!chatRoomRepository.existsParticipant(roomId, requesterId)) {
+            throw new CustomException(ROOMMATE_CHAT_PARTICIPANT_FORBIDDEN);
+        }
+        //해당 채팅방의 메시지가 아니면 삭제 불가
+        if (!roommateChatMessage.getRoommateChattingRoom().getId().equals(roommateChatRoom.getId())) {
+            throw new CustomException(ROOMMATE_CHAT_MESSAGE_ROOM_MISMATCH);
+        }
+        //메시지 작성자가 아니면 삭제 불가
+        if (!roommateChatMessage.getMember().getId().equals(requesterId)) {
+            throw new CustomException(ROOMMATE_CHAT_NOT_SENDER);
+        }
+
+        //soft delete
+        roommateChatMessage.delete();
+
+        ResponseRoommateChatDeleteEventDto deleteEventDto = new ResponseRoommateChatDeleteEventDto(roomId, messageId);
+        messagingTemplate.convertAndSend(ROOMMATE_CHAT_TOPIC_PREFIX + roomId, deleteEventDto);
+    }
 }

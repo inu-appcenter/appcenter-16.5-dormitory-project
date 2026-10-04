@@ -1,6 +1,7 @@
 package com.example.appcenter_project.domain.roommate.entity;
 
 import com.example.appcenter_project.common.BaseTimeEntity;
+import com.example.appcenter_project.common.DeletedMessageState;
 import com.example.appcenter_project.domain.roommate.enums.RoommateChattingMessageType;
 import com.example.appcenter_project.domain.user.entity.User;
 import jakarta.persistence.*;
@@ -17,11 +18,11 @@ public class RoommateChattingChat extends BaseTimeEntity {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    @ManyToOne(fetch =  FetchType.LAZY)
+    @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "roommate_chatting_room_id", nullable = false)
     private RoommateChattingRoom roommateChattingRoom;
 
-    @ManyToOne(fetch =  FetchType.LAZY)
+    @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "member_id")
     private User member;
 
@@ -40,6 +41,9 @@ public class RoommateChattingChat extends BaseTimeEntity {
 
     @Column(nullable = true)
     private Long disclosureRequestId;
+
+    @Embedded
+    private DeletedMessageState deletedState = new DeletedMessageState();
 
     @Builder
     public RoommateChattingChat(RoommateChattingRoom roommateChattingRoom, User member, String content, boolean readByReceiver) {
@@ -93,6 +97,10 @@ public class RoommateChattingChat extends BaseTimeEntity {
 
     public void markAsRead() {
         this.readByReceiver = true;
+    }
+
+    public void delete() {
+        this.deletedState.delete();
     }
 }
 

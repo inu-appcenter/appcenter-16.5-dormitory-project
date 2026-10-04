@@ -17,6 +17,14 @@ public interface RoommateChattingRoomRepository extends JpaRepository<RoommateCh
     List<RoommateChattingRoom> findAllByHostOrGuest(User host, User guest);
     boolean existsRoommateChattingRoomByHostAndGuest(User host, User guest);
 
+    @Query("""
+            SELECT CASE WHEN COUNT(*) > 0 THEN true ELSE false END
+            FROM RoommateChattingRoom r
+            WHERE r.id = :roomId
+            AND (r.host.id = :requesterId OR r.guest.id = :requesterId)
+            """)
+    boolean existsParticipant(Long roomId, Long requesterId);
+
     Optional<RoommateChattingRoom> findByHostAndGuest(User guest, User host);
 
     @Query("""
