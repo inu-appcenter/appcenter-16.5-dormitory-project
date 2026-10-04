@@ -2,10 +2,8 @@ package com.example.appcenter_project.domain.openChat.dto.response;
 
 import com.example.appcenter_project.domain.openChat.entity.OpenChatMessage;
 import com.example.appcenter_project.domain.openChat.entity.OpenChatRoom;
-import com.example.appcenter_project.domain.openChat.enums.ChatCategory;
-import com.example.appcenter_project.domain.openChat.enums.OpenChatRoomRecruitmentStatus;
-import com.example.appcenter_project.domain.openChat.enums.OpenChatRoomScope;
-import com.example.appcenter_project.domain.openChat.enums.OpenChatRoomType;
+import com.example.appcenter_project.domain.openChat.enums.*;
+import com.example.appcenter_project.domain.roommate.entity.RoommateChattingChat;
 import lombok.Builder;
 import lombok.Getter;
 
@@ -55,7 +53,7 @@ public class ResponseOpenChatRoomDto {
                 .maxParticipants(room.getMaxParticipants())
                 .isJoined(joined)
                 .lastMessageAt(room.getLastMessageAt())
-                .lastMessage(toResponse(message))
+                .lastMessage(toResponseContent(message))
                 .unreadCount(0)
                 .isDormOfficial(room.getTargetDorm() != null)
                 .recruitmentClosed(room.isRecruitmentClosed())
@@ -81,7 +79,7 @@ public class ResponseOpenChatRoomDto {
                 .maxParticipants(room.getMaxParticipants())
                 .isJoined(joined)
                 .lastMessageAt(room.getLastMessageAt())
-                .lastMessage(toResponse(message))
+                .lastMessage(toResponseContent(message))
                 .unreadCount(unreadCount)
                 .isDormOfficial(room.getTargetDorm() != null)
                 .recruitmentClosed(room.isRecruitmentClosed())
@@ -95,7 +93,7 @@ public class ResponseOpenChatRoomDto {
 
     public static ResponseOpenChatRoomDto fromRoommate(
             Long roomId, String partnerName,
-            LocalDateTime lastMessageAt, String lastMessage,
+            RoommateChattingChat roommateChat,
             int unreadCount, boolean isMyRoommate) {
         return ResponseOpenChatRoomDto.builder()
                 .roomId(roomId)
@@ -109,15 +107,29 @@ public class ResponseOpenChatRoomDto {
                 .currentParticipants(2)
                 .maxParticipants(2)
                 .isJoined(true)
-                .lastMessageAt(lastMessageAt)
-                .lastMessage(lastMessage)
+                .lastMessageAt(roommateChat != null ? roommateChat.getCreatedDate() : null)
+                .lastMessage(toResponseContent(roommateChat))
                 .unreadCount(unreadCount)
                 .isMyRoommate(isMyRoommate)
                 .recruitmentStatus(OpenChatRoomRecruitmentStatus.OPEN)
                 .build();
     }
 
-    private static String toResponse(OpenChatMessage message) {
+    private static String toResponseContent(OpenChatMessage message) {
+        if (message == null) return null;
+
+        if (message.getDeletedState().isDeleted()) {
+            return "삭제된 메시지입니다.";
+        }
+
+        if(message.getType() == OpenChatMessageType.IMAGE) {
+            return "[이미지]";
+        }
+
+        return message.getContent().length() > 500 ? message.getContent().substring(500) : message.getContent();
+    }
+
+    private static String toResponseContent(RoommateChattingChat message) {
         if (message == null) return null;
 
         if (message.getDeletedState().isDeleted()) {

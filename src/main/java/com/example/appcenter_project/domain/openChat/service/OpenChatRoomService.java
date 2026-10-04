@@ -247,8 +247,7 @@ public class OpenChatRoomService {
                     ResponseOpenChatRoomDto dto = ResponseOpenChatRoomDto.fromRoommate(
                             r.getId(),
                             getOpponentName(r, userId),
-                            lastChat != null ? lastChat.getCreatedDate() : null,
-                            lastChat != null ? lastChat.getContent() : null,
+                            lastChat,
                             unread,
                             isMyRoommate);
                     if (blockService.isBlockedBy(opponentId, userId)) {
