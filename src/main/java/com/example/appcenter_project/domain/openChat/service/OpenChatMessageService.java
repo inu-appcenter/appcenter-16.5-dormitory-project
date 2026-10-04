@@ -36,6 +36,8 @@ import java.util.stream.Collectors;
 @Transactional
 public class OpenChatMessageService {
 
+    private static final String OPEN_CHAT_TOPIC_PREFIX = "/sub/openchat/";
+
     private static final Set<String> ALLOWED_IMAGE_EXTENSIONS = Set.of(".jpg", ".jpeg", ".png", ".gif", ".webp");
     private static final Set<String> ALLOWED_MIME_TYPES = Set.of("image/jpeg", "image/png", "image/gif", "image/webp");
     private static final int MAX_IMAGE_COUNT = 5;
@@ -75,8 +77,8 @@ public class OpenChatMessageService {
         int unreadCount = calculateUnreadCount(request.getRoomId(), message.getId());
 
         ResponseOpenChatMessageDto response = ResponseOpenChatMessageDto.from(message, sender.getName(), unreadCount);
-        messagingTemplate.convertAndSend("/sub/openchat/" + request.getRoomId(), response);
-        messagingTemplate.convertAndSend("/sub/openchat/" + request.getRoomId() + "/read",
+        messagingTemplate.convertAndSend(OPEN_CHAT_TOPIC_PREFIX + request.getRoomId(), response);
+        messagingTemplate.convertAndSend(OPEN_CHAT_TOPIC_PREFIX + request.getRoomId() + "/read",
                 ResponseOpenChatReadEventDto.of(message.getId(), unreadCount));
 
         if (openChatNotificationService != null) {
@@ -114,8 +116,8 @@ public class OpenChatMessageService {
             int unreadCount = calculateUnreadCount(roomId, message.getId());
 
             ResponseOpenChatMessageDto response = ResponseOpenChatMessageDto.from(message, sender.getName(), unreadCount, imageUrls);
-            messagingTemplate.convertAndSend("/sub/openchat/" + roomId, response);
-            messagingTemplate.convertAndSend("/sub/openchat/" + roomId + "/read",
+            messagingTemplate.convertAndSend(OPEN_CHAT_TOPIC_PREFIX + roomId, response);
+            messagingTemplate.convertAndSend(OPEN_CHAT_TOPIC_PREFIX + roomId + "/read",
                     ResponseOpenChatReadEventDto.of(message.getId(), unreadCount));
 
             if (openChatNotificationService != null) {
@@ -149,8 +151,8 @@ public class OpenChatMessageService {
         int unreadCount = calculateUnreadCount(roomId, message.getId());
 
         ResponseOpenChatMessageDto response = ResponseOpenChatMessageDto.from(message, null, unreadCount);
-        messagingTemplate.convertAndSend("/sub/openchat/" + roomId, response);
-        messagingTemplate.convertAndSend("/sub/openchat/" + roomId + "/read",
+        messagingTemplate.convertAndSend(OPEN_CHAT_TOPIC_PREFIX + roomId, response);
+        messagingTemplate.convertAndSend(OPEN_CHAT_TOPIC_PREFIX + roomId + "/read",
                 ResponseOpenChatReadEventDto.of(message.getId(), unreadCount));
     }
 
@@ -187,8 +189,8 @@ public class OpenChatMessageService {
         ResponseOpenChatMessageDto response = ResponseOpenChatMessageDto.fromRoomLink(
                 message, sender.getName(), unreadCount,
                 derivedRoomId, name, description, maxParticipants);
-        messagingTemplate.convertAndSend("/sub/openchat/" + originRoomId, response);
-        messagingTemplate.convertAndSend("/sub/openchat/" + originRoomId + "/read",
+        messagingTemplate.convertAndSend(OPEN_CHAT_TOPIC_PREFIX + originRoomId, response);
+        messagingTemplate.convertAndSend(OPEN_CHAT_TOPIC_PREFIX + originRoomId + "/read",
                 ResponseOpenChatReadEventDto.of(message.getId(), unreadCount));
     }
 
@@ -223,8 +225,8 @@ public class OpenChatMessageService {
 
         ResponseOpenChatMessageDto response = ResponseOpenChatMessageDto.fromStudentIdRequest(
                 message, sender.getName(), unreadCount, requestId);
-        messagingTemplate.convertAndSend("/sub/openchat/" + roomId, response);
-        messagingTemplate.convertAndSend("/sub/openchat/" + roomId + "/read",
+        messagingTemplate.convertAndSend(OPEN_CHAT_TOPIC_PREFIX + roomId, response);
+        messagingTemplate.convertAndSend(OPEN_CHAT_TOPIC_PREFIX + roomId + "/read",
                 ResponseOpenChatReadEventDto.of(message.getId(), unreadCount));
     }
 
@@ -246,7 +248,7 @@ public class OpenChatMessageService {
         if (latestId != null) {
             openChatParticipantRepository.updateLastReadMessageId(roomId, userId, latestId);
             int unreadCount = calculateUnreadCount(roomId, latestId);
-            messagingTemplate.convertAndSend("/sub/openchat/" + roomId + "/read",
+            messagingTemplate.convertAndSend(OPEN_CHAT_TOPIC_PREFIX + roomId + "/read",
                     ResponseOpenChatReadEventDto.of(latestId, unreadCount));
         }
 
@@ -352,8 +354,8 @@ public class OpenChatMessageService {
         int unreadCount = calculateUnreadCount(roomId, message.getId());
 
         ResponseOpenChatMessageDto response = ResponseOpenChatMessageDto.from(message, sender.getName(), unreadCount);
-        messagingTemplate.convertAndSend("/sub/openchat/" + roomId, response);
-        messagingTemplate.convertAndSend("/sub/openchat/" + roomId + "/read",
+        messagingTemplate.convertAndSend(OPEN_CHAT_TOPIC_PREFIX + roomId, response);
+        messagingTemplate.convertAndSend(OPEN_CHAT_TOPIC_PREFIX + roomId + "/read",
                 ResponseOpenChatReadEventDto.of(message.getId(), unreadCount));
 
         if (openChatNotificationService != null) {
@@ -379,16 +381,18 @@ public class OpenChatMessageService {
             throw new CustomException(ErrorCode.OPEN_CHAT_PARTICIPANT_FORBIDDEN);
         }
         //해당 채팅방의 메시지가 아니면 삭제 불가
-        if (!openChatMessage.getRoomId().equals(openChatRoom.getId()))
+        if (!openChatMessage.getRoomId().equals(openChatRoom.getId())) {
             throw new CustomException(ErrorCode.OPEN_CHAT_MESSAGE_ROOM_MISMATCH);
+        }
         //메시지 작성자가 아니면 삭제 불가
-        if (!openChatMessage.getSenderId().equals(requesterId))
+        if (!openChatMessage.getSenderId().equals(requesterId)) {
             throw new CustomException(ErrorCode.OPEN_CHAT_NOT_SENDER);
+        }
 
         openChatMessage.delete();
 
         ResponseOpenChatDeleteEventDto deleteEventDto = new ResponseOpenChatDeleteEventDto(openChatMessage.getId(), openChatRoom.getId());
-        messagingTemplate.convertAndSend("/sub/openchat/" + roomId, deleteEventDto);
+        messagingTemplate.convertAndSend(OPEN_CHAT_TOPIC_PREFIX + roomId, deleteEventDto);
     }
 
     // ========== Private Methods ========== //
