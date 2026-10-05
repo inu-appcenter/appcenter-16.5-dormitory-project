@@ -4,9 +4,11 @@ import com.example.appcenter_project.common.image.entity.Image;
 import com.example.appcenter_project.common.image.enums.ImageType;
 import com.example.appcenter_project.common.image.repository.ImageRepository;
 import com.example.appcenter_project.common.image.service.ImageService;
+import com.example.appcenter_project.domain.openChat.dto.request.RequestEditOpenChatMessageDto;
 import com.example.appcenter_project.domain.openChat.dto.request.RequestOpenChatMessageDto;
 import com.example.appcenter_project.domain.openChat.dto.response.ResponseAdminChatRoomDto;
 import com.example.appcenter_project.domain.openChat.dto.response.ResponseOpenChatMessageDto;
+import com.example.appcenter_project.domain.openChat.dto.response.ResponseOpenChatMessageEditEventDto;
 import com.example.appcenter_project.domain.openChat.dto.response.ResponseOpenChatMessageListDto;
 import com.example.appcenter_project.domain.openChat.dto.response.ResponseOpenChatReadEventDto;
 import com.example.appcenter_project.domain.openChat.dto.response.ResponseRecruitmentStatusEventDto;
@@ -15,6 +17,7 @@ import com.example.appcenter_project.domain.openChat.enums.OpenChatRoomType;
 import com.example.appcenter_project.domain.openChat.entity.OpenChatMessage;
 import com.example.appcenter_project.domain.openChat.entity.OpenChatRoom;
 import com.example.appcenter_project.domain.openChat.enums.OpenChatMessageType;
+import com.example.appcenter_project.domain.openChat.repository.OpenChatMessageQuerydslRepository;
 import com.example.appcenter_project.domain.openChat.repository.OpenChatMessageRepository;
 import com.example.appcenter_project.domain.openChat.repository.OpenChatParticipantRepository;
 import com.example.appcenter_project.domain.openChat.repository.OpenChatRoomRepository;
@@ -41,6 +44,7 @@ import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.Set;
 import java.util.stream.Collectors;
 
@@ -57,6 +61,7 @@ public class OpenChatMessageService {
     private final OpenChatRoomRepository openChatRoomRepository;
     private final OpenChatParticipantRepository openChatParticipantRepository;
     private final OpenChatMessageRepository openChatMessageRepository;
+    private final OpenChatMessageQuerydslRepository openChatMessageQuerydslRepository;
     private final UserRepository userRepository;
     private final SimpMessagingTemplate messagingTemplate;
     private final ImageService imageService;
@@ -75,6 +80,13 @@ public class OpenChatMessageService {
         if (sender == null) return;
 
         OpenChatMessage message = OpenChatMessage.create(request.getRoomId(), userId, request.getContent(), OpenChatMessageType.TEXT);
+
+        Long replyToId = request.getReplyToMessageId();
+        ReplySourceDto replySource = null;
+        if (replyToId != null && replyToId > 0) {
+            replySource = prepareReply(message, request.getRoomId(), replyToId);
+        }
+
         openChatMessageRepository.save(message);
 
         room.updateLastMessage(message.getContent(), message.getCreatedDate());
@@ -85,7 +97,7 @@ public class OpenChatMessageService {
 
         int unreadCount = calculateUnreadCount(request.getRoomId(), message.getId());
 
-        ResponseOpenChatMessageDto response = ResponseOpenChatMessageDto.from(message, sender.getName(), unreadCount);
+        ResponseOpenChatMessageDto response = ResponseOpenChatMessageDto.from(message, sender.getName(), unreadCount, List.of(), replySource);
         messagingTemplate.convertAndSend("/sub/openchat/" + request.getRoomId(), response);
         messagingTemplate.convertAndSend("/sub/openchat/" + request.getRoomId() + "/read",
                 ResponseOpenChatReadEventDto.of(message.getId(), unreadCount));
@@ -94,6 +106,64 @@ public class OpenChatMessageService {
             openChatNotificationService.sendImmediateNotifications(
                     request.getRoomId(), room.getRoomType(), usersToRead, room.getName(), request.getContent());
         }
+    }
+
+    private ReplySourceDto prepareReply(OpenChatMessage message, Long roomId, Long replyToMessageId) {
+        OpenChatMessage original = openChatMessageRepository.findById(replyToMessageId)
+                .orElseThrow(() -> new CustomException(ErrorCode.OPEN_CHAT_MESSAGE_NOT_FOUND));
+
+        if (original.isDeleted()) throw new CustomException(ErrorCode.OPEN_CHAT_MESSAGE_ALREADY_DELETED);
+        if (!original.getRoomId().equals(roomId)) throw new CustomException(ErrorCode.OPEN_CHAT_REPLY_TARGET_NOT_IN_SAME_ROOM);
+        if (original.getReplyToMessageId() != null) throw new CustomException(ErrorCode.OPEN_CHAT_NESTED_REPLY_NOT_ALLOWED);
+
+        OpenChatMessageType originalType = original.getType();
+        if (originalType == OpenChatMessageType.SYSTEM || originalType == OpenChatMessageType.BOT
+                || originalType == OpenChatMessageType.ROOM_LINK
+                || originalType == OpenChatMessageType.STUDENT_ID_REQUEST) {
+            throw new CustomException(ErrorCode.OPEN_CHAT_REPLY_NOT_ALLOWED_FOR_TYPE);
+        }
+
+        ChatRoomType roomType = openChatRoomRepository.findById(roomId)
+                .map(r -> r.getRoomType() == OpenChatRoomType.DERIVED ? ChatRoomType.DERIVED : ChatRoomType.OPEN)
+                .orElse(ChatRoomType.OPEN);
+
+        Long derivedRoomId = null;
+        if (originalType == OpenChatMessageType.REOPEN_CARD) {
+            derivedRoomId = parseDerivedRoomId(original.getContent());
+            if (derivedRoomId == null) throw new CustomException(ErrorCode.OPEN_CHAT_DERIVED_ROOM_ID_PARSE_FAILED);
+        }
+
+        message.attachReply(replyToMessageId, originalType, original.getSenderId(), roomId, roomType, derivedRoomId);
+
+        String senderNickname = userRepository.findById(original.getSenderId())
+                .map(User::getName).orElse(null);
+
+        if (originalType == OpenChatMessageType.REOPEN_CARD) {
+            boolean closed = openChatRoomRepository.findById(derivedRoomId)
+                    .map(OpenChatRoom::isRecruitmentClosed).orElse(false);
+            return ReplySourceDto.builder()
+                    .replyToMessageId(replyToMessageId)
+                    .status(closed ? ReplySourceStatus.RECRUITMENT_CLOSED : ReplySourceStatus.RECRUITING)
+                    .replyToSenderId(original.getSenderId())
+                    .replyToSenderNickname(senderNickname)
+                    .replyToRoomType(roomType)
+                    .replyToRoomId(roomId)
+                    .replyToDerivedRoomId(derivedRoomId)
+                    .build();
+        }
+
+        String preview = original.getContent();
+        if (preview != null && preview.length() > 100) preview = preview.substring(0, 100);
+
+        return ReplySourceDto.builder()
+                .replyToMessageId(replyToMessageId)
+                .status(ReplySourceStatus.NORMAL)
+                .replyToSenderId(original.getSenderId())
+                .replyToSenderNickname(senderNickname)
+                .contentPreview(preview)
+                .replyToRoomType(roomType)
+                .replyToRoomId(roomId)
+                .build();
     }
 
     public List<ResponseOpenChatMessageDto> sendImageMessage(Long userId, Long roomId, List<MultipartFile> images, HttpServletRequest httpServletRequest) {
@@ -245,7 +315,7 @@ public class OpenChatMessageService {
         openChatParticipantRepository.findByRoomIdAndUserId(roomId, userId)
                 .orElseThrow(() -> new CustomException(ErrorCode.OPEN_CHAT_NOT_PARTICIPANT));
 
-        List<OpenChatMessage> messages = openChatMessageRepository.findByRoomIdWithCursor(roomId, lastMessageId, size + 1);
+        List<OpenChatMessage> messages = openChatMessageQuerydslRepository.findByRoomIdWithCursor(roomId, lastMessageId, size + 1);
 
         boolean hasNext = messages.size() > size;
         if (hasNext) {
@@ -330,7 +400,7 @@ public class OpenChatMessageService {
         openChatParticipantRepository.findByRoomIdAndUserId(roomId, userId)
                 .orElseThrow(() -> new CustomException(ErrorCode.OPEN_CHAT_NOT_PARTICIPANT));
 
-        openChatMessageRepository.findLatestMessageIdByRoomId(roomId).ifPresent(latestId ->
+        openChatMessageQuerydslRepository.findLatestMessageIdByRoomId(roomId).ifPresent(latestId ->
                 openChatParticipantRepository.updateLastReadMessageId(roomId, userId, latestId));
     }
 
@@ -530,6 +600,42 @@ public class OpenChatMessageService {
 
         message.softDelete();
         openChatMessageRepository.save(message);
+    }
+
+    @Transactional
+    public ResponseOpenChatMessageDto editMessage(Long requesterId, Long roomId, Long messageId, RequestEditOpenChatMessageDto dto) {
+        OpenChatMessage message = openChatMessageRepository.findById(messageId)
+                .orElseThrow(() -> new CustomException(ErrorCode.OPEN_CHAT_MESSAGE_NOT_FOUND));
+
+        if (!message.getSenderId().equals(requesterId)) {
+            throw new CustomException(ErrorCode.OPEN_CHAT_MESSAGE_NOT_OWNED_BY_USER);
+        }
+
+        if (message.getType() != OpenChatMessageType.TEXT) {
+            throw new CustomException(ErrorCode.OPEN_CHAT_MESSAGE_EDIT_FORBIDDEN_TYPE);
+        }
+
+        if (message.isDeleted()) {
+            throw new CustomException(ErrorCode.OPEN_CHAT_MESSAGE_ALREADY_DELETED);
+        }
+
+        if (dto.getContent().equals(message.getContent())) {
+            throw new CustomException(ErrorCode.OPEN_CHAT_MESSAGE_CONTENT_UNCHANGED);
+        }
+
+        message.updateContent(dto.getContent());
+        openChatMessageRepository.save(message);
+
+        Optional<Long> latestIdOpt = openChatMessageQuerydslRepository.findLatestMessageIdByRoomId(roomId);
+        if (latestIdOpt.isPresent() && latestIdOpt.get().equals(messageId)) {
+            openChatRoomRepository.findById(roomId).ifPresent(r ->
+                    r.updateLastMessage(message.getContent(), message.getEditedAt()));
+        }
+
+        messagingTemplate.convertAndSend("/sub/openchat/" + roomId + "/edit",
+                ResponseOpenChatMessageEditEventDto.from(message));
+
+        return ResponseOpenChatMessageDto.from(message, null, 0, java.util.List.of(), null);
     }
 
     @Transactional(readOnly = true)

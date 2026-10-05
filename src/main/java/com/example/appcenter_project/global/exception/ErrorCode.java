@@ -201,6 +201,8 @@ public enum ErrorCode {
     OPEN_CHAT_NESTED_REPLY_NOT_ALLOWED(BAD_REQUEST, 22036, "[OpenChat] 답장에 대한 답장은 불가합니다."),
     OPEN_CHAT_DERIVED_ROOM_ID_PARSE_FAILED(INTERNAL_SERVER_ERROR, 22037, "[OpenChat] REOPEN_CARD content에서 derivedRoomId 파싱 실패."),
     OPEN_CHAT_MESSAGE_NOT_OWNED_BY_USER(FORBIDDEN, 22038, "[OpenChat] 메시지 발신자가 아닙니다."),
+    OPEN_CHAT_MESSAGE_EDIT_FORBIDDEN_TYPE(BAD_REQUEST, 22039, "[OpenChat] 텍스트 메시지만 수정할 수 있습니다."),
+    OPEN_CHAT_MESSAGE_CONTENT_UNCHANGED(BAD_REQUEST, 22040, "[OpenChat] 기존 내용과 동일한 수정 요청입니다."),
     ROOMMATE_CHAT_MESSAGE_NOT_FOUND(NOT_FOUND, 10005, "[RoommateChat] 메시지를 찾을 수 없습니다."),
     ROOMMATE_CHAT_MESSAGE_ALREADY_DELETED(BAD_REQUEST, 10006, "[RoommateChat] 이미 삭제된 메시지입니다."),
     ROOMMATE_CHAT_REPLY_NOT_ALLOWED_FOR_TYPE(BAD_REQUEST, 10007, "[RoommateChat] 답장할 수 없는 메시지 유형입니다."),
