@@ -112,6 +112,12 @@ public class RoommateChattingChatService {
                 .readByReceiver(isReceiverOnline) // 수신자가 온라인이면 읽음 처리
                 .build();
 
+        Long replyToId = requestRoommateChatDto.getReplyToMessageId();
+        ReplySourceDto replySource = null;
+        if (replyToId != null && replyToId > 0) {
+            replySource = prepareReply(chat, room.getId(), replyToId);
+        }
+
         // 7. DB에 저장
         RoommateChattingChat savedChat = chatRepository.save(chat);
         log.info("💾 [채팅 DB 저장 완료] chatId: {}, read: {}", savedChat.getId(), savedChat.isReadByReceiver());
@@ -127,7 +133,7 @@ public class RoommateChattingChatService {
             log.warn("Mixpanel 채팅 이벤트 추적 실패 - userId: {}", userId);
         }
 
-        ResponseRoommateChatDto responseDto = ResponseRoommateChatDto.entityToDto(savedChat, null);
+        ResponseRoommateChatDto responseDto = ResponseRoommateChatDto.entityToDto(savedChat, null, replySource);
         String destination = "/sub/roommate/chat/" + room.getId();
 
         log.info("📡 [WebSocket 전송] destination: {}, chatId: {}", destination, savedChat.getId());
@@ -234,7 +240,36 @@ public class RoommateChattingChatService {
         messagingTemplate.convertAndSend("/sub/roommate/chat/" + roomId, dto);
     }
 
-    @Transactional
+    private ReplySourceDto prepareReply(RoommateChattingChat chat, Long roomId, Long replyToMessageId) {
+        RoommateChattingChat original = chatRepository.findById(replyToMessageId)
+                .orElseThrow(() -> new CustomException(ROOMMATE_CHAT_MESSAGE_NOT_FOUND));
+
+        if (original.isDeleted()) throw new CustomException(ROOMMATE_CHAT_MESSAGE_ALREADY_DELETED);
+        if (!original.getRoommateChattingRoom().getId().equals(roomId)) throw new CustomException(ROOMMATE_CHAT_REPLY_TARGET_NOT_IN_SAME_ROOM);
+        if (original.getReplyToMessageId() != null) throw new CustomException(ROOMMATE_CHAT_NESTED_REPLY_NOT_ALLOWED);
+        if (original.isSystem()) throw new CustomException(ROOMMATE_CHAT_REPLY_NOT_ALLOWED_FOR_TYPE);
+
+        Long originalSenderId = original.getMember() != null ? original.getMember().getId() : null;
+        chat.attachReply(replyToMessageId, originalSenderId, roomId);
+
+        String senderNickname = originalSenderId != null
+                ? userRepository.findById(originalSenderId).map(User::getName).orElse(null)
+                : null;
+
+        String preview = original.getContent();
+        if (preview != null && preview.length() > 100) preview = preview.substring(0, 100);
+
+        return ReplySourceDto.builder()
+                .replyToMessageId(replyToMessageId)
+                .status(ReplySourceStatus.NORMAL)
+                .replyToSenderId(originalSenderId)
+                .replyToSenderNickname(senderNickname)
+                .contentPreview(preview)
+                .replyToRoomType(ChatRoomType.ROOMMATE)
+                .replyToRoomId(roomId)
+                .build();
+    }
+
     public void sendChatWithReply(Long roomId, Long senderId, String content, Long replyToMessageId) {
         RoommateChattingChat originalChat = chatRepository.findById(replyToMessageId)
                 .orElseThrow(() -> new CustomException(ROOMMATE_CHAT_MESSAGE_NOT_FOUND));
@@ -427,12 +462,14 @@ public class RoommateChattingChatService {
             messagingTemplate.convertAndSend(destination, readIds);
         }
 
+        Map<Long, ReplySourceDto> replySources = buildReplySources(chatList);
+
         return chatList.stream()
                 .map(chat -> {
                     String imageUrl = chat.getMember() != null
                             ? imageService.findImage(ImageType.USER, chat.getMember().getId(), request).getImageUrl()
                             : null;
-                    return ResponseRoommateChatDto.entityToDto(chat, imageUrl);
+                    return ResponseRoommateChatDto.entityToDto(chat, imageUrl, replySources.get(chat.getId()));
                 })
                 .toList();
     }

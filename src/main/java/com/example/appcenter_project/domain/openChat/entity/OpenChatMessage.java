@@ -8,6 +8,8 @@ import lombok.AccessLevel;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 
+import java.time.LocalDateTime;
+
 @Entity
 @Getter
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
@@ -51,6 +53,8 @@ public class OpenChatMessage extends BaseTimeEntity {
 
     private Long replyToDerivedRoomId;
 
+    private LocalDateTime editedAt;
+
     public static OpenChatMessage create(Long roomId, Long senderId, String content, OpenChatMessageType type) {
         OpenChatMessage message = new OpenChatMessage();
         message.roomId = roomId;
@@ -85,6 +89,11 @@ public class OpenChatMessage extends BaseTimeEntity {
 
     public void softDelete() {
         this.isDeleted = true;
+    }
+
+    public void updateContent(String newContent) {
+        this.content = newContent;
+        this.editedAt = LocalDateTime.now();
     }
 
     public void attachReply(Long replyToMessageId, OpenChatMessageType replyToMessageType,

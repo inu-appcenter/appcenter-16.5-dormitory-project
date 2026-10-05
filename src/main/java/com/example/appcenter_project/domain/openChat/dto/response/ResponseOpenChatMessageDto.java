@@ -4,6 +4,7 @@ import com.example.appcenter_project.domain.openChat.entity.OpenChatMessage;
 import com.example.appcenter_project.domain.openChat.enums.OpenChatMessageType;
 import com.example.appcenter_project.domain.openChat.enums.OpenChatRoomRecruitmentStatus;
 import com.example.appcenter_project.shared.dto.ReplySourceDto;
+import com.fasterxml.jackson.annotation.JsonProperty;
 import lombok.Builder;
 import lombok.Getter;
 
@@ -29,7 +30,12 @@ public class ResponseOpenChatMessageDto {
     private Boolean linkedRoomRecruitmentClosed;
     private OpenChatRoomRecruitmentStatus linkedRoomRecruitmentStatus;
     private Long disclosureRequestId;
+    @JsonProperty("isEdited")
+    private boolean isEdited;
+    private LocalDateTime editedAt;
+    @JsonProperty("isBot")
     private boolean isBot;
+    @JsonProperty("isDeleted")
     private boolean isDeleted;
     private ReplySourceDto replySource;
 
@@ -52,6 +58,8 @@ public class ResponseOpenChatMessageDto {
                 .imageUrls(imageUrls != null ? imageUrls : List.of())
                 .unreadCount(unreadCount)
                 .createdAt(message.getCreatedDate())
+                .isEdited(message.getEditedAt() != null)
+                .editedAt(message.getEditedAt())
                 .isBot(message.getType() == OpenChatMessageType.BOT)
                 .isDeleted(message.isDeleted())
                 .replySource(replySource)
