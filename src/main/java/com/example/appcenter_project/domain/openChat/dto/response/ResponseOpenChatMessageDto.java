@@ -3,6 +3,7 @@ package com.example.appcenter_project.domain.openChat.dto.response;
 import com.example.appcenter_project.domain.openChat.entity.OpenChatMessage;
 import com.example.appcenter_project.domain.openChat.enums.OpenChatMessageType;
 import com.example.appcenter_project.domain.openChat.enums.OpenChatRoomRecruitmentStatus;
+import com.example.appcenter_project.shared.dto.ReplySourceDto;
 import lombok.Builder;
 import lombok.Getter;
 
@@ -29,12 +30,18 @@ public class ResponseOpenChatMessageDto {
     private OpenChatRoomRecruitmentStatus linkedRoomRecruitmentStatus;
     private Long disclosureRequestId;
     private boolean isBot;
+    private boolean isDeleted;
+    private ReplySourceDto replySource;
 
     public static ResponseOpenChatMessageDto from(OpenChatMessage message, String senderNickname, int unreadCount) {
-        return from(message, senderNickname, unreadCount, List.of());
+        return from(message, senderNickname, unreadCount, List.of(), null);
     }
 
     public static ResponseOpenChatMessageDto from(OpenChatMessage message, String senderNickname, int unreadCount, List<String> imageUrls) {
+        return from(message, senderNickname, unreadCount, imageUrls, null);
+    }
+
+    public static ResponseOpenChatMessageDto from(OpenChatMessage message, String senderNickname, int unreadCount, List<String> imageUrls, ReplySourceDto replySource) {
         return ResponseOpenChatMessageDto.builder()
                 .messageId(message.getId())
                 .roomId(message.getRoomId())
@@ -46,6 +53,8 @@ public class ResponseOpenChatMessageDto {
                 .unreadCount(unreadCount)
                 .createdAt(message.getCreatedDate())
                 .isBot(message.getType() == OpenChatMessageType.BOT)
+                .isDeleted(message.isDeleted())
+                .replySource(replySource)
                 .build();
     }
 
@@ -63,6 +72,7 @@ public class ResponseOpenChatMessageDto {
                 .createdAt(message.getCreatedDate())
                 .disclosureRequestId(disclosureRequestId)
                 .isBot(false)
+                .isDeleted(message.isDeleted())
                 .build();
     }
 
@@ -104,6 +114,7 @@ public class ResponseOpenChatMessageDto {
                 .linkedRoomRecruitmentClosed(linkedRoomRecruitmentClosed)
                 .linkedRoomRecruitmentStatus(recruitmentStatus)
                 .isBot(false)
+                .isDeleted(message.isDeleted())
                 .build();
     }
 }
