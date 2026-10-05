@@ -457,31 +457,6 @@ public class OpenChatMessageService {
         return (int) (total - readCount);
     }
 
-    public void deleteMessage(Long requesterId, Long roomId, Long messageId) {
-        OpenChatRoom openChatRoom = openChatRoomRepository.findById(roomId)
-                .orElseThrow(() -> new CustomException(ErrorCode.OPEN_CHAT_ROOM_NOT_FOUND));
-        OpenChatMessage openChatMessage = openChatMessageRepository.findById(messageId)
-                .orElseThrow(() -> new CustomException(ErrorCode.OPEN_CHAT_MESSAGE_NOT_FOUND));
-
-        //채팅방 참여자가 아니면 삭제 불가
-        if (!openChatParticipantRepository.existsByRoomIdAndUserId(openChatRoom.getId(), requesterId)) {
-            throw new CustomException(ErrorCode.OPEN_CHAT_PARTICIPANT_FORBIDDEN);
-        }
-        //해당 채팅방의 메시지가 아니면 삭제 불가
-        if (!openChatMessage.getRoomId().equals(openChatRoom.getId())) {
-            throw new CustomException(ErrorCode.OPEN_CHAT_MESSAGE_ROOM_MISMATCH);
-        }
-        //메시지 작성자가 아니면 삭제 불가
-        if (!openChatMessage.getSenderId().equals(requesterId)) {
-            throw new CustomException(ErrorCode.OPEN_CHAT_NOT_SENDER);
-        }
-
-        openChatMessage.delete();
-
-        ResponseOpenChatDeleteEventDto deleteEventDto = new ResponseOpenChatDeleteEventDto(openChatMessage.getId(), openChatRoom.getId());
-        messagingTemplate.convertAndSend(OPEN_CHAT_TOPIC_PREFIX + roomId, deleteEventDto);
-    }
-
     // ========== Private Methods ========== //
 
     private ResponseOpenChatMessageDto toRoomLinkDto(OpenChatMessage msg, String nickname, int unreadCount) {
@@ -559,7 +534,7 @@ public class OpenChatMessageService {
         openChatMessageRepository.save(message);
 
         openChatRoomRepository.findById(parentRoomId).ifPresent(room ->
-                room.updateLastMessage(content, message.getCreatedDate()));
+                room.updateLastMessage(message.getId(), message.getCreatedDate()));
 
         int unreadCount = calculateUnreadCount(parentRoomId, message.getId());
 
@@ -662,7 +637,7 @@ public class OpenChatMessageService {
         Optional<Long> latestIdOpt = openChatMessageQuerydslRepository.findLatestMessageIdByRoomId(roomId);
         if (latestIdOpt.isPresent() && latestIdOpt.get().equals(messageId)) {
             openChatRoomRepository.findById(roomId).ifPresent(r ->
-                    r.updateLastMessage(message.getContent(), message.getEditedAt()));
+                    r.updateLastMessage(message.getId(), message.getEditedAt()));
         }
 
         messagingTemplate.convertAndSend("/sub/openchat/" + roomId + "/edit",
