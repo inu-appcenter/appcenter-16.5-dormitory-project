@@ -1,5 +1,6 @@
 package com.example.appcenter_project.domain.openChat.controller;
 
+import com.example.appcenter_project.domain.openChat.dto.request.RequestEditOpenChatMessageDto;
 import com.example.appcenter_project.domain.openChat.dto.request.RequestOpenChatMessageDto;
 import com.example.appcenter_project.domain.openChat.dto.response.ResponseOpenChatMessageDto;
 import com.example.appcenter_project.domain.openChat.dto.response.ResponseOpenChatMessageListDto;
@@ -14,7 +15,16 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.messaging.handler.annotation.MessageMapping;
 import org.springframework.messaging.simp.SimpMessageHeaderAccessor;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
-import org.springframework.web.bind.annotation.*;
+import org.springframework.web.bind.annotation.DeleteMapping;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PatchMapping;
+import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
+import org.springframework.web.bind.annotation.RequestPart;
+import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.multipart.MultipartFile;
 
 import java.util.List;
@@ -44,7 +54,8 @@ public class OpenChatMessageController implements OpenChatMessageApiSpecificatio
             @RequestParam(required = false) Long lastMessageId,
             @RequestParam(defaultValue = "30") int size,
             HttpServletRequest request) {
-        return ResponseEntity.ok(openChatMessageService.getMessages(user.getId(), roomId, lastMessageId, size, request));
+        Long userId = user != null ? user.getId() : -1L;
+        return ResponseEntity.ok(openChatMessageService.getMessages(userId, roomId, lastMessageId, size, request));
     }
 
     @PostMapping(value = "/{roomId}/messages/image", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
@@ -62,7 +73,18 @@ public class OpenChatMessageController implements OpenChatMessageApiSpecificatio
             @AuthenticationPrincipal CustomUserDetails user,
             @PathVariable Long roomId,
             @PathVariable Long messageId) {
-        openChatMessageService.deleteMessage(user.getId(), roomId, messageId);
+        Long userId = user != null ? user.getId() : -1L;
+        openChatMessageService.deleteMessage(roomId, messageId, userId);
         return ResponseEntity.noContent().build();
+    }
+
+    @PatchMapping("/{roomId}/messages/{messageId}")
+    public ResponseEntity<ResponseOpenChatMessageDto> editMessage(
+            @AuthenticationPrincipal CustomUserDetails user,
+            @PathVariable Long roomId,
+            @PathVariable Long messageId,
+            @RequestBody @Valid RequestEditOpenChatMessageDto dto) {
+        Long userId = user != null ? user.getId() : -1L;
+        return ResponseEntity.ok(openChatMessageService.editMessage(userId, roomId, messageId, dto));
     }
 }

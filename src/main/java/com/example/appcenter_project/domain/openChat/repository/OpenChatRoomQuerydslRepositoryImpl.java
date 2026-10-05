@@ -59,6 +59,7 @@ public class OpenChatRoomQuerydslRepositoryImpl implements OpenChatRoomQuerydslR
                 .selectFrom(openChatRoom)
                 .where(condition, keywordContains(keyword))
                 .orderBy(
+                        openChatRoom.recruitmentClosed.asc(),
                         new CaseBuilder()
                                 .when(openChatRoom.targetDorm.isNotNull()).then(1)
                                 .otherwise(0).desc(),
@@ -81,6 +82,11 @@ public class OpenChatRoomQuerydslRepositoryImpl implements OpenChatRoomQuerydslR
                                                 .or(openChatRoom.roomType.eq(OpenChatRoomType.DERIVED))
                                 ),
                         keywordContains(keyword)
+                )
+                .orderBy(
+                        openChatRoom.recruitmentClosed.asc(),
+                        openChatRoom.lastMessageAt.desc().nullsLast(),
+                        openChatRoom.createdDate.desc()
                 )
                 .fetch();
     }

@@ -3,10 +3,13 @@ package com.example.appcenter_project.domain.openChat.entity;
 import com.example.appcenter_project.common.BaseTimeEntity;
 import com.example.appcenter_project.common.DeletedMessageState;
 import com.example.appcenter_project.domain.openChat.enums.OpenChatMessageType;
+import com.example.appcenter_project.shared.enums.ChatRoomType;
 import jakarta.persistence.*;
 import lombok.AccessLevel;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
+
+import java.time.LocalDateTime;
 
 @Entity
 @Getter
@@ -27,12 +30,31 @@ public class OpenChatMessage extends BaseTimeEntity {
     @Column(nullable = false, columnDefinition = "TEXT")
     private String content;
 
-    @Embedded
-    private DeletedMessageState deletedState = new DeletedMessageState();
-
     @Enumerated(EnumType.STRING)
     @Column(nullable = false)
     private OpenChatMessageType type;
+
+    @Column(length = 100, unique = true)
+    private String duplKey;
+
+    @Embedded
+    private DeletedMessageState deletedState = new DeletedMessageState();
+
+    private Long replyToMessageId;
+
+    @Enumerated(EnumType.STRING)
+    private OpenChatMessageType replyToMessageType;
+
+    private Long replyToSenderId;
+
+    private Long replyToRoomId;
+
+    @Enumerated(EnumType.STRING)
+    private ChatRoomType replyToRoomType;
+
+    private Long replyToDerivedRoomId;
+
+    private LocalDateTime editedAt;
 
     public static OpenChatMessage create(Long roomId, Long senderId, String content, OpenChatMessageType type) {
         OpenChatMessage message = new OpenChatMessage();
@@ -43,7 +65,50 @@ public class OpenChatMessage extends BaseTimeEntity {
         return message;
     }
 
-    public void delete() {
+    public static OpenChatMessage createReopenCard(Long roomId, Long senderId, String content, String duplKey) {
+        OpenChatMessage message = new OpenChatMessage();
+        message.roomId = roomId;
+        message.senderId = senderId;
+        message.content = content;
+        message.type = OpenChatMessageType.REOPEN_CARD;
+        message.duplKey = duplKey;
+        return message;
+    }
+
+    public static OpenChatMessage createForTest(Long id, Long roomId, Long senderId, String content,
+                                                OpenChatMessageType type, boolean isDeleted, Long replyToMessageId) {
+        OpenChatMessage message = new OpenChatMessage();
+        message.id = id;
+        message.roomId = roomId;
+        message.senderId = senderId;
+        message.content = content;
+        message.type = type;
+        if (isDeleted) message.softDelete();
+        message.replyToMessageId = replyToMessageId;
+        return message;
+    }
+
+    public boolean isDeleted() {
+        return this.deletedState.isDeleted();
+    }
+
+    public void softDelete() {
         this.deletedState.delete();
+    }
+
+    public void updateContent(String newContent) {
+        this.content = newContent;
+        this.editedAt = LocalDateTime.now();
+    }
+
+    public void attachReply(Long replyToMessageId, OpenChatMessageType replyToMessageType,
+                            Long replyToSenderId, Long replyToRoomId, ChatRoomType replyToRoomType,
+                            Long replyToDerivedRoomId) {
+        this.replyToMessageId = replyToMessageId;
+        this.replyToMessageType = replyToMessageType;
+        this.replyToSenderId = replyToSenderId;
+        this.replyToRoomId = replyToRoomId;
+        this.replyToRoomType = replyToRoomType;
+        this.replyToDerivedRoomId = replyToDerivedRoomId;
     }
 }

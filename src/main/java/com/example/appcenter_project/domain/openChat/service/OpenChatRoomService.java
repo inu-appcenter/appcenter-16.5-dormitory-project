@@ -10,6 +10,7 @@ import com.example.appcenter_project.domain.openChat.entity.OpenChatMessage;
 import com.example.appcenter_project.domain.openChat.entity.OpenChatParticipant;
 import com.example.appcenter_project.domain.openChat.entity.OpenChatRoom;
 import com.example.appcenter_project.domain.openChat.enums.*;
+import com.example.appcenter_project.domain.openChat.repository.OpenChatMessageQuerydslRepository;
 import com.example.appcenter_project.domain.openChat.repository.OpenChatMessageRepository;
 import com.example.appcenter_project.domain.openChat.repository.OpenChatParticipantRepository;
 import com.example.appcenter_project.domain.openChat.repository.OpenChatRoomQuerydslRepository;
@@ -46,6 +47,7 @@ public class OpenChatRoomService {
     private final OpenChatRoomRepository openChatRoomRepository;
     private final OpenChatParticipantRepository openChatParticipantRepository;
     private final OpenChatMessageRepository openChatMessageRepository;
+    private final OpenChatMessageQuerydslRepository openChatMessageQuerydslRepository;
     private final UserRepository userRepository;
     private final OpenChatMessageService openChatMessageService;
     private final OpenChatRoomQuerydslRepository openChatRoomQuerydslRepository;
@@ -60,6 +62,7 @@ public class OpenChatRoomService {
             OpenChatRoomRepository openChatRoomRepository,
             OpenChatParticipantRepository openChatParticipantRepository,
             OpenChatMessageRepository openChatMessageRepository,
+            OpenChatMessageQuerydslRepository openChatMessageQuerydslRepository,
             UserRepository userRepository,
             @Lazy OpenChatMessageService openChatMessageService,
             @Qualifier("openChatRoomQuerydslRepositoryImpl") OpenChatRoomQuerydslRepository openChatRoomQuerydslRepository,
@@ -71,6 +74,7 @@ public class OpenChatRoomService {
         this.openChatRoomRepository = openChatRoomRepository;
         this.openChatParticipantRepository = openChatParticipantRepository;
         this.openChatMessageRepository = openChatMessageRepository;
+        this.openChatMessageQuerydslRepository = openChatMessageQuerydslRepository;
         this.userRepository = userRepository;
         this.openChatMessageService = openChatMessageService;
         this.openChatRoomQuerydslRepository = openChatRoomQuerydslRepository;
@@ -100,6 +104,7 @@ public class OpenChatRoomService {
                 originRoom.getCreatorDormitory(),
                 originRoom.getScope()
         );
+        derivedRoom.setOriginRoomId(request.getOriginRoomId());
         OpenChatRoom savedRoom = openChatRoomRepository.save(derivedRoom);
         openChatParticipantRepository.save(OpenChatParticipant.create(savedRoom.getId(), userId, true));
 
@@ -261,7 +266,9 @@ public class OpenChatRoomService {
         merged.addAll(openChatDtos);
         merged.addAll(roommateDtos);
         merged.sort(Comparator
-                .comparing(ResponseOpenChatRoomDto::isMyRoommate, Comparator.reverseOrder())
+                .comparingInt((ResponseOpenChatRoomDto r) ->
+                        r.getRecruitmentStatus() == OpenChatRoomRecruitmentStatus.OPEN ? 0 : 1)
+                .thenComparing(ResponseOpenChatRoomDto::isMyRoommate, Comparator.reverseOrder())
                 .thenComparing(ResponseOpenChatRoomDto::getLastMessageAt,
                         Comparator.nullsLast(Comparator.reverseOrder())));
 
@@ -501,6 +508,21 @@ public class OpenChatRoomService {
         }
 
         room.updateRecruitmentStatus(status, actorId);
+
+        Long originRoomId = room.getOriginRoomId();
+        if (originRoomId == null) {
+            return;
+        }
+
+        openChatMessageService.sendRecruitmentStatusEvent(originRoomId, roomId, status);
+
+        if (status == OpenChatRoomRecruitmentStatus.OPEN) {
+            room.incrementTransitionCount();
+            openChatMessageService.sendReopenCardMessage(
+                    originRoomId, actorId, roomId,
+                    room.getName(), room.getDescription(), room.getMaxParticipants(),
+                    room.getTransitionCount());
+        }
     }
 
     @Transactional
@@ -685,7 +707,7 @@ public class OpenChatRoomService {
             return rooms.stream()
                     .map(room -> {
                         Long lastReadMessageId = lastReadMap.get(room.getId());
-                        int unread = (int) openChatMessageRepository.countByRoomIdAndIdGreaterThan(room.getId(), lastReadMessageId);
+                        int unread = (int) openChatMessageQuerydslRepository.countByRoomIdAndIdGreaterThan(room.getId(), lastReadMessageId);
                         return ResponseOpenChatRoomDto.from(room,
                                 latestMessages.get(room.getLastMessageId()),
                                 countMap.getOrDefault(room.getId(), 0L).intValue(),

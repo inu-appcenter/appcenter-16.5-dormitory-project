@@ -34,8 +34,8 @@ public class RoommateChattingChatController implements RoommateChatApiSpecificat
             @AuthenticationPrincipal CustomUserDetails userDetails,
             @RequestBody RequestRoommateChatDto requestRoommateChatDto
     ) {
-        Long userId = userDetails.getId();
-        ResponseRoommateChatDto response = chatService.sendChat(userId, requestRoommateChatDto);
+        Long userId = userDetails != null ? userDetails.getId() : -1L;
+        ResponseRoommateChatDto response = chatService.sendChat(requestRoommateChatDto, userId);
         return ResponseEntity.ok(response);
     }
 
@@ -78,6 +78,15 @@ public class RoommateChattingChatController implements RoommateChatApiSpecificat
                 .body(chatService.getUnReadCountByUserId(userDetails.getId()));
     }
 
+    @DeleteMapping("/messages/{chatId}")
+    public ResponseEntity<Void> deleteChat(
+            @AuthenticationPrincipal CustomUserDetails userDetails,
+            @PathVariable Long chatId) {
+        Long userId = userDetails != null ? userDetails.getId() : -1L;
+        chatService.deleteChat(chatId, userId);
+        return ResponseEntity.noContent().build();
+    }
+
     // WebSocket 방식 채팅 보내기
     @MessageMapping("/roommate/socketchat")
     public void sendChatViaWebSocket(
@@ -96,7 +105,7 @@ public class RoommateChattingChatController implements RoommateChatApiSpecificat
         log.info("📤 [WebSocket 채팅 전송] userId: {}, sessionId: {}, roomId: {}, content: {}",
                 userId, sessionId, roommateChatDto.getRoommateChattingRoomId(), roommateChatDto.getContent());
 
-        chatService.sendChat(userId, roommateChatDto);
+        chatService.sendChat(roommateChatDto, userId);
     }
 
     @DeleteMapping("/{roomId}/messages/{messageId}")
