@@ -1,6 +1,7 @@
 package com.example.appcenter_project.domain.openChat.entity;
 
 import com.example.appcenter_project.common.BaseTimeEntity;
+import com.example.appcenter_project.common.DeletedMessageState;
 import com.example.appcenter_project.domain.openChat.enums.OpenChatMessageType;
 import com.example.appcenter_project.shared.enums.ChatRoomType;
 import jakarta.persistence.*;
@@ -36,8 +37,8 @@ public class OpenChatMessage extends BaseTimeEntity {
     @Column(length = 100, unique = true)
     private String duplKey;
 
-    @Column(nullable = false)
-    private boolean isDeleted = false;
+    @Embedded
+    private DeletedMessageState deletedState = new DeletedMessageState();
 
     private Long replyToMessageId;
 
@@ -82,13 +83,17 @@ public class OpenChatMessage extends BaseTimeEntity {
         message.senderId = senderId;
         message.content = content;
         message.type = type;
-        message.isDeleted = isDeleted;
+        if (isDeleted) message.softDelete();
         message.replyToMessageId = replyToMessageId;
         return message;
     }
 
+    public boolean isDeleted() {
+        return this.deletedState.isDeleted();
+    }
+
     public void softDelete() {
-        this.isDeleted = true;
+        this.deletedState.delete();
     }
 
     public void updateContent(String newContent) {

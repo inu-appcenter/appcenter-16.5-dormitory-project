@@ -68,7 +68,6 @@ public enum ErrorCode {
 
 
     // ROOMMATE
-    // ROOMMATE
     ROOMMATE_USER_NOT_FOUND(NOT_FOUND, 7001, "[Roommate] 해당 유저가 존재하지 않습니다."),
     ROOMMATE_BOARD_NOT_FOUND(NOT_FOUND, 7002, "[Roommate] 게시글을 찾을 수 없습니다."),
     ROOMMATE_CHECKLIST_NOT_FOUND(NOT_FOUND, 7003, "[Roommate] 체크리스트를 찾을 수 없습니다."),
@@ -98,11 +97,13 @@ public enum ErrorCode {
 
     // ROOMMATE_CHAT
     ROOMMATE_CHAT_CANNOT_CHAT_WITH_SELF(BAD_REQUEST, 10001, "[RoommateChat] 자신에게는 채팅을 보낼 수 없습니다."),
-    DUPLICATE_CHAT_ROOM(CONFLICT, 10001, "[RoommateChat] 이미 존재하는 채팅방입니다."),
-    ROOMMATE_CHAT_ROOM_NOT_FOUND(NOT_FOUND, 7013, "[RoommateChat] 채팅방을 찾을 수 없습니다."),
-    ROOMMATE_CHAT_ROOM_FORBIDDEN(FORBIDDEN, 10004, "[RoommateChat] 이 채팅방에 속하지 않은 사용자입니다."),
-    ROOMMATE_CHAT_ROOM_DENIED(PRECONDITION_FAILED, 10004, "[RoommateChat] 양방향 채팅방 생성은 할 수 없습니다."),
-
+    DUPLICATE_CHAT_ROOM(CONFLICT, 10002, "[RoommateChat] 이미 존재하는 채팅방입니다."),
+    ROOMMATE_CHAT_ROOM_NOT_FOUND(NOT_FOUND, 10003, "[RoommateChat] 채팅방을 찾을 수 없습니다."),
+    ROOMMATE_CHAT_PARTICIPANT_FORBIDDEN(FORBIDDEN, 10004, "[RoommateChat] 이 채팅방에 속하지 않은 사용자입니다."),
+    ROOMMATE_CHAT_ROOM_DENIED(PRECONDITION_FAILED, 10005, "[RoommateChat] 양방향 채팅방 생성은 할 수 없습니다."),
+    ROOMMATE_CHAT_MESSAGE_NOT_FOUND(NOT_FOUND, 10006, "[RoommateChat] 메시지를 찾을 수 없습니다."),
+    ROOMMATE_CHAT_NOT_SENDER(FORBIDDEN, 10007, "[RoommateChat] 메시지 작성자만 메시지를 삭제할 수 있습니다."),
+    ROOMMATE_CHAT_MESSAGE_ROOM_MISMATCH(BAD_REQUEST, 10008, "[RoommateChat] 해당 채팅방의 메시지가 아닙니다."),
 
     // REPORT
     REPORT_NOT_REGISTERED(NOT_FOUND, 11001, "[Report] 해당 신고 정보를 찾을 수 없습니다"),
@@ -203,12 +204,11 @@ public enum ErrorCode {
     OPEN_CHAT_MESSAGE_NOT_OWNED_BY_USER(FORBIDDEN, 22038, "[OpenChat] 메시지 발신자가 아닙니다."),
     OPEN_CHAT_MESSAGE_EDIT_FORBIDDEN_TYPE(BAD_REQUEST, 22039, "[OpenChat] 텍스트 메시지만 수정할 수 있습니다."),
     OPEN_CHAT_MESSAGE_CONTENT_UNCHANGED(BAD_REQUEST, 22040, "[OpenChat] 기존 내용과 동일한 수정 요청입니다."),
-    ROOMMATE_CHAT_MESSAGE_NOT_FOUND(NOT_FOUND, 10005, "[RoommateChat] 메시지를 찾을 수 없습니다."),
-    ROOMMATE_CHAT_MESSAGE_ALREADY_DELETED(BAD_REQUEST, 10006, "[RoommateChat] 이미 삭제된 메시지입니다."),
-    ROOMMATE_CHAT_REPLY_NOT_ALLOWED_FOR_TYPE(BAD_REQUEST, 10007, "[RoommateChat] 답장할 수 없는 메시지 유형입니다."),
-    ROOMMATE_CHAT_REPLY_TARGET_NOT_IN_SAME_ROOM(BAD_REQUEST, 10008, "[RoommateChat] 원본 메시지가 다른 채팅방 소속입니다."),
-    ROOMMATE_CHAT_NESTED_REPLY_NOT_ALLOWED(BAD_REQUEST, 10009, "[RoommateChat] 답장에 대한 답장은 불가합니다."),
-    ROOMMATE_CHAT_MESSAGE_NOT_OWNED_BY_USER(FORBIDDEN, 10010, "[RoommateChat] 메시지 발신자가 아닙니다."),
+    ROOMMATE_CHAT_MESSAGE_ALREADY_DELETED(BAD_REQUEST, 10009, "[RoommateChat] 이미 삭제된 메시지입니다."),
+    ROOMMATE_CHAT_REPLY_NOT_ALLOWED_FOR_TYPE(BAD_REQUEST, 10010, "[RoommateChat] 답장할 수 없는 메시지 유형입니다."),
+    ROOMMATE_CHAT_REPLY_TARGET_NOT_IN_SAME_ROOM(BAD_REQUEST, 10011, "[RoommateChat] 원본 메시지가 다른 채팅방 소속입니다."),
+    ROOMMATE_CHAT_NESTED_REPLY_NOT_ALLOWED(BAD_REQUEST, 10012, "[RoommateChat] 답장에 대한 답장은 불가합니다."),
+    ROOMMATE_CHAT_MESSAGE_NOT_OWNED_BY_USER(FORBIDDEN, 10013, "[RoommateChat] 메시지 발신자가 아닙니다."),
 
     // STUDENT_ID_DISCLOSURE
     DISCLOSURE_REQUEST_NOT_FOUND(NOT_FOUND, 23001, "[StudentIdDisclosure] 학번 공개 요청을 찾을 수 없습니다."),

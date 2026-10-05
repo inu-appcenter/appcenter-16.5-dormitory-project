@@ -2,10 +2,9 @@ package com.example.appcenter_project.domain.openChat.service;
 
 import com.example.appcenter_project.domain.block.service.BlockService;
 import com.example.appcenter_project.domain.openChat.dto.response.ResponseChatRoomListDto;
-import com.example.appcenter_project.domain.openChat.dto.response.ResponseOpenChatRoomDto;
 import com.example.appcenter_project.domain.openChat.enums.ChatCategory;
 import com.example.appcenter_project.domain.openChat.enums.OpenChatRoomTab;
-import com.example.appcenter_project.domain.openChat.fixture.ChatRoomListFixture;
+import com.example.appcenter_project.domain.openChat.repository.OpenChatMessageRepository;
 import com.example.appcenter_project.domain.openChat.repository.OpenChatRoomQuerydslRepository;
 import com.example.appcenter_project.domain.roommate.repository.MyRoommateRepository;
 import com.example.appcenter_project.domain.roommate.repository.RoommateChattingChatRepository;
@@ -23,7 +22,7 @@ import org.springframework.data.domain.Pageable;
 import java.util.List;
 import java.util.Optional;
 
-import static org.assertj.core.api.Assertions.*;
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.*;
 import static org.mockito.BDDMockito.*;
 import static org.mockito.Mockito.lenient;
@@ -33,6 +32,9 @@ class ChatRoomListServiceTest {
 
     @Mock
     OpenChatRoomQuerydslRepository openChatRoomQuerydslRepository;
+
+    @Mock
+    OpenChatMessageRepository openChatMessageRepository;
 
     @Mock
     RoommateChattingRoomRepository roommateChattingRoomRepository;

@@ -108,5 +108,12 @@ public class RoommateChattingChatController implements RoommateChatApiSpecificat
         chatService.sendChat(roommateChatDto, userId);
     }
 
-
+    @DeleteMapping("/{roomId}/messages/{messageId}")
+    public ResponseEntity<Void> deleteMessage(
+            @AuthenticationPrincipal CustomUserDetails user,
+            @PathVariable Long roomId,
+            @PathVariable Long messageId) {
+        chatService.deleteMessage(user.getId(), roomId, messageId);
+        return ResponseEntity.noContent().build();
+    }
 }

@@ -21,12 +21,15 @@ import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.messaging.simp.SimpMessagingTemplate;
+import org.springframework.test.util.ReflectionTestUtils;
 
 import java.util.Optional;
 import java.util.Set;
 
-import static org.assertj.core.api.Assertions.*;
-import static org.mockito.ArgumentMatchers.*;
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.BDDMockito.*;
 
 @ExtendWith(MockitoExtension.class)
@@ -105,14 +108,18 @@ class AdminBotMessageServiceTest {
     }
 
     @Test
-    @DisplayName("lastMessage 갱신 — AC-3 room.updateLastMessage() 호출")
+    @DisplayName("lastMessageId 갱신 — AC-3 저장된 봇 메시지 ID 반영")
     void should_update_room_last_message_after_sending() {
         // given
         OpenChatRoom room = AdminBotMessageFixture.openRoom();
         User admin = AdminBotMessageFixture.admin();
         given(openChatRoomRepository.findById(AdminBotMessageFixture.OPEN_ROOM_ID)).willReturn(Optional.of(room));
         given(userRepository.findById(AdminBotMessageFixture.ADMIN_ID)).willReturn(Optional.of(admin));
-        given(openChatMessageRepository.save(any())).willAnswer(inv -> inv.getArgument(0));
+        given(openChatMessageRepository.save(any())).willAnswer(inv -> {
+            OpenChatMessage saved = inv.getArgument(0);
+            ReflectionTestUtils.setField(saved, "id", 123L);
+            return saved;
+        });
         given(openChatParticipantRepository.countByRoomId(any())).willReturn(0L);
         given(openChatParticipantRepository.countReadByRoomIdAndMessageId(any(), any())).willReturn(0L);
         given(sessionRegistry.getSubscriberUserIds(any())).willReturn(Set.of());
@@ -121,7 +128,7 @@ class AdminBotMessageServiceTest {
         openChatMessageService.sendBotMessage(AdminBotMessageFixture.ADMIN_ID, AdminBotMessageFixture.OPEN_ROOM_ID, AdminBotMessageFixture.BOT_CONTENT);
 
         // then
-        assertThat(room.getLastMessage()).isEqualTo(AdminBotMessageFixture.BOT_CONTENT);
+        assertThat(room.getLastMessageId()).isEqualTo(123L);
     }
 
     @Test

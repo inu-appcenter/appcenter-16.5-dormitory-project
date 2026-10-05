@@ -1,6 +1,7 @@
 package com.example.appcenter_project.domain.roommate.entity;
 
 import com.example.appcenter_project.common.BaseTimeEntity;
+import com.example.appcenter_project.common.DeletedMessageState;
 import com.example.appcenter_project.domain.roommate.enums.RoommateChattingMessageType;
 import com.example.appcenter_project.domain.user.entity.User;
 import jakarta.persistence.*;
@@ -17,11 +18,11 @@ public class RoommateChattingChat extends BaseTimeEntity {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    @ManyToOne(fetch =  FetchType.LAZY)
+    @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "roommate_chatting_room_id", nullable = false)
     private RoommateChattingRoom roommateChattingRoom;
 
-    @ManyToOne(fetch =  FetchType.LAZY)
+    @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "member_id")
     private User member;
 
@@ -41,8 +42,8 @@ public class RoommateChattingChat extends BaseTimeEntity {
     @Column(nullable = true)
     private Long disclosureRequestId;
 
-    @Column(nullable = false)
-    private boolean isDeleted = false;
+    @Embedded
+    private DeletedMessageState deletedState = new DeletedMessageState();
 
     private Long replyToMessageId;
 
@@ -100,17 +101,13 @@ public class RoommateChattingChat extends BaseTimeEntity {
         return chat;
     }
 
-    public void markAsRead() {
-        this.readByReceiver = true;
-    }
-
     public static RoommateChattingChat createForTest(Long id, Long roomId, Long senderId, String content,
                                                      boolean isSystem, boolean isDeleted, Long replyToMessageId) {
         RoommateChattingChat chat = new RoommateChattingChat();
         chat.id = id;
         chat.content = content;
         chat.isSystem = isSystem;
-        chat.isDeleted = isDeleted;
+        if (isDeleted) chat.softDelete();
         chat.replyToMessageId = replyToMessageId;
         if (senderId != null) {
             chat.member = com.example.appcenter_project.domain.user.entity.User.createForTest(senderId, "user-" + senderId);
@@ -119,8 +116,16 @@ public class RoommateChattingChat extends BaseTimeEntity {
         return chat;
     }
 
+    public void markAsRead() {
+        this.readByReceiver = true;
+    }
+
+    public boolean isDeleted() {
+        return this.deletedState.isDeleted();
+    }
+
     public void softDelete() {
-        this.isDeleted = true;
+        this.deletedState.delete();
     }
 
     public void attachReply(Long replyToMessageId, Long replyToSenderId, Long replyToRoomId) {
@@ -129,4 +134,3 @@ public class RoommateChattingChat extends BaseTimeEntity {
         this.replyToRoomId = replyToRoomId;
     }
 }
-

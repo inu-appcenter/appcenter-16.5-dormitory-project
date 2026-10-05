@@ -98,6 +98,31 @@ public interface OpenChatMessageApiSpecification {
             @Parameter(hidden = true) HttpServletRequest request);
 
     @Operation(
+            summary = "채팅 메시지 삭제",
+            description = """
+                    - 채팅 메시지를 삭제합니다.
+                    - 메시지 작성자이면서 현재 채팅방 참여자인 사용자만 메시지를 삭제할 수 있습니다.
+                    - 메시지 삭제는 언제든 가능합니다.
+                    - 삭제 성공 후 WebSocket을 통해 삭제된 메시지 정보를 전달합니다.
+                    - 구독 경로: `/sub/openchat/{roomId}`
+                    - 전달 DTO: `ResponseOpenChatMessageDto`
+                    """,
+            responses = {
+                    @ApiResponse(responseCode = "204", description = "삭제 성공", content = @Content),
+                    @ApiResponse(responseCode = "400", description = "해당 채팅방의 메시지가 아님"),
+                    @ApiResponse(responseCode = "401", description = "인증 필요"),
+                    @ApiResponse(responseCode = "403", description = "채팅방 참여자가 아니거나 메시지 작성자가 아님"),
+                    @ApiResponse(responseCode = "404", description = "채팅방 또는 메시지를 찾을 수 없음")
+            }
+    )
+    ResponseEntity<Void> deleteMessage(
+            @Parameter(hidden = true) @AuthenticationPrincipal CustomUserDetails user,
+            @Parameter(description = "채팅방 ID", required = true, example = "1")
+            @PathVariable Long roomId,
+            @Parameter(description = "채팅 메시지 ID", required = true, example = "1")
+            @PathVariable Long messageId);
+
+    @Operation(
             summary = "텍스트 메시지 수정",
             description = "본인이 작성한 TEXT 타입 메시지의 내용을 수정합니다. 성공 시 수정 이벤트를 WebSocket으로 broadcast합니다.",
             responses = {

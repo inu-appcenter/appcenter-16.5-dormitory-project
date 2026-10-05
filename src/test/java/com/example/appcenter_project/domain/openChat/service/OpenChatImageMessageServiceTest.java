@@ -29,6 +29,7 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.messaging.simp.SimpMessagingTemplate;
 import org.springframework.web.multipart.MultipartFile;
+import org.springframework.test.util.ReflectionTestUtils;
 
 import java.util.List;
 import java.util.Optional;
@@ -37,8 +38,6 @@ import java.util.Set;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.ArgumentMatchers.anyInt;
-import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.BDDMockito.then;
@@ -174,26 +173,29 @@ class OpenChatImageMessageServiceTest {
     }
 
     @Test
-    @DisplayName("이미지 메시지 전송 성공 — lastMessage가 [이미지]로 갱신됨")
-    void should_update_last_message_to_image_placeholder() {
+    @DisplayName("이미지 메시지 전송 성공 — lastMessageId가 저장된 메시지 ID로 갱신됨")
+    void should_update_last_message_id_after_sending_image() {
         OpenChatRoom room = OpenChatImageMessageFixture.createRoom();
         OpenChatParticipant participant = OpenChatImageMessageFixture.createParticipant(ROOM_ID, USER_ID);
         User sender = User.createTestUser("20240001", "password", "홍길동", DormType.DORM_1, College.ENGINEERING, Role.ROLE_USER);
-        OpenChatMessage message = OpenChatImageMessageFixture.createImageMessage(ROOM_ID, USER_ID);
         List<MultipartFile> images = OpenChatImageMessageFixture.createSingleValidImageList();
         List<String> urls = List.of("https://host/images/open_chat_message/img.jpg");
 
         given(openChatRoomRepository.findById(ROOM_ID)).willReturn(Optional.of(room));
         given(openChatParticipantRepository.findByRoomIdAndUserId(ROOM_ID, USER_ID)).willReturn(Optional.of(participant));
         given(userRepository.findById(USER_ID)).willReturn(Optional.of(sender));
-        given(openChatMessageRepository.save(any())).willReturn(message);
+        given(openChatMessageRepository.save(any())).willAnswer(inv -> {
+            OpenChatMessage saved = inv.getArgument(0);
+            ReflectionTestUtils.setField(saved, "id", 123L);
+            return saved;
+        });
         given(imageService.findStaticImageUrls(eq(ImageType.OPEN_CHAT_MESSAGE), any(), eq(httpServletRequest))).willReturn(urls);
         given(openChatParticipantRepository.countByRoomId(ROOM_ID)).willReturn(2L);
         given(openChatParticipantRepository.countReadByRoomIdAndMessageId(eq(ROOM_ID), any())).willReturn(1L);
 
         openChatMessageService.sendImageMessage(USER_ID, ROOM_ID, images, httpServletRequest);
 
-        assertThat(room.getLastMessage()).isEqualTo("[이미지]");
+        assertThat(room.getLastMessageId()).isEqualTo(123L);
     }
 
     @Test

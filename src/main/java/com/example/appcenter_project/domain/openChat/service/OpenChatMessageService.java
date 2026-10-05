@@ -53,6 +53,8 @@ import java.util.stream.Collectors;
 @Transactional
 public class OpenChatMessageService {
 
+    private static final String OPEN_CHAT_TOPIC_PREFIX = "/sub/openchat/";
+
     private static final Set<String> ALLOWED_IMAGE_EXTENSIONS = Set.of(".jpg", ".jpeg", ".png", ".gif", ".webp");
     private static final Set<String> ALLOWED_MIME_TYPES = Set.of("image/jpeg", "image/png", "image/gif", "image/webp");
     private static final int MAX_IMAGE_COUNT = 5;
@@ -69,6 +71,8 @@ public class OpenChatMessageService {
     private final OpenChatSessionRegistry sessionRegistry;
     private final OpenChatNotificationService openChatNotificationService;
     private final ObjectMapper objectMapper;
+
+    // ========== Public Methods ========== //
 
     public void sendMessage(Long userId, RequestOpenChatMessageDto request) {
         OpenChatRoom room = openChatRoomRepository.findById(request.getRoomId()).orElse(null);
@@ -89,7 +93,7 @@ public class OpenChatMessageService {
 
         openChatMessageRepository.save(message);
 
-        room.updateLastMessage(message.getContent(), message.getCreatedDate());
+        room.updateLastMessage(message.getId(), message.getCreatedDate());
 
         Set<Long> usersToRead = new HashSet<>(sessionRegistry.getSubscriberUserIds(request.getRoomId()));
         usersToRead.add(userId);
@@ -195,8 +199,8 @@ public class OpenChatMessageService {
             int unreadCount = calculateUnreadCount(roomId, message.getId());
 
             ResponseOpenChatMessageDto response = ResponseOpenChatMessageDto.from(message, sender.getName(), unreadCount, imageUrls);
-            messagingTemplate.convertAndSend("/sub/openchat/" + roomId, response);
-            messagingTemplate.convertAndSend("/sub/openchat/" + roomId + "/read",
+            messagingTemplate.convertAndSend(OPEN_CHAT_TOPIC_PREFIX + roomId, response);
+            messagingTemplate.convertAndSend(OPEN_CHAT_TOPIC_PREFIX + roomId + "/read",
                     ResponseOpenChatReadEventDto.of(message.getId(), unreadCount));
 
             if (openChatNotificationService != null) {
@@ -207,7 +211,7 @@ public class OpenChatMessageService {
         }
 
         if (!results.isEmpty()) {
-            room.updateLastMessage("[이미지]", results.get(results.size() - 1).getCreatedAt());
+            room.updateLastMessage(results.get(results.size() - 1).getMessageId(), results.get(results.size() - 1).getCreatedAt());
         }
 
         return results;
@@ -220,7 +224,7 @@ public class OpenChatMessageService {
         OpenChatMessage message = OpenChatMessage.create(roomId, 0L, content, OpenChatMessageType.SYSTEM);
         openChatMessageRepository.save(message);
 
-        room.updateLastMessage(message.getContent(), message.getCreatedDate());
+        room.updateLastMessage(message.getId(), message.getCreatedDate());
 
         Set<Long> subscribers = sessionRegistry.getSubscriberUserIds(roomId);
         if (!subscribers.isEmpty()) {
@@ -230,8 +234,8 @@ public class OpenChatMessageService {
         int unreadCount = calculateUnreadCount(roomId, message.getId());
 
         ResponseOpenChatMessageDto response = ResponseOpenChatMessageDto.from(message, null, unreadCount);
-        messagingTemplate.convertAndSend("/sub/openchat/" + roomId, response);
-        messagingTemplate.convertAndSend("/sub/openchat/" + roomId + "/read",
+        messagingTemplate.convertAndSend(OPEN_CHAT_TOPIC_PREFIX + roomId, response);
+        messagingTemplate.convertAndSend(OPEN_CHAT_TOPIC_PREFIX + roomId + "/read",
                 ResponseOpenChatReadEventDto.of(message.getId(), unreadCount));
     }
 
@@ -257,7 +261,7 @@ public class OpenChatMessageService {
         OpenChatMessage message = OpenChatMessage.create(originRoomId, senderId, content, OpenChatMessageType.ROOM_LINK);
         openChatMessageRepository.save(message);
 
-        originRoom.updateLastMessage(content, message.getCreatedDate());
+        originRoom.updateLastMessage(message.getId(), message.getCreatedDate());
 
         Set<Long> usersToRead = new HashSet<>(sessionRegistry.getSubscriberUserIds(originRoomId));
         usersToRead.add(senderId);
@@ -268,8 +272,8 @@ public class OpenChatMessageService {
         ResponseOpenChatMessageDto response = ResponseOpenChatMessageDto.fromRoomLink(
                 message, sender.getName(), unreadCount,
                 derivedRoomId, name, description, maxParticipants);
-        messagingTemplate.convertAndSend("/sub/openchat/" + originRoomId, response);
-        messagingTemplate.convertAndSend("/sub/openchat/" + originRoomId + "/read",
+        messagingTemplate.convertAndSend(OPEN_CHAT_TOPIC_PREFIX + originRoomId, response);
+        messagingTemplate.convertAndSend(OPEN_CHAT_TOPIC_PREFIX + originRoomId + "/read",
                 ResponseOpenChatReadEventDto.of(message.getId(), unreadCount));
     }
 
@@ -289,11 +293,12 @@ public class OpenChatMessageService {
             throw new CustomException(ErrorCode.UNHANDLED_EXCEPTION);
         }
 
+        OpenChatRoom room = openChatRoomRepository.findById(roomId)
+                .orElseThrow(() -> new CustomException(ErrorCode.OPEN_CHAT_ROOM_NOT_FOUND));
         OpenChatMessage message = OpenChatMessage.create(roomId, requesterId, content, OpenChatMessageType.STUDENT_ID_REQUEST);
         openChatMessageRepository.save(message);
 
-        openChatRoomRepository.findById(roomId).ifPresent(room ->
-                room.updateLastMessage(content, message.getCreatedDate()));
+        room.updateLastMessage(message.getId(), message.getCreatedDate());
 
         Set<Long> usersToRead = new HashSet<>(sessionRegistry.getSubscriberUserIds(roomId));
         usersToRead.add(requesterId);
@@ -303,8 +308,8 @@ public class OpenChatMessageService {
 
         ResponseOpenChatMessageDto response = ResponseOpenChatMessageDto.fromStudentIdRequest(
                 message, sender.getName(), unreadCount, requestId);
-        messagingTemplate.convertAndSend("/sub/openchat/" + roomId, response);
-        messagingTemplate.convertAndSend("/sub/openchat/" + roomId + "/read",
+        messagingTemplate.convertAndSend(OPEN_CHAT_TOPIC_PREFIX + roomId, response);
+        messagingTemplate.convertAndSend(OPEN_CHAT_TOPIC_PREFIX + roomId + "/read",
                 ResponseOpenChatReadEventDto.of(message.getId(), unreadCount));
     }
 
@@ -326,22 +331,23 @@ public class OpenChatMessageService {
         if (latestId != null) {
             openChatParticipantRepository.updateLastReadMessageId(roomId, userId, latestId);
             int unreadCount = calculateUnreadCount(roomId, latestId);
-            messagingTemplate.convertAndSend("/sub/openchat/" + roomId + "/read",
+            messagingTemplate.convertAndSend(OPEN_CHAT_TOPIC_PREFIX + roomId + "/read",
                     ResponseOpenChatReadEventDto.of(latestId, unreadCount));
         }
 
         List<Long> imageMessageIds = messages.stream()
-                .filter(msg -> msg.getType() == OpenChatMessageType.IMAGE)
+                //삭제하지 않은 이미지 메시지만 조회
+                .filter(msg -> !msg.getDeletedState().isDeleted() && msg.getType() == OpenChatMessageType.IMAGE)
                 .map(OpenChatMessage::getId)
                 .toList();
 
         final Map<Long, List<String>> imageUrlsMap = imageMessageIds.isEmpty()
                 ? Map.of()
                 : imageRepository.findByImageTypeAndEntityIdIn(ImageType.OPEN_CHAT_MESSAGE, imageMessageIds).stream()
-                        .collect(Collectors.groupingBy(
-                                Image::getEntityId,
-                                Collectors.mapping(img -> imageService.getImageUrl(ImageType.OPEN_CHAT_MESSAGE, img, request), Collectors.toList())
-                        ));
+                .collect(Collectors.groupingBy(
+                        Image::getEntityId,
+                        Collectors.mapping(img -> imageService.getImageUrl(ImageType.OPEN_CHAT_MESSAGE, img, request), Collectors.toList())
+                ));
 
         List<Long> senderIds = messages.stream()
                 .filter(msg -> msg.getType() != OpenChatMessageType.SYSTEM)
@@ -363,7 +369,7 @@ public class OpenChatMessageService {
         final Map<Long, OpenChatRoom> linkedRoomMap = linkedRoomIds.isEmpty()
                 ? Map.of()
                 : openChatRoomRepository.findAllById(linkedRoomIds).stream()
-                        .collect(Collectors.toMap(OpenChatRoom::getId, r -> r));
+                .collect(Collectors.toMap(OpenChatRoom::getId, r -> r));
 
         Map<Long, ReplySourceDto> replySources = buildReplySources(messages);
 
@@ -425,7 +431,7 @@ public class OpenChatMessageService {
         OpenChatMessage message = OpenChatMessage.create(roomId, adminId, content, OpenChatMessageType.BOT);
         openChatMessageRepository.save(message);
 
-        room.updateLastMessage(content, message.getCreatedDate());
+        room.updateLastMessage(message.getId(), message.getCreatedDate());
 
         Set<Long> subscribers = sessionRegistry.getSubscriberUserIds(roomId);
         if (!subscribers.isEmpty()) {
@@ -435,8 +441,8 @@ public class OpenChatMessageService {
         int unreadCount = calculateUnreadCount(roomId, message.getId());
 
         ResponseOpenChatMessageDto response = ResponseOpenChatMessageDto.from(message, sender.getName(), unreadCount);
-        messagingTemplate.convertAndSend("/sub/openchat/" + roomId, response);
-        messagingTemplate.convertAndSend("/sub/openchat/" + roomId + "/read",
+        messagingTemplate.convertAndSend(OPEN_CHAT_TOPIC_PREFIX + roomId, response);
+        messagingTemplate.convertAndSend(OPEN_CHAT_TOPIC_PREFIX + roomId + "/read",
                 ResponseOpenChatReadEventDto.of(message.getId(), unreadCount));
 
         if (openChatNotificationService != null) {
@@ -450,6 +456,8 @@ public class OpenChatMessageService {
         long readCount = openChatParticipantRepository.countReadByRoomIdAndMessageId(roomId, messageId);
         return (int) (total - readCount);
     }
+
+    // ========== Private Methods ========== //
 
     private ResponseOpenChatMessageDto toRoomLinkDto(OpenChatMessage msg, String nickname, int unreadCount) {
         return toRoomLinkDto(msg, nickname, unreadCount, Map.of());
@@ -526,7 +534,7 @@ public class OpenChatMessageService {
         openChatMessageRepository.save(message);
 
         openChatRoomRepository.findById(parentRoomId).ifPresent(room ->
-                room.updateLastMessage(content, message.getCreatedDate()));
+                room.updateLastMessage(message.getId(), message.getCreatedDate()));
 
         int unreadCount = calculateUnreadCount(parentRoomId, message.getId());
 
@@ -629,7 +637,7 @@ public class OpenChatMessageService {
         Optional<Long> latestIdOpt = openChatMessageQuerydslRepository.findLatestMessageIdByRoomId(roomId);
         if (latestIdOpt.isPresent() && latestIdOpt.get().equals(messageId)) {
             openChatRoomRepository.findById(roomId).ifPresent(r ->
-                    r.updateLastMessage(message.getContent(), message.getEditedAt()));
+                    r.updateLastMessage(message.getId(), message.getEditedAt()));
         }
 
         messagingTemplate.convertAndSend("/sub/openchat/" + roomId + "/edit",

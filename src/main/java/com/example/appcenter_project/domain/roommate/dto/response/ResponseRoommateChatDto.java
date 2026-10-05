@@ -31,7 +31,7 @@ public class ResponseRoommateChatDto {
                 .roommateChattingRoomId(chat.getRoommateChattingRoom().getId())
                 .roommateChatId(chat.getId())
                 .userId(chat.getMember() != null ? chat.getMember().getId() : null)
-                .content(chat.getContent())
+                .content(toResponseContent(chat))
                 .read(chat.isReadByReceiver())
                 .isSystem(chat.isSystem())
                 .createdDate(chat.getCreatedDate().toString())
@@ -50,5 +50,15 @@ public class ResponseRoommateChatDto {
                 .read(true)
                 .createdDate(java.time.LocalDateTime.now().toString())
                 .build();
+    }
+
+    private static String toResponseContent(RoommateChattingChat chat) {
+        if(chat == null) return null;
+
+        if(chat.getDeletedState().isDeleted()) {
+            return "삭제된 메시지입니다.";
+        }
+
+        return chat.getContent();
     }
 }

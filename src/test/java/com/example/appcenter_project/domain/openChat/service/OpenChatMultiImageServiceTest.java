@@ -29,9 +29,11 @@ import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.messaging.simp.SimpMessagingTemplate;
+import org.springframework.test.util.ReflectionTestUtils;
 import org.springframework.web.multipart.MultipartFile;
 
 import java.util.List;
+import java.util.Iterator;
 import java.util.Optional;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -272,13 +274,17 @@ class OpenChatMultiImageServiceTest {
         OpenChatRoom room = OpenChatImageMessageFixture.createRoom();
         OpenChatParticipant participant = OpenChatImageMessageFixture.createParticipant(ROOM_ID, USER_ID);
         User sender = User.createTestUser("20240001", "pw", "홍길동", DormType.DORM_1, College.ENGINEERING, Role.ROLE_USER);
-        OpenChatMessage message = OpenChatImageMessageFixture.createImageMessage(ROOM_ID, USER_ID);
+        Iterator<Long> messageIds = List.of(1L, 2L, 3L).iterator();
         List<MultipartFile> images = OpenChatMultiImageFixture.createImageList(3);
 
         given(openChatRoomRepository.findById(ROOM_ID)).willReturn(Optional.of(room));
         given(openChatParticipantRepository.findByRoomIdAndUserId(ROOM_ID, USER_ID)).willReturn(Optional.of(participant));
         given(userRepository.findById(USER_ID)).willReturn(Optional.of(sender));
-        given(openChatMessageRepository.save(any())).willReturn(message);
+        given(openChatMessageRepository.save(any())).willAnswer(inv -> {
+            OpenChatMessage saved = inv.getArgument(0);
+            ReflectionTestUtils.setField(saved, "id", messageIds.next());
+            return saved;
+        });
         given(imageService.findStaticImageUrls(eq(ImageType.OPEN_CHAT_MESSAGE), any(), eq(httpServletRequest)))
                 .willReturn(List.of("https://host/img.jpg"));
         given(openChatParticipantRepository.countByRoomId(ROOM_ID)).willReturn(3L);
@@ -288,7 +294,7 @@ class OpenChatMultiImageServiceTest {
         openChatMessageService.sendImageMessage(USER_ID, ROOM_ID, images, httpServletRequest);
 
         // then
-        assertThat(room.getLastMessage()).isEqualTo("[이미지]");
+        assertThat(room.getLastMessageId()).isEqualTo(3L);
     }
 
     @Test

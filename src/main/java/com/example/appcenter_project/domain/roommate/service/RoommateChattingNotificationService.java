@@ -42,7 +42,7 @@ public class RoommateChattingNotificationService {
         boolean isGuest = room.getGuest().getId().equals(userId);
 
         if (!isHost && !isGuest) {
-            throw new CustomException(ErrorCode.ROOMMATE_CHAT_ROOM_FORBIDDEN);
+            throw new CustomException(ErrorCode.ROOMMATE_CHAT_PARTICIPANT_FORBIDDEN);
         }
 
         if (isHost) {
@@ -63,7 +63,7 @@ public class RoommateChattingNotificationService {
         boolean isGuest = room.getGuest().getId().equals(userId);
 
         if (!isHost && !isGuest) {
-            throw new CustomException(ErrorCode.ROOMMATE_CHAT_ROOM_FORBIDDEN);
+            throw new CustomException(ErrorCode.ROOMMATE_CHAT_PARTICIPANT_FORBIDDEN);
         }
 
         ChatNotificationMode mode = isHost ? room.getHostNotificationMode() : room.getGuestNotificationMode();

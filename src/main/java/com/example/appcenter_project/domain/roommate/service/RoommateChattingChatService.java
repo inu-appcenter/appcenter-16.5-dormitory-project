@@ -1,31 +1,32 @@
 package com.example.appcenter_project.domain.roommate.service;
 
-import com.example.appcenter_project.common.image.entity.Image;
 import com.example.appcenter_project.common.image.enums.ImageType;
 import com.example.appcenter_project.common.image.service.ImageService;
 import com.example.appcenter_project.domain.fcm.entity.FcmOutbox;
 import com.example.appcenter_project.domain.fcm.entity.FcmToken;
 import com.example.appcenter_project.domain.fcm.enums.FcmRoutingType;
 import com.example.appcenter_project.domain.fcm.repository.FcmOutboxRepository;
-import com.example.appcenter_project.domain.notification.dto.request.RequestNotificationDto;
 import com.example.appcenter_project.domain.notification.entity.Notification;
 import com.example.appcenter_project.domain.notification.service.NotificationService;
 import com.example.appcenter_project.domain.openChat.enums.ChatNotificationMode;
 import com.example.appcenter_project.domain.roommate.dto.request.RequestRoommateChatDto;
+import com.example.appcenter_project.domain.roommate.dto.response.ResponseRoommateChatDeleteEventDto;
 import com.example.appcenter_project.domain.roommate.dto.response.ResponseRoommateChatDto;
 import com.example.appcenter_project.domain.roommate.entity.RoommateChattingChat;
 import com.example.appcenter_project.domain.roommate.entity.RoommateChattingRoom;
-import com.example.appcenter_project.domain.user.entity.User;
-import com.example.appcenter_project.domain.user.repository.FcmTokenRepository;
-import com.example.appcenter_project.global.exception.CustomException;
 import com.example.appcenter_project.domain.roommate.repository.RoommateChattingChatRepository;
 import com.example.appcenter_project.domain.roommate.repository.RoommateChattingRoomRepository;
+import com.example.appcenter_project.domain.user.entity.User;
+import com.example.appcenter_project.domain.user.repository.FcmTokenRepository;
 import com.example.appcenter_project.domain.user.repository.UserRepository;
 import com.example.appcenter_project.global.config.RoommateWebSocketEventListener;
+import com.example.appcenter_project.global.exception.CustomException;
+import com.example.appcenter_project.global.exception.ErrorCode;
 import com.example.appcenter_project.global.mixpanel.MixpanelService;
 import jakarta.servlet.http.HttpServletRequest;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.json.JSONObject;
 import org.springframework.messaging.simp.SimpMessagingTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -40,7 +41,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.stream.Collectors;
-import org.json.JSONObject;
 
 import static com.example.appcenter_project.global.exception.ErrorCode.*;
 
@@ -49,6 +49,8 @@ import static com.example.appcenter_project.global.exception.ErrorCode.*;
 @RequiredArgsConstructor
 @Transactional
 public class RoommateChattingChatService {
+
+    private static final String ROOMMATE_CHAT_TOPIC_PREFIX = "/sub/roommate/chat/";
 
     private final RoommateChattingChatRepository chatRepository;
     private final RoommateChattingRoomRepository chatRoomRepository;
@@ -83,7 +85,7 @@ public class RoommateChattingChatService {
         } else if (room.getHost().getId().equals(userId)) {
             receiver = room.getGuest(); // 내가 작성자면 상대는 요청자
         } else {
-            throw new CustomException(ROOMMATE_CHAT_ROOM_FORBIDDEN); // 해당 채팅방 소속이 아님
+            throw new CustomException(ROOMMATE_CHAT_PARTICIPANT_FORBIDDEN); // 해당 채팅방 소속이 아님
         }
 
         // 수신자가 방을 나간 상태면 메시지 수신 시 자동 재진입 (채팅 목록에 다시 표시)
@@ -134,14 +136,14 @@ public class RoommateChattingChatService {
         }
 
         ResponseRoommateChatDto responseDto = ResponseRoommateChatDto.entityToDto(savedChat, null, replySource);
-        String destination = "/sub/roommate/chat/" + room.getId();
+        String destination = ROOMMATE_CHAT_TOPIC_PREFIX + room.getId();
 
         log.info("📡 [WebSocket 전송] destination: {}, chatId: {}", destination, savedChat.getId());
         messagingTemplate.convertAndSend(destination, responseDto);
 
         // 8. 수신자가 온라인이고 자동으로 읽음 처리된 경우, 읽음 알림 전송
         if (isReceiverOnline) {
-            String readDestination = "/sub/roommate/chat/read/" + room.getId() + "/user/" + sender.getId();
+            String readDestination = ROOMMATE_CHAT_TOPIC_PREFIX + "read/" + room.getId() + "/user/" + sender.getId();
             List<Long> readIds = List.of(savedChat.getId());
             log.info("📖 [자동 읽음 처리 알림] destination: {}, readIds: {}", readDestination, readIds);
             messagingTemplate.convertAndSend(readDestination, readIds);
@@ -195,7 +197,7 @@ public class RoommateChattingChatService {
         // 읽음 처리된 메시지 ID들을 발신자(상대방)에게 실시간 전송
         if (!readIds.isEmpty()) {
             Long otherUserId = room.getHost().getId().equals(userId) ? room.getGuest().getId() : room.getHost().getId();
-            String destination = "/sub/roommate/chat/read/" + roomId + "/user/" + otherUserId;
+            String destination = ROOMMATE_CHAT_TOPIC_PREFIX + "read/" + roomId + "/user/" + otherUserId;
             log.info("📖 [실시간 읽음 처리] destination: {}, readIds: {}", destination, readIds);
             messagingTemplate.convertAndSend(destination, readIds);
         }
@@ -215,7 +217,7 @@ public class RoommateChattingChatService {
         RoommateChattingChat systemChat = RoommateChattingChat.createSystemMessage(room, content);
         chatRepository.save(systemChat);
         ResponseRoommateChatDto dto = ResponseRoommateChatDto.systemDto(room.getId(), content);
-        messagingTemplate.convertAndSend("/sub/roommate/chat/" + room.getId(), dto);
+        messagingTemplate.convertAndSend(ROOMMATE_CHAT_TOPIC_PREFIX + room.getId(), dto);
     }
 
     @Transactional
@@ -237,7 +239,7 @@ public class RoommateChattingChatService {
                 room, requester, content, requestId);
         chatRepository.save(chat);
         ResponseRoommateChatDto dto = ResponseRoommateChatDto.entityToDto(chat, null);
-        messagingTemplate.convertAndSend("/sub/roommate/chat/" + roomId, dto);
+        messagingTemplate.convertAndSend(ROOMMATE_CHAT_TOPIC_PREFIX + roomId, dto);
     }
 
     private ReplySourceDto prepareReply(RoommateChattingChat chat, Long roomId, Long replyToMessageId) {
@@ -406,7 +408,7 @@ public class RoommateChattingChatService {
         List<RoommateChattingRoom> chattingRooms = chatRoomRepository.findAllByHostOrGuest(user, user);
         for (RoommateChattingRoom chattingRoom : chattingRooms) {
             Integer unReadCountByUserIdAdRoomId = getUnReadCountByUserIdAdRoomId(userId, chattingRoom.getId());
-            result +=  unReadCountByUserIdAdRoomId;
+            result += unReadCountByUserIdAdRoomId;
         }
 
         return result;
@@ -437,7 +439,7 @@ public class RoommateChattingChatService {
 
         // 접근 권한 확인
         if (!room.getGuest().getId().equals(userId) && !room.getHost().getId().equals(userId)) {
-            throw new CustomException(ROOMMATE_CHAT_ROOM_FORBIDDEN); // 이 채팅방에 속하지 않은 사용자입니다.
+            throw new CustomException(ROOMMATE_CHAT_PARTICIPANT_FORBIDDEN); // 이 채팅방에 속하지 않은 사용자입니다.
         }
 
         // 채팅 내역 조회
@@ -457,7 +459,7 @@ public class RoommateChattingChatService {
         // 읽음 처리된 메시지가 있으면 발신자(상대방)에게 알림 전송
         if (!readIds.isEmpty()) {
             Long otherUserId = room.getHost().getId().equals(userId) ? room.getGuest().getId() : room.getHost().getId();
-            String destination = "/sub/roommate/chat/read/" + roomId + "/user/" + otherUserId;
+            String destination = ROOMMATE_CHAT_TOPIC_PREFIX + "read/" + roomId + "/user/" + otherUserId;
             log.info("📖 [채팅 조회 시 읽음 처리] destination: {}, readIds: {}", destination, readIds);
             messagingTemplate.convertAndSend(destination, readIds);
         }
@@ -472,5 +474,31 @@ public class RoommateChattingChatService {
                     return ResponseRoommateChatDto.entityToDto(chat, imageUrl, replySources.get(chat.getId()));
                 })
                 .toList();
+    }
+
+    public void deleteMessage(Long requesterId, Long roomId, Long messageId) {
+        RoommateChattingRoom roommateChatRoom = chatRoomRepository.findById(roomId)
+                .orElseThrow(() -> new CustomException(ErrorCode.ROOMMATE_CHAT_ROOM_NOT_FOUND));
+        RoommateChattingChat roommateChatMessage = chatRepository.findById(messageId)
+                .orElseThrow(() -> new CustomException(ErrorCode.ROOMMATE_CHAT_MESSAGE_NOT_FOUND));
+
+        //채팅방 참여자가 아니면 삭제 불가
+        if (!chatRoomRepository.existsParticipant(roomId, requesterId)) {
+            throw new CustomException(ROOMMATE_CHAT_PARTICIPANT_FORBIDDEN);
+        }
+        //해당 채팅방의 메시지가 아니면 삭제 불가
+        if (!roommateChatMessage.getRoommateChattingRoom().getId().equals(roommateChatRoom.getId())) {
+            throw new CustomException(ROOMMATE_CHAT_MESSAGE_ROOM_MISMATCH);
+        }
+        //메시지 작성자가 아니면 삭제 불가
+        if (!roommateChatMessage.getMember().getId().equals(requesterId)) {
+            throw new CustomException(ROOMMATE_CHAT_NOT_SENDER);
+        }
+
+        //soft delete
+        roommateChatMessage.softDelete();
+
+        ResponseRoommateChatDeleteEventDto deleteEventDto = new ResponseRoommateChatDeleteEventDto(roommateChatMessage.getId(), roommateChatRoom.getId());
+        messagingTemplate.convertAndSend(ROOMMATE_CHAT_TOPIC_PREFIX + roomId, deleteEventDto);
     }
 }
