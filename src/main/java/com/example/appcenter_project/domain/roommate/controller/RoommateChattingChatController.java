@@ -35,7 +35,8 @@ public class RoommateChattingChatController implements RoommateChatApiSpecificat
             @RequestBody RequestRoommateChatDto requestRoommateChatDto
     ) {
         Long userId = userDetails != null ? userDetails.getId() : -1L;
-        ResponseRoommateChatDto response = chatService.sendChat(requestRoommateChatDto, userId);
+        ResponseRoommateChatDto response = chatService.sendChat(userId, requestRoommateChatDto);
+
         return ResponseEntity.ok(response);
     }
 
@@ -76,15 +77,6 @@ public class RoommateChattingChatController implements RoommateChatApiSpecificat
     public ResponseEntity<Integer> getUnReadCountByUserId(@AuthenticationPrincipal CustomUserDetails userDetails) {
         return ResponseEntity.status(OK)
                 .body(chatService.getUnReadCountByUserId(userDetails.getId()));
-    }
-
-    @DeleteMapping("/messages/{chatId}")
-    public ResponseEntity<Void> deleteChat(
-            @AuthenticationPrincipal CustomUserDetails userDetails,
-            @PathVariable Long chatId) {
-        Long userId = userDetails != null ? userDetails.getId() : -1L;
-        chatService.deleteChat(chatId, userId);
-        return ResponseEntity.noContent().build();
     }
 
     // WebSocket 방식 채팅 보내기

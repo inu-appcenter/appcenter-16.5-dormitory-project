@@ -15,16 +15,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.messaging.handler.annotation.MessageMapping;
 import org.springframework.messaging.simp.SimpMessageHeaderAccessor;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
-import org.springframework.web.bind.annotation.DeleteMapping;
-import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.PatchMapping;
-import org.springframework.web.bind.annotation.PathVariable;
-import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.bind.annotation.RequestBody;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RequestParam;
-import org.springframework.web.bind.annotation.RequestPart;
-import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 
 import java.util.List;
@@ -74,7 +65,8 @@ public class OpenChatMessageController implements OpenChatMessageApiSpecificatio
             @PathVariable Long roomId,
             @PathVariable Long messageId) {
         Long userId = user != null ? user.getId() : -1L;
-        openChatMessageService.deleteMessage(roomId, messageId, userId);
+        openChatMessageService.deleteMessage(userId, roomId, messageId);
+
         return ResponseEntity.noContent().build();
     }
 

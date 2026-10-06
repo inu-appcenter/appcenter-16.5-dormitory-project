@@ -2,6 +2,7 @@ package com.example.appcenter_project.domain.roommate.dto.response;
 
 import com.example.appcenter_project.domain.roommate.entity.RoommateChattingChat;
 import com.example.appcenter_project.shared.dto.ReplySourceDto;
+import com.fasterxml.jackson.annotation.JsonProperty;
 import lombok.*;
 
 @Getter
@@ -15,10 +16,12 @@ public class ResponseRoommateChatDto {
     private Long userId;
     private String content;
     private boolean read;
+    @JsonProperty("isSystem")
     private boolean isSystem;
     private String createdDate;
     private String userImageUrl;
     private Long disclosureRequestId;
+    @JsonProperty("isDeleted")
     private boolean isDeleted;
     private ReplySourceDto replySource;
 
@@ -53,9 +56,9 @@ public class ResponseRoommateChatDto {
     }
 
     private static String toResponseContent(RoommateChattingChat chat) {
-        if(chat == null) return null;
+        if (chat == null) return null;
 
-        if(chat.getDeletedState().isDeleted()) {
+        if (chat.getDeletedState().isDeleted()) {
             return "삭제된 메시지입니다.";
         }
 

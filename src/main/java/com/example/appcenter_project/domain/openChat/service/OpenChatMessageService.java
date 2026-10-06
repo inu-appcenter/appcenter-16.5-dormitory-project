@@ -6,17 +6,12 @@ import com.example.appcenter_project.common.image.repository.ImageRepository;
 import com.example.appcenter_project.common.image.service.ImageService;
 import com.example.appcenter_project.domain.openChat.dto.request.RequestEditOpenChatMessageDto;
 import com.example.appcenter_project.domain.openChat.dto.request.RequestOpenChatMessageDto;
-import com.example.appcenter_project.domain.openChat.dto.response.ResponseAdminChatRoomDto;
-import com.example.appcenter_project.domain.openChat.dto.response.ResponseOpenChatMessageDto;
-import com.example.appcenter_project.domain.openChat.dto.response.ResponseOpenChatMessageEditEventDto;
-import com.example.appcenter_project.domain.openChat.dto.response.ResponseOpenChatMessageListDto;
-import com.example.appcenter_project.domain.openChat.dto.response.ResponseOpenChatReadEventDto;
-import com.example.appcenter_project.domain.openChat.dto.response.ResponseRecruitmentStatusEventDto;
-import com.example.appcenter_project.domain.openChat.enums.OpenChatRoomRecruitmentStatus;
-import com.example.appcenter_project.domain.openChat.enums.OpenChatRoomType;
+import com.example.appcenter_project.domain.openChat.dto.response.*;
 import com.example.appcenter_project.domain.openChat.entity.OpenChatMessage;
 import com.example.appcenter_project.domain.openChat.entity.OpenChatRoom;
 import com.example.appcenter_project.domain.openChat.enums.OpenChatMessageType;
+import com.example.appcenter_project.domain.openChat.enums.OpenChatRoomRecruitmentStatus;
+import com.example.appcenter_project.domain.openChat.enums.OpenChatRoomType;
 import com.example.appcenter_project.domain.openChat.repository.OpenChatMessageQuerydslRepository;
 import com.example.appcenter_project.domain.openChat.repository.OpenChatMessageRepository;
 import com.example.appcenter_project.domain.openChat.repository.OpenChatParticipantRepository;
@@ -39,13 +34,7 @@ import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.multipart.MultipartFile;
 
 import java.nio.file.Paths;
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.HashSet;
-import java.util.List;
-import java.util.Map;
-import java.util.Optional;
-import java.util.Set;
+import java.util.*;
 import java.util.stream.Collectors;
 
 @Service
@@ -102,9 +91,11 @@ public class OpenChatMessageService {
         int unreadCount = calculateUnreadCount(request.getRoomId(), message.getId());
 
         ResponseOpenChatMessageDto response = ResponseOpenChatMessageDto.from(message, sender.getName(), unreadCount, List.of(), replySource);
-        messagingTemplate.convertAndSend("/sub/openchat/" + request.getRoomId(), response);
-        messagingTemplate.convertAndSend("/sub/openchat/" + request.getRoomId() + "/read",
-                ResponseOpenChatReadEventDto.of(message.getId(), unreadCount));
+
+        messagingTemplate.convertAndSend(OPEN_CHAT_TOPIC_PREFIX + request.getRoomId(), response);
+        messagingTemplate.convertAndSend(OPEN_CHAT_TOPIC_PREFIX + request.getRoomId() + "/read",
+
+        ResponseOpenChatReadEventDto.of(message.getId(), unreadCount));
 
         if (openChatNotificationService != null) {
             openChatNotificationService.sendImmediateNotifications(
@@ -116,9 +107,13 @@ public class OpenChatMessageService {
         OpenChatMessage original = openChatMessageRepository.findById(replyToMessageId)
                 .orElseThrow(() -> new CustomException(ErrorCode.OPEN_CHAT_MESSAGE_NOT_FOUND));
 
-        if (original.isDeleted()) throw new CustomException(ErrorCode.OPEN_CHAT_MESSAGE_ALREADY_DELETED);
-        if (!original.getRoomId().equals(roomId)) throw new CustomException(ErrorCode.OPEN_CHAT_REPLY_TARGET_NOT_IN_SAME_ROOM);
-        if (original.getReplyToMessageId() != null) throw new CustomException(ErrorCode.OPEN_CHAT_NESTED_REPLY_NOT_ALLOWED);
+        if (original.isDeleted())
+            throw new CustomException(ErrorCode.OPEN_CHAT_MESSAGE_ALREADY_DELETED);
+
+        if (!original.getRoomId().equals(roomId))
+            throw new CustomException(ErrorCode.OPEN_CHAT_REPLY_TARGET_NOT_IN_SAME_ROOM);
+        if (original.getReplyToMessageId() != null)
+            throw new CustomException(ErrorCode.OPEN_CHAT_NESTED_REPLY_NOT_ALLOWED);
 
         OpenChatMessageType originalType = original.getType();
         if (originalType == OpenChatMessageType.SYSTEM || originalType == OpenChatMessageType.BOT
@@ -457,6 +452,35 @@ public class OpenChatMessageService {
         return (int) (total - readCount);
     }
 
+    public void deleteMessage(Long requesterId, Long roomId, Long messageId) {
+        OpenChatRoom openChatRoom = openChatRoomRepository.findById(roomId)
+                .orElseThrow(() -> new CustomException(ErrorCode.OPEN_CHAT_ROOM_NOT_FOUND));
+        OpenChatMessage openChatMessage = openChatMessageRepository.findById(messageId)
+                .orElseThrow(() -> new CustomException(ErrorCode.OPEN_CHAT_MESSAGE_NOT_FOUND));
+
+        if (openChatMessage.isDeleted()) {
+            throw new CustomException(ErrorCode.OPEN_CHAT_MESSAGE_ALREADY_DELETED);
+        }
+
+        //채팅방 참여자가 아니면 삭제 불가
+        if (!openChatParticipantRepository.existsByRoomIdAndUserId(openChatRoom.getId(), requesterId)) {
+            throw new CustomException(ErrorCode.OPEN_CHAT_PARTICIPANT_FORBIDDEN);
+        }
+        //해당 채팅방의 메시지가 아니면 삭제 불가
+        if (!openChatMessage.getRoomId().equals(openChatRoom.getId())) {
+            throw new CustomException(ErrorCode.OPEN_CHAT_MESSAGE_ROOM_MISMATCH);
+        }
+        //메시지 작성자가 아니면 삭제 불가
+        if (!openChatMessage.getSenderId().equals(requesterId)) {
+            throw new CustomException(ErrorCode.OPEN_CHAT_MESSAGE_NOT_OWNED_BY_USER);
+        }
+
+        openChatMessage.softDelete();
+
+        ResponseOpenChatDeleteEventDto deleteEventDto = new ResponseOpenChatDeleteEventDto(openChatMessage.getId(), openChatRoom.getId());
+        messagingTemplate.convertAndSend(OPEN_CHAT_TOPIC_PREFIX + roomId, deleteEventDto);
+    }
+
     // ========== Private Methods ========== //
 
     private ResponseOpenChatMessageDto toRoomLinkDto(OpenChatMessage msg, String nickname, int unreadCount) {
@@ -593,24 +617,6 @@ public class OpenChatMessageService {
         openChatMessageRepository.save(reply);
     }
 
-    @Transactional
-    public void deleteMessage(Long roomId, Long messageId, Long requesterId) {
-        OpenChatMessage message = openChatMessageRepository.findById(messageId)
-                .orElseThrow(() -> new CustomException(ErrorCode.OPEN_CHAT_MESSAGE_NOT_FOUND));
-
-        if (!message.getSenderId().equals(requesterId)) {
-            throw new CustomException(ErrorCode.OPEN_CHAT_MESSAGE_NOT_OWNED_BY_USER);
-        }
-
-        if (message.isDeleted()) {
-            throw new CustomException(ErrorCode.OPEN_CHAT_MESSAGE_ALREADY_DELETED);
-        }
-
-        message.softDelete();
-        openChatMessageRepository.save(message);
-    }
-
-    @Transactional
     public ResponseOpenChatMessageDto editMessage(Long requesterId, Long roomId, Long messageId, RequestEditOpenChatMessageDto dto) {
         OpenChatMessage message = openChatMessageRepository.findById(messageId)
                 .orElseThrow(() -> new CustomException(ErrorCode.OPEN_CHAT_MESSAGE_NOT_FOUND));
@@ -685,7 +691,7 @@ public class OpenChatMessageService {
         Map<Long, OpenChatRoom> derivedRoomMap = derivedRoomIds.isEmpty()
                 ? Map.of()
                 : openChatRoomRepository.findAllById(derivedRoomIds).stream()
-                        .collect(Collectors.toMap(OpenChatRoom::getId, r -> r));
+                .collect(Collectors.toMap(OpenChatRoom::getId, r -> r));
 
         List<Long> senderIds = originalMap.values().stream()
                 .filter(m -> !m.isDeleted())

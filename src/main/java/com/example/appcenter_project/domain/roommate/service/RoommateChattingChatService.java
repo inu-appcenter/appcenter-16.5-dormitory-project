@@ -23,6 +23,9 @@ import com.example.appcenter_project.global.config.RoommateWebSocketEventListene
 import com.example.appcenter_project.global.exception.CustomException;
 import com.example.appcenter_project.global.exception.ErrorCode;
 import com.example.appcenter_project.global.mixpanel.MixpanelService;
+import com.example.appcenter_project.shared.dto.ReplySourceDto;
+import com.example.appcenter_project.shared.enums.ChatRoomType;
+import com.example.appcenter_project.shared.enums.ReplySourceStatus;
 import jakarta.servlet.http.HttpServletRequest;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -31,15 +34,10 @@ import org.springframework.messaging.simp.SimpMessagingTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import com.example.appcenter_project.shared.dto.ReplySourceDto;
-import com.example.appcenter_project.shared.enums.ChatRoomType;
-import com.example.appcenter_project.shared.enums.ReplySourceStatus;
-
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.Optional;
 import java.util.stream.Collectors;
 
 import static com.example.appcenter_project.global.exception.ErrorCode.*;
@@ -247,7 +245,8 @@ public class RoommateChattingChatService {
                 .orElseThrow(() -> new CustomException(ROOMMATE_CHAT_MESSAGE_NOT_FOUND));
 
         if (original.isDeleted()) throw new CustomException(ROOMMATE_CHAT_MESSAGE_ALREADY_DELETED);
-        if (!original.getRoommateChattingRoom().getId().equals(roomId)) throw new CustomException(ROOMMATE_CHAT_REPLY_TARGET_NOT_IN_SAME_ROOM);
+        if (!original.getRoommateChattingRoom().getId().equals(roomId))
+            throw new CustomException(ROOMMATE_CHAT_REPLY_TARGET_NOT_IN_SAME_ROOM);
         if (original.getReplyToMessageId() != null) throw new CustomException(ROOMMATE_CHAT_NESTED_REPLY_NOT_ALLOWED);
         if (original.isSystem()) throw new CustomException(ROOMMATE_CHAT_REPLY_NOT_ALLOWED_FOR_TYPE);
 
@@ -305,24 +304,6 @@ public class RoommateChattingChatService {
         }
         reply.attachReply(replyToMessageId, originalSenderId, roomId);
         chatRepository.save(reply);
-    }
-
-    @Transactional
-    public void deleteChat(Long chatId, Long requesterId) {
-        RoommateChattingChat chat = chatRepository.findById(chatId)
-                .orElseThrow(() -> new CustomException(ROOMMATE_CHAT_MESSAGE_NOT_FOUND));
-
-        Long ownerId = chat.getMember() != null ? chat.getMember().getId() : null;
-        if (!requesterId.equals(ownerId)) {
-            throw new CustomException(ROOMMATE_CHAT_MESSAGE_NOT_OWNED_BY_USER);
-        }
-
-        if (chat.isDeleted()) {
-            throw new CustomException(ROOMMATE_CHAT_MESSAGE_ALREADY_DELETED);
-        }
-
-        chat.softDelete();
-        chatRepository.save(chat);
     }
 
     @Transactional(readOnly = true)
@@ -481,6 +462,10 @@ public class RoommateChattingChatService {
                 .orElseThrow(() -> new CustomException(ErrorCode.ROOMMATE_CHAT_ROOM_NOT_FOUND));
         RoommateChattingChat roommateChatMessage = chatRepository.findById(messageId)
                 .orElseThrow(() -> new CustomException(ErrorCode.ROOMMATE_CHAT_MESSAGE_NOT_FOUND));
+
+        if (roommateChatMessage.isDeleted()) {
+            throw new CustomException(ROOMMATE_CHAT_MESSAGE_ALREADY_DELETED);
+        }
 
         //채팅방 참여자가 아니면 삭제 불가
         if (!chatRoomRepository.existsParticipant(roomId, requesterId)) {
