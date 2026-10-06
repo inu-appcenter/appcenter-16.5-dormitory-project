@@ -72,6 +72,11 @@ public class OpenChatRoom extends BaseTimeEntity {
 
     private LocalDateTime lastStatusChangedAt;
 
+    private Long originRoomId;
+
+    @Column(nullable = false)
+    private int transitionCount = 0;
+
     public boolean matchesPassword(String input) {
         return this.password == null || this.password.equals(input);
     }
@@ -225,6 +230,19 @@ public class OpenChatRoom extends BaseTimeEntity {
         return room;
     }
 
+    public static OpenChatRoom createForTest(Long id, boolean recruitmentClosed) {
+        OpenChatRoom room = new OpenChatRoom();
+        room.id = id;
+        room.name = "test-room";
+        room.scope = OpenChatRoomScope.ALL;
+        room.maxParticipants = 10;
+        room.isOfficial = false;
+        room.roomType = OpenChatRoomType.DERIVED;
+        room.isPublic = true;
+        room.recruitmentClosed = recruitmentClosed;
+        return room;
+    }
+
     public void update(String name, String description, OpenChatRoomScope scope,
                        Integer maxParticipants, String password, Boolean isPublic) {
         if (name != null)            this.name = name;
@@ -250,6 +268,14 @@ public class OpenChatRoom extends BaseTimeEntity {
         this.recruitmentClosed = true;
         this.closedAt = LocalDateTime.now();
         this.closedBy = actorId;
+    }
+
+    public void setOriginRoomId(Long originRoomId) {
+        this.originRoomId = originRoomId;
+    }
+
+    public void incrementTransitionCount() {
+        this.transitionCount += 1;
     }
 
     public void updateRecruitmentStatus(OpenChatRoomRecruitmentStatus status, Long actorId) {

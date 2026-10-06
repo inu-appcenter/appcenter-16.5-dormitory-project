@@ -1,6 +1,9 @@
 package com.example.appcenter_project.domain.roommate.dto.response;
 
 import com.example.appcenter_project.domain.roommate.entity.RoommateChattingChat;
+import com.example.appcenter_project.shared.dto.ReplySourceDto;
+import com.fasterxml.jackson.annotation.JsonProperty;
+import com.fasterxml.jackson.annotation.JsonUnwrapped;
 import lombok.*;
 
 @Getter
@@ -14,12 +17,20 @@ public class ResponseRoommateChatDto {
     private Long userId;
     private String content;
     private boolean read;
+    @JsonProperty("isSystem")
     private boolean isSystem;
     private String createdDate;
     private String userImageUrl;
     private Long disclosureRequestId;
+    @JsonProperty("isDeleted")
+    private boolean isDeleted;
+    private ReplySourceDto replySource;
 
     public static ResponseRoommateChatDto entityToDto(RoommateChattingChat chat, String userImageUrl) {
+        return entityToDto(chat, userImageUrl, null);
+    }
+
+    public static ResponseRoommateChatDto entityToDto(RoommateChattingChat chat, String userImageUrl, ReplySourceDto replySource) {
         return ResponseRoommateChatDto.builder()
                 .roommateChattingRoomId(chat.getRoommateChattingRoom().getId())
                 .roommateChatId(chat.getId())
@@ -30,6 +41,8 @@ public class ResponseRoommateChatDto {
                 .createdDate(chat.getCreatedDate().toString())
                 .userImageUrl(userImageUrl)
                 .disclosureRequestId(chat.getDisclosureRequestId())
+                .isDeleted(chat.isDeleted())
+                .replySource(replySource)
                 .build();
     }
 

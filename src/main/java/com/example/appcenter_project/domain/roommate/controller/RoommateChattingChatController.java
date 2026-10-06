@@ -34,7 +34,7 @@ public class RoommateChattingChatController implements RoommateChatApiSpecificat
             @AuthenticationPrincipal CustomUserDetails userDetails,
             @RequestBody RequestRoommateChatDto requestRoommateChatDto
     ) {
-        Long userId = userDetails.getId();
+        Long userId = userDetails != null ? userDetails.getId() : -1L;
         ResponseRoommateChatDto response = chatService.sendChat(userId, requestRoommateChatDto);
         return ResponseEntity.ok(response);
     }

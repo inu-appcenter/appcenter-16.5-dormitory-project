@@ -12,5 +12,7 @@ public class RequestRoommateChatDto {
 
     @NotBlank
     private String content;
+
+    private Long replyToMessageId;
 }
 

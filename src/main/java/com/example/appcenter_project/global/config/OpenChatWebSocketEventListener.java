@@ -2,7 +2,7 @@ package com.example.appcenter_project.global.config;
 
 import com.example.appcenter_project.domain.openChat.dto.response.ResponseOpenChatReadEventDto;
 import com.example.appcenter_project.domain.openChat.entity.OpenChatParticipant;
-import com.example.appcenter_project.domain.openChat.repository.OpenChatMessageRepository;
+import com.example.appcenter_project.domain.openChat.repository.OpenChatMessageQuerydslRepository;
 import com.example.appcenter_project.domain.openChat.repository.OpenChatParticipantRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -22,7 +22,7 @@ import java.util.Map;
 @RequiredArgsConstructor
 public class OpenChatWebSocketEventListener {
 
-    private final OpenChatMessageRepository openChatMessageRepository;
+    private final OpenChatMessageQuerydslRepository openChatMessageQuerydslRepository;
     private final OpenChatParticipantRepository openChatParticipantRepository;
     private final OpenChatSessionRegistry sessionRegistry;
     private final SimpMessagingTemplate messagingTemplate;
@@ -56,7 +56,7 @@ public class OpenChatWebSocketEventListener {
 
         sessionRegistry.subscribe(sessionId, roomId, userId);
 
-        openChatMessageRepository.findLatestMessageIdByRoomId(roomId)
+        openChatMessageQuerydslRepository.findLatestMessageIdByRoomId(roomId)
                 .ifPresent(latestId -> {
                     Long previousLastReadId = openChatParticipantRepository
                             .findByRoomIdAndUserId(roomId, userId)
@@ -67,7 +67,7 @@ public class OpenChatWebSocketEventListener {
 
                     openChatParticipantRepository.updateLastReadMessageId(roomId, userId, latestId);
 
-                    List<Long> affectedIds = openChatMessageRepository
+                    List<Long> affectedIds = openChatMessageQuerydslRepository
                             .findMessageIdsAfterInRoom(roomId, previousLastReadId, latestId);
 
                     for (Long messageId : affectedIds) {

@@ -1,5 +1,6 @@
 package com.example.appcenter_project.domain.openChat.controller;
 
+import com.example.appcenter_project.domain.openChat.dto.request.RequestEditOpenChatMessageDto;
 import com.example.appcenter_project.domain.openChat.dto.response.ResponseOpenChatMessageDto;
 import com.example.appcenter_project.domain.openChat.dto.response.ResponseOpenChatMessageListDto;
 import com.example.appcenter_project.global.security.CustomUserDetails;
@@ -13,7 +14,9 @@ import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.servlet.http.HttpServletRequest;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
+import jakarta.validation.Valid;
 import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RequestPart;
 import org.springframework.web.multipart.MultipartFile;
@@ -118,4 +121,21 @@ public interface OpenChatMessageApiSpecification {
             @PathVariable Long roomId,
             @Parameter(description = "채팅 메시지 ID", required = true, example = "1")
             @PathVariable Long messageId);
+
+    @Operation(
+            summary = "텍스트 메시지 수정",
+            description = "본인이 작성한 TEXT 타입 메시지의 내용을 수정합니다. 성공 시 수정 이벤트를 WebSocket으로 broadcast합니다.",
+            responses = {
+                    @ApiResponse(responseCode = "200", description = "수정 성공",
+                            content = @Content(schema = @Schema(implementation = ResponseOpenChatMessageDto.class))),
+                    @ApiResponse(responseCode = "400", description = "잘못된 요청"),
+                    @ApiResponse(responseCode = "403", description = "본인 메시지가 아님"),
+                    @ApiResponse(responseCode = "404", description = "메시지를 찾을 수 없음")
+            }
+    )
+    ResponseEntity<ResponseOpenChatMessageDto> editMessage(
+            @AuthenticationPrincipal CustomUserDetails user,
+            @PathVariable Long roomId,
+            @PathVariable Long messageId,
+            @RequestBody @Valid RequestEditOpenChatMessageDto dto);
 }

@@ -4,6 +4,7 @@ import com.example.appcenter_project.domain.openChat.entity.OpenChatMessage;
 import com.querydsl.core.types.dsl.BooleanExpression;
 import com.querydsl.jpa.impl.JPAQueryFactory;
 import jakarta.persistence.EntityManager;
+import org.springframework.stereotype.Repository;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -11,6 +12,7 @@ import java.util.Optional;
 
 import static com.example.appcenter_project.domain.openChat.entity.QOpenChatMessage.openChatMessage;
 
+@Repository
 public class OpenChatMessageQuerydslRepositoryImpl implements OpenChatMessageQuerydslRepository {
 
     private final JPAQueryFactory queryFactory;

@@ -45,6 +45,12 @@ public class RoommateChattingChat extends BaseTimeEntity {
     @Embedded
     private DeletedMessageState deletedState = new DeletedMessageState();
 
+    private Long replyToMessageId;
+
+    private Long replyToSenderId;
+
+    private Long replyToRoomId;
+
     @Builder
     public RoommateChattingChat(RoommateChattingRoom roommateChattingRoom, User member, String content, boolean readByReceiver) {
         this.roommateChattingRoom = roommateChattingRoom;
@@ -95,12 +101,36 @@ public class RoommateChattingChat extends BaseTimeEntity {
         return chat;
     }
 
+    public static RoommateChattingChat createForTest(Long id, Long roomId, Long senderId, String content,
+                                                     boolean isSystem, boolean isDeleted, Long replyToMessageId) {
+        RoommateChattingChat chat = new RoommateChattingChat();
+        chat.id = id;
+        chat.content = content;
+        chat.isSystem = isSystem;
+        if (isDeleted) chat.softDelete();
+        chat.replyToMessageId = replyToMessageId;
+        if (senderId != null) {
+            chat.member = com.example.appcenter_project.domain.user.entity.User.createForTest(senderId, "user-" + senderId);
+        }
+        chat.roommateChattingRoom = RoommateChattingRoom.createForTest(roomId);
+        return chat;
+    }
+
     public void markAsRead() {
         this.readByReceiver = true;
     }
 
-    public void delete() {
+    public boolean isDeleted() {
+        return this.deletedState.isDeleted();
+    }
+
+    public void softDelete() {
         this.deletedState.delete();
     }
-}
 
+    public void attachReply(Long replyToMessageId, Long replyToSenderId, Long replyToRoomId) {
+        this.replyToMessageId = replyToMessageId;
+        this.replyToSenderId = replyToSenderId;
+        this.replyToRoomId = replyToRoomId;
+    }
+}
