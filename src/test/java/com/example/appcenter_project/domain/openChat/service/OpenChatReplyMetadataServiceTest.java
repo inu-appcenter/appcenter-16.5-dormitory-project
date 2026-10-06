@@ -1,9 +1,12 @@
 package com.example.appcenter_project.domain.openChat.service;
 
 import com.example.appcenter_project.domain.openChat.entity.OpenChatMessage;
+import com.example.appcenter_project.domain.openChat.entity.OpenChatRoom;
 import com.example.appcenter_project.domain.openChat.enums.OpenChatMessageType;
 import com.example.appcenter_project.domain.openChat.fixture.ChatReplyMetadataFixture;
 import com.example.appcenter_project.domain.openChat.repository.OpenChatMessageRepository;
+import com.example.appcenter_project.domain.openChat.repository.OpenChatParticipantRepository;
+import com.example.appcenter_project.domain.openChat.repository.OpenChatRoomRepository;
 import com.example.appcenter_project.global.exception.CustomException;
 import com.example.appcenter_project.global.exception.ErrorCode;
 import org.assertj.core.api.ThrowableAssert.ThrowingCallable;
@@ -13,9 +16,11 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.messaging.simp.SimpMessagingTemplate;
 
 import java.util.Optional;
 
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.BDDMockito.*;
 
@@ -24,6 +29,15 @@ class OpenChatReplyMetadataServiceTest {
 
     @Mock
     OpenChatMessageRepository openChatMessageRepository;
+
+    @Mock
+    OpenChatRoomRepository openChatRoomRepository;
+
+    @Mock
+    OpenChatParticipantRepository openChatParticipantRepository;
+
+    @Mock
+    SimpMessagingTemplate messagingTemplate;
 
     @InjectMocks
     OpenChatMessageService openChatMessageService;
@@ -190,11 +204,15 @@ class OpenChatReplyMetadataServiceTest {
         Long ownerId = 1L;
         Long requesterId = 2L;
         OpenChatMessage message = ChatReplyMetadataFixture.createTextMessage(messageId, roomId, ownerId);
+        OpenChatRoom room = mock(OpenChatRoom.class);
+        given(room.getId()).willReturn(roomId);
+        given(openChatRoomRepository.findById(roomId)).willReturn(Optional.of(room));
         given(openChatMessageRepository.findById(messageId))
                 .willReturn(Optional.of(message));
+        given(openChatParticipantRepository.existsByRoomIdAndUserId(roomId, requesterId)).willReturn(true);
 
         // when
-        ThrowingCallable action = () -> openChatMessageService.deleteMessage(roomId, messageId, requesterId);
+        ThrowingCallable action = () -> openChatMessageService.deleteMessage(requesterId, roomId, messageId);
 
         // then
         assertThatThrownBy(action)
@@ -211,14 +229,19 @@ class OpenChatReplyMetadataServiceTest {
         Long messageId = 100L;
         Long ownerId = 1L;
         OpenChatMessage message = ChatReplyMetadataFixture.createTextMessage(messageId, roomId, ownerId);
+        OpenChatRoom room = mock(OpenChatRoom.class);
+        given(room.getId()).willReturn(roomId);
+        given(openChatRoomRepository.findById(roomId)).willReturn(Optional.of(room));
         given(openChatMessageRepository.findById(messageId))
                 .willReturn(Optional.of(message));
+        given(openChatParticipantRepository.existsByRoomIdAndUserId(roomId, ownerId)).willReturn(true);
 
         // when
-        openChatMessageService.deleteMessage(roomId, messageId, ownerId);
+        openChatMessageService.deleteMessage(ownerId, roomId, messageId);
 
         // then
-        then(openChatMessageRepository).should().save(
-                argThat(msg -> msg.isDeleted()));
+        assertThat(message.isDeleted()).isTrue();
+        then(messagingTemplate).should().convertAndSend(
+                eq("/sub/openchat/" + roomId), any(Object.class));
     }
 }

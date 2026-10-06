@@ -16,8 +16,9 @@ import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.ResultActions;
 
 import static org.mockito.BDDMockito.*;
-import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
-import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 @WebMvcTest(OpenChatMessageController.class)
 @AutoConfigureMockMvc(addFilters = false)
@@ -44,7 +45,7 @@ class OpenChatReplyMetadataControllerTest {
         // given
         Long roomId = 1L;
         Long messageId = 100L;
-        willDoNothing().given(openChatMessageService).deleteMessage(eq(roomId), eq(messageId), anyLong());
+        willDoNothing().given(openChatMessageService).deleteMessage(anyLong(), eq(roomId), eq(messageId));
 
         // when
         ResultActions result = mockMvc.perform(
@@ -61,7 +62,7 @@ class OpenChatReplyMetadataControllerTest {
         Long roomId = 1L;
         Long messageId = 100L;
         willThrow(new CustomException(ErrorCode.OPEN_CHAT_MESSAGE_NOT_OWNED_BY_USER))
-                .given(openChatMessageService).deleteMessage(eq(roomId), eq(messageId), anyLong());
+                .given(openChatMessageService).deleteMessage(anyLong(), eq(roomId), eq(messageId));
 
         // when
         ResultActions result = mockMvc.perform(
@@ -78,7 +79,7 @@ class OpenChatReplyMetadataControllerTest {
         Long roomId = 1L;
         Long nonExistentMessageId = 9999L;
         willThrow(new CustomException(ErrorCode.OPEN_CHAT_MESSAGE_NOT_FOUND))
-                .given(openChatMessageService).deleteMessage(eq(roomId), eq(nonExistentMessageId), anyLong());
+                .given(openChatMessageService).deleteMessage(anyLong(), eq(roomId), eq(nonExistentMessageId));
 
         // when
         ResultActions result = mockMvc.perform(
@@ -95,7 +96,7 @@ class OpenChatReplyMetadataControllerTest {
         Long roomId = 1L;
         Long alreadyDeletedMessageId = 42L;
         willThrow(new CustomException(ErrorCode.OPEN_CHAT_MESSAGE_ALREADY_DELETED))
-                .given(openChatMessageService).deleteMessage(eq(roomId), eq(alreadyDeletedMessageId), anyLong());
+                .given(openChatMessageService).deleteMessage(anyLong(), eq(roomId), eq(alreadyDeletedMessageId));
 
         // when
         ResultActions result = mockMvc.perform(
