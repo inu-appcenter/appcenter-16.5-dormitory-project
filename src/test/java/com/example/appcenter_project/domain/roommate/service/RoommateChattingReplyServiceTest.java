@@ -1,6 +1,7 @@
 package com.example.appcenter_project.domain.roommate.service;
 
 import com.example.appcenter_project.domain.roommate.entity.RoommateChattingChat;
+import com.example.appcenter_project.domain.roommate.entity.RoommateChattingRoom;
 import com.example.appcenter_project.domain.roommate.fixture.RoommateChattingReplyFixture;
 import com.example.appcenter_project.domain.roommate.repository.RoommateChattingChatRepository;
 import com.example.appcenter_project.domain.roommate.repository.RoommateChattingRoomRepository;
@@ -15,6 +16,7 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.messaging.simp.SimpMessagingTemplate;
 
 import java.util.List;
 import java.util.Optional;
@@ -34,6 +36,9 @@ class RoommateChattingReplyServiceTest {
 
     @Mock
     UserRepository userRepository;
+
+    @Mock
+    SimpMessagingTemplate messagingTemplate;
 
     @InjectMocks
     RoommateChattingChatService roommateChattingChatService;
@@ -198,16 +203,22 @@ class RoommateChattingReplyServiceTest {
         // given
         Long chatId = 200L;
         Long ownerId = 1L;
-        RoommateChattingChat chat = RoommateChattingReplyFixture.createNormalChat(chatId, 7L, ownerId);
+        Long roomId = 7L;
+        RoommateChattingChat chat = RoommateChattingReplyFixture.createNormalChat(chatId, roomId, ownerId);
+        RoommateChattingRoom room = mock(RoommateChattingRoom.class);
+        given(room.getId()).willReturn(roomId);
+        given(roommateChattingRoomRepository.findById(roomId)).willReturn(Optional.of(room));
         given(roommateChattingChatRepository.findById(chatId))
                 .willReturn(Optional.of(chat));
+        given(roommateChattingRoomRepository.existsParticipant(roomId, ownerId)).willReturn(true);
 
         // when
-        roommateChattingChatService.deleteChat(chatId, ownerId);
+        roommateChattingChatService.deleteMessage(ownerId, roomId, chatId);
 
         // then
-        then(roommateChattingChatRepository).should().save(
-                argThat(c -> c.isDeleted()));
+        assertThat(chat.isDeleted()).isTrue();
+        then(messagingTemplate).should().convertAndSend(
+                eq("/sub/roommate/chat/" + roomId), any(Object.class));
     }
 
     @Test
@@ -217,18 +228,23 @@ class RoommateChattingReplyServiceTest {
         Long chatId = 200L;
         Long ownerId = 1L;
         Long requesterId = 2L;
-        RoommateChattingChat chat = RoommateChattingReplyFixture.createNormalChat(chatId, 7L, ownerId);
+        Long roomId = 7L;
+        RoommateChattingChat chat = RoommateChattingReplyFixture.createNormalChat(chatId, roomId, ownerId);
+        RoommateChattingRoom room = mock(RoommateChattingRoom.class);
+        given(room.getId()).willReturn(roomId);
+        given(roommateChattingRoomRepository.findById(roomId)).willReturn(Optional.of(room));
         given(roommateChattingChatRepository.findById(chatId))
                 .willReturn(Optional.of(chat));
+        given(roommateChattingRoomRepository.existsParticipant(roomId, requesterId)).willReturn(true);
 
         // when
-        ThrowingCallable action = () -> roommateChattingChatService.deleteChat(chatId, requesterId);
+        ThrowingCallable action = () -> roommateChattingChatService.deleteMessage(requesterId, roomId, chatId);
 
         // then
         assertThatThrownBy(action)
                 .isInstanceOf(CustomException.class)
                 .extracting("errorCode")
-                .isEqualTo(ErrorCode.ROOMMATE_CHAT_MESSAGE_NOT_OWNED_BY_USER);
+                .isEqualTo(ErrorCode.ROOMMATE_CHAT_NOT_SENDER);
     }
 
     // ─── 답장 조회 — replySource (룸메톡방) ─────────────────────────────────────
