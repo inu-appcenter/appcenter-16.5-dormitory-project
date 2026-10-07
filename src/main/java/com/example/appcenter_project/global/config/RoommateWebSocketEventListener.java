@@ -55,7 +55,7 @@ public class RoommateWebSocketEventListener {
         String destination = accessor.getDestination();
 
         if (destination != null && destination.startsWith("/sub/roommate/chat/")) {
-            // ex) /sub/roommate/chat/{roomId} 또는 /sub/roommate/chat/read/{roomId}/user/{userId}
+            // /sub/roommate/chat/{roomId} 구독만 채팅방 입장으로 처리
             String[] parts = destination.split("/");
 
             log.info("구독 경로 분석: destination={}, parts={}", destination, Arrays.toString(parts));
@@ -99,12 +99,6 @@ public class RoommateWebSocketEventListener {
                 }
             }
 
-            // parts 길이가 8 이상이고 "read"와 "user" 세그먼트가 있는 경우 (읽음 처리 구독)
-            // /sub/roommate/chat/read/{roomId}/user/{userId}
-            if (userId == null && parts.length >= 8 && "read".equals(parts[5]) && "user".equals(parts[6])) {
-                userId = parts[7];
-            }
-
             // userId가 없으면 처리 중단
             if (userId == null) {
                 log.warn("UserId not found in destination: {} or session", destination);
@@ -114,29 +108,22 @@ public class RoommateWebSocketEventListener {
             log.info("WebSocket 구독: sessionId={}, roomId={}, userId={}, destination={}",
                     sessionId, roomId, userId, destination);
 
-            // 읽음 처리 구독이 아닌 일반 채팅 구독인 경우만 입장 처리
-            if (!destination.contains("/read/")) {
-                // 세션에 유저 입장 정보 저장
-                roommateChatRoomMap.put(sessionId, roomId.toString());
-                roommateChatRoomUserMap.put(sessionId, userId);
+            // 기본 채팅방 토픽 구독 시 입장 및 읽음 처리
+            roommateChatRoomMap.put(sessionId, roomId.toString());
+            roommateChatRoomUserMap.put(sessionId, userId);
+            roommateChatRoomInUserMap
+                    .computeIfAbsent(roomId.toString(), k -> new ArrayList<>())
+                    .add(userId);
 
-                // 채팅방 입장 유저 관리
-                roommateChatRoomInUserMap
-                        .computeIfAbsent(roomId.toString(), k -> new ArrayList<>())
-                        .add(userId);
+            String subscriptionId = accessor.getSubscriptionId();
+            if (subscriptionId != null) {
+                roommateSubscriptionRoomMap.put(sessionId + ":" + subscriptionId, roomId.toString());
+            }
 
-                // UNSUBSCRIBE 시 역추적을 위해 subscriptionId → roomId 기록
-                String subscriptionId = accessor.getSubscriptionId();
-                if (subscriptionId != null) {
-                    roommateSubscriptionRoomMap.put(sessionId + ":" + subscriptionId, roomId.toString());
-                }
-
-                // 읽지 않은 메시지 → 읽음 처리
-                try {
-                    chatService.markAsRead(roomId, Long.parseLong(userId));
-                } catch (Exception e) {
-                    log.error("읽음 처리 중 오류 발생: roomId={}, userId={}, error={}", roomId, userId, e.getMessage());
-                }
+            try {
+                chatService.markAsRead(roomId, Long.parseLong(userId));
+            } catch (Exception e) {
+                log.error("읽음 처리 중 오류 발생: roomId={}, userId={}, error={}", roomId, userId, e.getMessage());
             }
         }
     }

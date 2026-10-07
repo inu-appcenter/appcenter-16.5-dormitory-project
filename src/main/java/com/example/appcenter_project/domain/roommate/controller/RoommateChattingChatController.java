@@ -97,7 +97,7 @@ public class RoommateChattingChatController implements RoommateChatApiSpecificat
         log.info("📤 [WebSocket 채팅 전송] userId: {}, sessionId: {}, roomId: {}, content: {}",
                 userId, sessionId, roommateChatDto.getRoommateChattingRoomId(), roommateChatDto.getContent());
 
-        chatService.sendChat(roommateChatDto, userId);
+        chatService.sendChat(userId, roommateChatDto);
     }
 
     @DeleteMapping("/{roomId}/messages/{messageId}")
