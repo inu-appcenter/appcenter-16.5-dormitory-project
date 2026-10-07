@@ -12,6 +12,7 @@ import com.example.appcenter_project.domain.user.repository.FcmTokenRepository;
 import com.example.appcenter_project.domain.notification.service.NotificationService;
 import com.example.appcenter_project.domain.roommate.dto.request.RequestRoommateChatDto;
 import com.example.appcenter_project.domain.roommate.dto.response.ResponseRoommateChatDto;
+import com.example.appcenter_project.domain.roommate.dto.response.ResponseRoommateChatCreateEventDto;
 import com.example.appcenter_project.domain.roommate.entity.RoommateChattingChat;
 import com.example.appcenter_project.domain.roommate.entity.RoommateChattingRoom;
 import com.example.appcenter_project.domain.roommate.repository.RoommateChattingChatRepository;
@@ -130,7 +131,7 @@ class RoommateChattingChatServiceTest {
 
         assertThat(result).isNotNull();
         verify(chatRepository).save(any(RoommateChattingChat.class));
-        verify(messagingTemplate).convertAndSend(anyString(), any(ResponseRoommateChatDto.class));
+        verify(messagingTemplate).convertAndSend(anyString(), any(ResponseRoommateChatCreateEventDto.class));
     }
 
     @Test
@@ -269,6 +270,15 @@ class RoommateChattingChatServiceTest {
         when(dto.getContent()).thenReturn("테스트");
 
         roommateChattingChatService.sendChat(2L, dto);
+
+        if (receiverOnline) {
+            verify(messagingTemplate).convertAndSend(eq("/sub/roommate/chat/100"),
+                    argThat((Object event) -> event instanceof
+                            com.example.appcenter_project.domain.roommate.dto.response.ResponseRoommateChatReadEventDto read
+                            && read.getReaderId().equals(1L)
+                            && read.getRoomId().equals(100L)
+                            && read.getMessageIds().equals(List.of(1L))));
+        }
 
         if (expectFcmSent) {
             verify(fcmOutboxRepository).saveAll(anyList());
