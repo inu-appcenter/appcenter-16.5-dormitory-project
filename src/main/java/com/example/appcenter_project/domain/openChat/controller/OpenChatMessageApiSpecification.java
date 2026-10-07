@@ -105,7 +105,17 @@ public interface OpenChatMessageApiSpecification {
                     - 메시지 삭제는 언제든 가능합니다.
                     - 삭제 성공 후 WebSocket을 통해 삭제된 메시지 정보를 전달합니다.
                     - 구독 경로: `/sub/openchat/{roomId}`
-                    - 전달 DTO: `ResponseOpenChatMessageDto`
+                    - 이벤트 전달 DTO: `ResponseOpenChatMessageDto`
+                    - eventType: `MESSAGE_DELETED`
+                    - 이벤트 예시:
+                        ```json
+                        {
+                            "eventType": "MESSAGE_DELETED",
+                            "messageId": 100,
+                            "roomId": 7,
+                            "content": "삭제된 메시지입니다."
+                        }
+                        ```
                     """,
             responses = {
                     @ApiResponse(responseCode = "204", description = "삭제 성공", content = @Content),
