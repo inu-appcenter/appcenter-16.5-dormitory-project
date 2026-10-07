@@ -72,7 +72,7 @@ public class OpenChatWebSocketEventListener {
 
                     for (Long messageId : affectedIds) {
                         int unreadCount = calculateUnreadCount(roomId, messageId);
-                        messagingTemplate.convertAndSend("/sub/openchat/" + roomId + "/read",
+                        messagingTemplate.convertAndSend("/sub/openchat/" + roomId,
                                 ResponseOpenChatReadEventDto.of(messageId, unreadCount));
                     }
                 });

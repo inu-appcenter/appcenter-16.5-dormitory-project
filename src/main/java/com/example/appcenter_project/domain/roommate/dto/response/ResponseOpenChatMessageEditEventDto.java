@@ -1,5 +1,7 @@
 package com.example.appcenter_project.domain.roommate.dto.response;
 
+import com.example.appcenter_project.domain.openChat.enums.EventType;
+
 import com.example.appcenter_project.domain.openChat.entity.OpenChatMessage;
 import lombok.Builder;
 import lombok.Getter;
@@ -14,6 +16,7 @@ public class ResponseOpenChatMessageEditEventDto {
     private Long roomId;
     private String content;
     private LocalDateTime editedAt;
+    private EventType eventType = EventType.MESSAGE_UPDATED;
 
     public static ResponseOpenChatMessageEditEventDto from(OpenChatMessage message) {
         return ResponseOpenChatMessageEditEventDto.builder()
