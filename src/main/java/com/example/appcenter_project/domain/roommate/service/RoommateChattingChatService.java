@@ -10,8 +10,10 @@ import com.example.appcenter_project.domain.notification.entity.Notification;
 import com.example.appcenter_project.domain.notification.service.NotificationService;
 import com.example.appcenter_project.domain.openChat.enums.ChatNotificationMode;
 import com.example.appcenter_project.domain.roommate.dto.request.RequestRoommateChatDto;
+import com.example.appcenter_project.domain.roommate.dto.response.ResponseRoommateChatCreateEventDto;
 import com.example.appcenter_project.domain.roommate.dto.response.ResponseRoommateChatDeleteEventDto;
 import com.example.appcenter_project.domain.roommate.dto.response.ResponseRoommateChatDto;
+import com.example.appcenter_project.domain.roommate.dto.response.ResponseRoommateChatReadEventDto;
 import com.example.appcenter_project.domain.roommate.entity.RoommateChattingChat;
 import com.example.appcenter_project.domain.roommate.entity.RoommateChattingRoom;
 import com.example.appcenter_project.domain.roommate.repository.RoommateChattingChatRepository;
@@ -61,10 +63,6 @@ public class RoommateChattingChatService {
     private final MixpanelService mixpanelService;
 
     public ResponseRoommateChatDto sendChat(Long userId, RequestRoommateChatDto requestRoommateChatDto) {
-        return sendChat(requestRoommateChatDto, userId);
-    }
-
-    public ResponseRoommateChatDto sendChat(RequestRoommateChatDto requestRoommateChatDto, Long userId) {
         log.info("💬 [채팅 전송 시작] userId: {}, roomId: {}, content: {}",
                 userId, requestRoommateChatDto.getRoommateChattingRoomId(), requestRoommateChatDto.getContent());
 
@@ -134,17 +132,17 @@ public class RoommateChattingChatService {
         }
 
         ResponseRoommateChatDto responseDto = ResponseRoommateChatDto.entityToDto(savedChat, null, replySource);
-        String destination = ROOMMATE_CHAT_TOPIC_PREFIX + room.getId();
+        ResponseRoommateChatCreateEventDto createEventDto = ResponseRoommateChatCreateEventDto.from(savedChat, null, replySource);
 
-        log.info("📡 [WebSocket 전송] destination: {}, chatId: {}", destination, savedChat.getId());
-        messagingTemplate.convertAndSend(destination, responseDto);
+        log.info("📡 [WebSocket 전송] destination: {}, chatId: {}", ROOMMATE_CHAT_TOPIC_PREFIX + room.getId(), savedChat.getId());
+        messagingTemplate.convertAndSend(ROOMMATE_CHAT_TOPIC_PREFIX + room.getId(), createEventDto);
 
         // 8. 수신자가 온라인이고 자동으로 읽음 처리된 경우, 읽음 알림 전송
         if (isReceiverOnline) {
-            String readDestination = ROOMMATE_CHAT_TOPIC_PREFIX + "read/" + room.getId() + "/user/" + sender.getId();
             List<Long> readIds = List.of(savedChat.getId());
-            log.info("📖 [자동 읽음 처리 알림] destination: {}, readIds: {}", readDestination, readIds);
-            messagingTemplate.convertAndSend(readDestination, readIds);
+            log.info("📖 [자동 읽음 처리 알림] destination: {}, readIds: {}", ROOMMATE_CHAT_TOPIC_PREFIX + room.getId(), readIds);
+            messagingTemplate.convertAndSend(ROOMMATE_CHAT_TOPIC_PREFIX + room.getId(),
+                    new ResponseRoommateChatReadEventDto(room.getId(), receiver.getId(), readIds));
         }
 
         if (!isReceiverOnline) {
@@ -194,10 +192,10 @@ public class RoommateChattingChatService {
 
         // 읽음 처리된 메시지 ID들을 발신자(상대방)에게 실시간 전송
         if (!readIds.isEmpty()) {
-            Long otherUserId = room.getHost().getId().equals(userId) ? room.getGuest().getId() : room.getHost().getId();
-            String destination = ROOMMATE_CHAT_TOPIC_PREFIX + "read/" + roomId + "/user/" + otherUserId;
+            String destination = ROOMMATE_CHAT_TOPIC_PREFIX + roomId;
             log.info("📖 [실시간 읽음 처리] destination: {}, readIds: {}", destination, readIds);
-            messagingTemplate.convertAndSend(destination, readIds);
+            messagingTemplate.convertAndSend(destination,
+                    new ResponseRoommateChatReadEventDto(roomId, userId, readIds));
         }
     }
 
@@ -214,8 +212,9 @@ public class RoommateChattingChatService {
     public void sendSystemMessage(RoommateChattingRoom room, String content) {
         RoommateChattingChat systemChat = RoommateChattingChat.createSystemMessage(room, content);
         chatRepository.save(systemChat);
-        ResponseRoommateChatDto dto = ResponseRoommateChatDto.systemDto(room.getId(), content);
-        messagingTemplate.convertAndSend(ROOMMATE_CHAT_TOPIC_PREFIX + room.getId(), dto);
+
+        ResponseRoommateChatCreateEventDto createEventDto = ResponseRoommateChatCreateEventDto.fromSystem(content);
+        messagingTemplate.convertAndSend(ROOMMATE_CHAT_TOPIC_PREFIX + room.getId(), createEventDto);
     }
 
     @Transactional
@@ -236,8 +235,9 @@ public class RoommateChattingChatService {
         RoommateChattingChat chat = RoommateChattingChat.createStudentIdRequestMessage(
                 room, requester, content, requestId);
         chatRepository.save(chat);
-        ResponseRoommateChatDto dto = ResponseRoommateChatDto.entityToDto(chat, null);
-        messagingTemplate.convertAndSend(ROOMMATE_CHAT_TOPIC_PREFIX + roomId, dto);
+
+        ResponseRoommateChatCreateEventDto createEventDto = ResponseRoommateChatCreateEventDto.from(chat, null);
+        messagingTemplate.convertAndSend(ROOMMATE_CHAT_TOPIC_PREFIX + roomId, createEventDto);
     }
 
     private ReplySourceDto prepareReply(RoommateChattingChat chat, Long roomId, Long replyToMessageId) {
@@ -439,10 +439,10 @@ public class RoommateChattingChatService {
 
         // 읽음 처리된 메시지가 있으면 발신자(상대방)에게 알림 전송
         if (!readIds.isEmpty()) {
-            Long otherUserId = room.getHost().getId().equals(userId) ? room.getGuest().getId() : room.getHost().getId();
-            String destination = ROOMMATE_CHAT_TOPIC_PREFIX + "read/" + roomId + "/user/" + otherUserId;
+            String destination = ROOMMATE_CHAT_TOPIC_PREFIX + room.getId();
             log.info("📖 [채팅 조회 시 읽음 처리] destination: {}, readIds: {}", destination, readIds);
-            messagingTemplate.convertAndSend(destination, readIds);
+            messagingTemplate.convertAndSend(destination,
+                    new ResponseRoommateChatReadEventDto(room.getId(), user.getId(), readIds));
         }
 
         Map<Long, ReplySourceDto> replySources = buildReplySources(chatList);

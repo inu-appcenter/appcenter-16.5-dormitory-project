@@ -187,7 +187,7 @@ class OpenChatMessageEditServiceTest {
 
         // then
         then(messagingTemplate).should().convertAndSend(
-                eq("/sub/openchat/5/edit"),
+                eq("/sub/openchat/5"),
                 any(ResponseOpenChatMessageEditEventDto.class));
     }
 

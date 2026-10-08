@@ -90,12 +90,14 @@ public class OpenChatMessageService {
 
         int unreadCount = calculateUnreadCount(request.getRoomId(), message.getId());
 
-        ResponseOpenChatMessageDto response = ResponseOpenChatMessageDto.from(message, sender.getName(), unreadCount, List.of(), replySource);
+        ResponseOpenChatMessageCreateEventDto createEventDto = ResponseOpenChatMessageCreateEventDto.from(message, sender.getName(), List.of(), replySource);
+        ResponseOpenChatReadEventDto readEventDto = ResponseOpenChatReadEventDto.of(message.getId(), unreadCount);
 
-        messagingTemplate.convertAndSend(OPEN_CHAT_TOPIC_PREFIX + request.getRoomId(), response);
-        messagingTemplate.convertAndSend(OPEN_CHAT_TOPIC_PREFIX + request.getRoomId() + "/read",
+        // 채팅 메시지 전송 이벤트 발행
+        messagingTemplate.convertAndSend(OPEN_CHAT_TOPIC_PREFIX + request.getRoomId(), createEventDto);
 
-        ResponseOpenChatReadEventDto.of(message.getId(), unreadCount));
+        // 메시지 읽음 상태 업데이트 이벤트 발행
+        messagingTemplate.convertAndSend(OPEN_CHAT_TOPIC_PREFIX + request.getRoomId(), readEventDto);
 
         if (openChatNotificationService != null) {
             openChatNotificationService.sendImmediateNotifications(
@@ -193,9 +195,10 @@ public class OpenChatMessageService {
 
             int unreadCount = calculateUnreadCount(roomId, message.getId());
 
+            ResponseOpenChatMessageCreateEventDto createEventDto = ResponseOpenChatMessageCreateEventDto.from(message, sender.getName(), imageUrls);
             ResponseOpenChatMessageDto response = ResponseOpenChatMessageDto.from(message, sender.getName(), unreadCount, imageUrls);
-            messagingTemplate.convertAndSend(OPEN_CHAT_TOPIC_PREFIX + roomId, response);
-            messagingTemplate.convertAndSend(OPEN_CHAT_TOPIC_PREFIX + roomId + "/read",
+            messagingTemplate.convertAndSend(OPEN_CHAT_TOPIC_PREFIX + roomId, createEventDto);
+            messagingTemplate.convertAndSend(OPEN_CHAT_TOPIC_PREFIX + roomId,
                     ResponseOpenChatReadEventDto.of(message.getId(), unreadCount));
 
             if (openChatNotificationService != null) {
@@ -228,9 +231,9 @@ public class OpenChatMessageService {
 
         int unreadCount = calculateUnreadCount(roomId, message.getId());
 
-        ResponseOpenChatMessageDto response = ResponseOpenChatMessageDto.from(message, null, unreadCount);
-        messagingTemplate.convertAndSend(OPEN_CHAT_TOPIC_PREFIX + roomId, response);
-        messagingTemplate.convertAndSend(OPEN_CHAT_TOPIC_PREFIX + roomId + "/read",
+        ResponseOpenChatMessageCreateEventDto createEventDto = ResponseOpenChatMessageCreateEventDto.from(message, null);
+        messagingTemplate.convertAndSend(OPEN_CHAT_TOPIC_PREFIX + roomId, createEventDto);
+        messagingTemplate.convertAndSend(OPEN_CHAT_TOPIC_PREFIX + roomId,
                 ResponseOpenChatReadEventDto.of(message.getId(), unreadCount));
     }
 
@@ -264,11 +267,9 @@ public class OpenChatMessageService {
 
         int unreadCount = calculateUnreadCount(originRoomId, message.getId());
 
-        ResponseOpenChatMessageDto response = ResponseOpenChatMessageDto.fromRoomLink(
-                message, sender.getName(), unreadCount,
-                derivedRoomId, name, description, maxParticipants);
-        messagingTemplate.convertAndSend(OPEN_CHAT_TOPIC_PREFIX + originRoomId, response);
-        messagingTemplate.convertAndSend(OPEN_CHAT_TOPIC_PREFIX + originRoomId + "/read",
+        ResponseOpenChatMessageCreateEventDto createEventDto = ResponseOpenChatMessageCreateEventDto.fromRoomLink(message, sender.getName(), derivedRoomId, name, description, maxParticipants);
+        messagingTemplate.convertAndSend(OPEN_CHAT_TOPIC_PREFIX + originRoomId, createEventDto);
+        messagingTemplate.convertAndSend(OPEN_CHAT_TOPIC_PREFIX + originRoomId,
                 ResponseOpenChatReadEventDto.of(message.getId(), unreadCount));
     }
 
@@ -301,10 +302,9 @@ public class OpenChatMessageService {
 
         int unreadCount = calculateUnreadCount(roomId, message.getId());
 
-        ResponseOpenChatMessageDto response = ResponseOpenChatMessageDto.fromStudentIdRequest(
-                message, sender.getName(), unreadCount, requestId);
-        messagingTemplate.convertAndSend(OPEN_CHAT_TOPIC_PREFIX + roomId, response);
-        messagingTemplate.convertAndSend(OPEN_CHAT_TOPIC_PREFIX + roomId + "/read",
+        ResponseOpenChatMessageCreateEventDto createEventDto = ResponseOpenChatMessageCreateEventDto.fromStudentIdRequest(message, sender.getName(), requestId);
+        messagingTemplate.convertAndSend(OPEN_CHAT_TOPIC_PREFIX + roomId, createEventDto);
+        messagingTemplate.convertAndSend(OPEN_CHAT_TOPIC_PREFIX + roomId,
                 ResponseOpenChatReadEventDto.of(message.getId(), unreadCount));
     }
 
@@ -326,7 +326,7 @@ public class OpenChatMessageService {
         if (latestId != null) {
             openChatParticipantRepository.updateLastReadMessageId(roomId, userId, latestId);
             int unreadCount = calculateUnreadCount(roomId, latestId);
-            messagingTemplate.convertAndSend(OPEN_CHAT_TOPIC_PREFIX + roomId + "/read",
+            messagingTemplate.convertAndSend(OPEN_CHAT_TOPIC_PREFIX + roomId,
                     ResponseOpenChatReadEventDto.of(latestId, unreadCount));
         }
 
@@ -435,9 +435,9 @@ public class OpenChatMessageService {
 
         int unreadCount = calculateUnreadCount(roomId, message.getId());
 
-        ResponseOpenChatMessageDto response = ResponseOpenChatMessageDto.from(message, sender.getName(), unreadCount);
-        messagingTemplate.convertAndSend(OPEN_CHAT_TOPIC_PREFIX + roomId, response);
-        messagingTemplate.convertAndSend(OPEN_CHAT_TOPIC_PREFIX + roomId + "/read",
+        ResponseOpenChatMessageCreateEventDto createEventDto = ResponseOpenChatMessageCreateEventDto.from(message, sender.getName());
+        messagingTemplate.convertAndSend(OPEN_CHAT_TOPIC_PREFIX + roomId, createEventDto);
+        messagingTemplate.convertAndSend(OPEN_CHAT_TOPIC_PREFIX + roomId,
                 ResponseOpenChatReadEventDto.of(message.getId(), unreadCount));
 
         if (openChatNotificationService != null) {
@@ -477,7 +477,7 @@ public class OpenChatMessageService {
 
         openChatMessage.softDelete();
 
-        ResponseOpenChatDeleteEventDto deleteEventDto = new ResponseOpenChatDeleteEventDto(openChatMessage.getId(), openChatRoom.getId());
+        ResponseOpenChatMessageDeleteEventDto deleteEventDto = new ResponseOpenChatMessageDeleteEventDto(openChatMessage.getId(), openChatRoom.getId());
         messagingTemplate.convertAndSend(OPEN_CHAT_TOPIC_PREFIX + roomId, deleteEventDto);
     }
 
@@ -530,7 +530,7 @@ public class OpenChatMessageService {
 
     public void sendRecruitmentStatusEvent(Long parentRoomId, Long derivedRoomId, OpenChatRoomRecruitmentStatus status) {
         messagingTemplate.convertAndSend(
-                "/sub/openchat/" + parentRoomId + "/recruitment-status",
+                OPEN_CHAT_TOPIC_PREFIX + parentRoomId,
                 ResponseRecruitmentStatusEventDto.of(derivedRoomId, status));
     }
 
@@ -565,11 +565,9 @@ public class OpenChatMessageService {
         User sender = userRepository.findById(actorId).orElse(null);
         String senderNickname = sender != null ? sender.getName() : null;
 
-        ResponseOpenChatMessageDto response = ResponseOpenChatMessageDto.fromRoomLink(
-                message, senderNickname, unreadCount,
-                derivedRoomId, roomName, description, maxParticipants, false,
-                OpenChatRoomRecruitmentStatus.OPEN);
-        messagingTemplate.convertAndSend("/sub/openchat/" + parentRoomId, response);
+        ResponseOpenChatMessageCreateEventDto createEventDto = ResponseOpenChatMessageCreateEventDto.fromRoomLink(message, senderNickname, derivedRoomId, roomName, description, maxParticipants, false, OpenChatRoomRecruitmentStatus.OPEN);
+        messagingTemplate.convertAndSend(OPEN_CHAT_TOPIC_PREFIX + parentRoomId, createEventDto);
+        messagingTemplate.convertAndSend(OPEN_CHAT_TOPIC_PREFIX + parentRoomId, ResponseOpenChatReadEventDto.of(message.getId(), unreadCount));
     }
 
     @Transactional
@@ -646,7 +644,7 @@ public class OpenChatMessageService {
                     r.updateLastMessage(message.getId(), message.getEditedAt()));
         }
 
-        messagingTemplate.convertAndSend("/sub/openchat/" + roomId + "/edit",
+        messagingTemplate.convertAndSend("/sub/openchat/" + roomId,
                 ResponseOpenChatMessageEditEventDto.from(message));
 
         return ResponseOpenChatMessageDto.from(message, null, 0, java.util.List.of(), null);

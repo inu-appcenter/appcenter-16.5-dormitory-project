@@ -1,26 +1,14 @@
 package com.example.appcenter_project.domain.roommate.service;
 
-import com.example.appcenter_project.domain.openChat.dto.response.ResponseNotificationModeDto;
-import com.example.appcenter_project.domain.openChat.enums.ChatNotificationMode;
-import com.example.appcenter_project.domain.roommate.entity.RoommateChattingRoom;
-import com.example.appcenter_project.domain.roommate.fixture.RoommateChattingNotificationFixture;
 import com.example.appcenter_project.domain.roommate.repository.RoommateChattingRoomRepository;
-import com.example.appcenter_project.global.exception.CustomException;
-import com.example.appcenter_project.global.exception.ErrorCode;
-import org.assertj.core.api.ThrowableAssert.ThrowingCallable;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
-import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
-import java.util.Optional;
-
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
-import static org.assertj.core.api.Assertions.assertThatNoException;
-import static org.mockito.BDDMockito.given;
 
 /**
  * BR-739 — 룸메이트 채팅방 알림 모드 변경/조회 서비스 테스트

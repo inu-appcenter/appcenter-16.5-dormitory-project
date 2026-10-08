@@ -4,7 +4,6 @@ import com.example.appcenter_project.domain.openChat.dto.request.RequestCreateDo
 import com.example.appcenter_project.domain.openChat.fixture.OpenChatDormOfficialRoomFixture;
 import com.example.appcenter_project.domain.openChat.service.OpenChatDormOfficialRoomService;
 import com.example.appcenter_project.domain.openChat.service.OpenChatMessageService;
-import com.example.appcenter_project.domain.user.enums.DormType;
 import com.example.appcenter_project.global.exception.CustomException;
 import com.example.appcenter_project.global.exception.ErrorCode;
 import com.example.appcenter_project.global.exception.SlackErrorNotifier;

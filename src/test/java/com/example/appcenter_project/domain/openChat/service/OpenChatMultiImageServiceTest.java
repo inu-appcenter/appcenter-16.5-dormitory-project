@@ -4,6 +4,7 @@ import com.example.appcenter_project.common.image.enums.ImageType;
 import com.example.appcenter_project.common.image.repository.ImageRepository;
 import com.example.appcenter_project.common.image.service.ImageService;
 import com.example.appcenter_project.domain.openChat.dto.response.ResponseOpenChatMessageDto;
+import com.example.appcenter_project.domain.openChat.dto.response.ResponseOpenChatMessageCreateEventDto;
 import com.example.appcenter_project.domain.openChat.entity.OpenChatMessage;
 import com.example.appcenter_project.domain.openChat.entity.OpenChatParticipant;
 import com.example.appcenter_project.domain.openChat.entity.OpenChatRoom;
@@ -264,7 +265,7 @@ class OpenChatMultiImageServiceTest {
         openChatMessageService.sendImageMessage(USER_ID, ROOM_ID, images, httpServletRequest);
 
         // then
-        then(messagingTemplate).should(times(3)).convertAndSend(eq("/sub/openchat/" + ROOM_ID), any(ResponseOpenChatMessageDto.class));
+        then(messagingTemplate).should(times(3)).convertAndSend(eq("/sub/openchat/" + ROOM_ID), any(ResponseOpenChatMessageCreateEventDto.class));
     }
 
     @Test

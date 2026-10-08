@@ -1,5 +1,7 @@
 package com.example.appcenter_project.domain.openChat.service;
 
+import com.example.appcenter_project.domain.openChat.dto.response.ResponseOpenChatMessageDto;
+import com.example.appcenter_project.domain.openChat.dto.response.ResponseOpenChatMessageCreateEventDto;
 import com.example.appcenter_project.domain.openChat.entity.OpenChatMessage;
 import com.example.appcenter_project.domain.openChat.entity.OpenChatRoom;
 import com.example.appcenter_project.domain.openChat.enums.OpenChatMessageType;
@@ -149,7 +151,8 @@ class AdminBotMessageServiceTest {
 
         // then
         then(messagingTemplate).should().convertAndSend(
-                eq("/sub/openchat/" + AdminBotMessageFixture.OPEN_ROOM_ID), any(Object.class));
+                eq("/sub/openchat/" + AdminBotMessageFixture.OPEN_ROOM_ID),
+                any(ResponseOpenChatMessageCreateEventDto.class));
     }
 
     // =====================================================================
