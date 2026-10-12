@@ -32,8 +32,10 @@ public interface OpenChatMessageApiSpecification {
                     커서 기반 페이지네이션으로 채팅 메시지를 최신순으로 조회합니다.
 
                     - **lastMessageId**: 이전 응답의 `nextCursor` 값을 그대로 전달합니다. 최초 요청 시 생략.
+                    - **anchorMessageId**: 특정 메시지로 이동할 때 사용합니다 (예: 답장 원본 메시지 이동). 해당 메시지가 응답 목록의 마지막(가장 최신)에 위치합니다. `lastMessageId`와 함께 사용하면 `anchorMessageId`가 우선합니다.
                     - **size**: 한 번에 가져올 메시지 수 (기본 30)
                     - **hasNext**: `true`이면 더 이전 메시지가 존재합니다. `nextCursor`로 다음 요청.
+                    - **hasNewer**: `anchorMessageId` 사용 시 `true`이면 앵커 이후의 더 최신 메시지가 존재합니다.
 
                     **메시지 type 설명**:
                     - `TEXT`: 일반 텍스트 메시지
@@ -60,6 +62,9 @@ public interface OpenChatMessageApiSpecification {
             @RequestParam(required = false)
             @Parameter(description = "커서: 이전 응답의 nextCursor 값 (첫 요청 시 생략)")
             Long lastMessageId,
+            @RequestParam(required = false)
+            @Parameter(description = "앵커 메시지 ID: 이 메시지를 포함한 이전 메시지 페이지를 반환 (답장 원본 이동 시 사용)")
+            Long anchorMessageId,
             @RequestParam(defaultValue = "30")
             @Parameter(description = "페이지 크기 (기본 30)", example = "30")
             int size,
