@@ -5,10 +5,12 @@ import com.example.appcenter_project.domain.openChat.dto.request.RequestOpenChat
 import com.example.appcenter_project.domain.openChat.dto.response.ResponseOpenChatMessageDto;
 import com.example.appcenter_project.domain.openChat.dto.response.ResponseOpenChatMessageListDto;
 import com.example.appcenter_project.domain.openChat.service.OpenChatMessageService;
+import com.example.appcenter_project.global.exception.CustomException;
 import com.example.appcenter_project.global.security.CustomUserDetails;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
@@ -21,6 +23,7 @@ import org.springframework.web.multipart.MultipartFile;
 import java.util.List;
 import java.util.Map;
 
+@Slf4j
 @RestController
 @RequiredArgsConstructor
 @RequestMapping("/open-chat-rooms")
@@ -35,7 +38,11 @@ public class OpenChatMessageController implements OpenChatMessageApiSpecificatio
         String userIdStr = (String) sessionAttributes.get("userId");
         if (userIdStr == null) return;
         Long userId = Long.parseLong(userIdStr);
-        openChatMessageService.sendMessage(userId, dto);
+        try {
+            openChatMessageService.sendMessage(userId, dto);
+        } catch (CustomException e) {
+            log.warn("소켓 메시지 전송 실패: userId={}, roomId={}, error={}", userId, dto.getRoomId(), e.getErrorCode());
+        }
     }
 
     @GetMapping("/{roomId}/messages")
@@ -43,10 +50,11 @@ public class OpenChatMessageController implements OpenChatMessageApiSpecificatio
             @AuthenticationPrincipal CustomUserDetails user,
             @PathVariable Long roomId,
             @RequestParam(required = false) Long lastMessageId,
+            @RequestParam(required = false) Long anchorMessageId,
             @RequestParam(defaultValue = "30") int size,
             HttpServletRequest request) {
         Long userId = user != null ? user.getId() : -1L;
-        return ResponseEntity.ok(openChatMessageService.getMessages(userId, roomId, lastMessageId, size, request));
+        return ResponseEntity.ok(openChatMessageService.getMessages(userId, roomId, lastMessageId, anchorMessageId, size, request));
     }
 
     @PostMapping(value = "/{roomId}/messages/image", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)

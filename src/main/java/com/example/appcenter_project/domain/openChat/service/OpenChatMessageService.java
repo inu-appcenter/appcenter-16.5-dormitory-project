@@ -153,7 +153,7 @@ public class OpenChatMessageService {
                     .build();
         }
 
-        String preview = original.getContent();
+        String preview = originalType == OpenChatMessageType.IMAGE ? null : original.getContent();
         if (preview != null && preview.length() > 100) preview = preview.substring(0, 100);
 
         return ReplySourceDto.builder()
@@ -308,14 +308,15 @@ public class OpenChatMessageService {
                 ResponseOpenChatReadEventDto.of(message.getId(), unreadCount));
     }
 
-    public ResponseOpenChatMessageListDto getMessages(Long userId, Long roomId, Long lastMessageId, int size, HttpServletRequest request) {
+    public ResponseOpenChatMessageListDto getMessages(Long userId, Long roomId, Long lastMessageId, Long anchorMessageId, int size, HttpServletRequest request) {
         openChatRoomRepository.findById(roomId)
                 .orElseThrow(() -> new CustomException(ErrorCode.OPEN_CHAT_ROOM_NOT_FOUND));
 
         openChatParticipantRepository.findByRoomIdAndUserId(roomId, userId)
                 .orElseThrow(() -> new CustomException(ErrorCode.OPEN_CHAT_NOT_PARTICIPANT));
 
-        List<OpenChatMessage> messages = openChatMessageQuerydslRepository.findByRoomIdWithCursor(roomId, lastMessageId, size + 1);
+        Long cursorId = anchorMessageId != null ? anchorMessageId + 1 : lastMessageId;
+        List<OpenChatMessage> messages = openChatMessageQuerydslRepository.findByRoomIdWithCursor(roomId, cursorId, size + 1);
 
         boolean hasNext = messages.size() > size;
         if (hasNext) {
@@ -366,7 +367,7 @@ public class OpenChatMessageService {
                 : openChatRoomRepository.findAllById(linkedRoomIds).stream()
                 .collect(Collectors.toMap(OpenChatRoom::getId, r -> r));
 
-        Map<Long, ReplySourceDto> replySources = buildReplySources(messages);
+        Map<Long, ReplySourceDto> replySources = buildReplySources(messages, request);
 
         List<ResponseOpenChatMessageDto> dtos = messages.stream()
                 .map(msg -> {
@@ -390,10 +391,18 @@ public class OpenChatMessageService {
 
         Long nextCursor = hasNext && !messages.isEmpty() ? messages.get(0).getId() : null;
 
+        boolean hasNewer = false;
+        if (anchorMessageId != null && !messages.isEmpty()) {
+            Long newestInPage = messages.get(messages.size() - 1).getId();
+            Optional<Long> latestInRoom = openChatMessageQuerydslRepository.findLatestMessageIdByRoomId(roomId);
+            hasNewer = latestInRoom.isPresent() && latestInRoom.get() > newestInPage;
+        }
+
         return ResponseOpenChatMessageListDto.builder()
                 .messages(dtos)
                 .hasNext(hasNext)
                 .nextCursor(nextCursor)
+                .hasNewer(hasNewer)
                 .build();
     }
 
@@ -652,6 +661,11 @@ public class OpenChatMessageService {
 
     @Transactional(readOnly = true)
     public Map<Long, ReplySourceDto> buildReplySources(List<OpenChatMessage> messages) {
+        return buildReplySources(messages, null);
+    }
+
+    @Transactional(readOnly = true)
+    public Map<Long, ReplySourceDto> buildReplySources(List<OpenChatMessage> messages, HttpServletRequest request) {
         Map<Long, ReplySourceDto> result = new HashMap<>();
 
         List<OpenChatMessage> replyMessages = messages.stream()
@@ -700,6 +714,22 @@ public class OpenChatMessageService {
         Map<Long, String> nicknameMap = userRepository.findAllById(senderIds).stream()
                 .collect(Collectors.toMap(User::getId, u -> u.getName() != null ? u.getName() : ""));
 
+        List<Long> imageOriginalIds = originalMap.values().stream()
+                .filter(m -> !m.isDeleted() && m.getType() == OpenChatMessageType.IMAGE)
+                .map(OpenChatMessage::getId)
+                .toList();
+
+        Map<Long, String> thumbnailUrlMap = new HashMap<>();
+        if (!imageOriginalIds.isEmpty() && request != null) {
+            imageRepository.findByImageTypeAndEntityIdIn(ImageType.OPEN_CHAT_MESSAGE, imageOriginalIds).stream()
+                    .collect(Collectors.groupingBy(Image::getEntityId))
+                    .forEach((entityId, imgs) -> {
+                        if (!imgs.isEmpty()) {
+                            thumbnailUrlMap.put(entityId, imageService.getImageUrl(ImageType.OPEN_CHAT_MESSAGE, imgs.get(0), request));
+                        }
+                    });
+        }
+
         for (OpenChatMessage replyMsg : replyMessages) {
             Long origId = replyMsg.getReplyToMessageId();
             OpenChatMessage orig = originalMap.get(origId);
@@ -747,7 +777,7 @@ public class OpenChatMessageService {
                 continue;
             }
 
-            String preview = orig.getContent();
+            String preview = orig.getType() == OpenChatMessageType.IMAGE ? null : orig.getContent();
             if (preview != null && preview.length() > 100) {
                 preview = preview.substring(0, 100);
             }
@@ -757,6 +787,7 @@ public class OpenChatMessageService {
                     .replyToSenderId(orig.getSenderId())
                     .replyToSenderNickname(nicknameMap.get(orig.getSenderId()))
                     .contentPreview(preview)
+                    .thumbnailUrl(thumbnailUrlMap.get(origId))
                     .replyToRoomType(replyMsg.getReplyToRoomType())
                     .replyToRoomId(replyMsg.getReplyToRoomId())
                     .build());

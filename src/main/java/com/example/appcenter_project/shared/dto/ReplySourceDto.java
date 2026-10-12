@@ -13,6 +13,7 @@ public class ReplySourceDto {
     private Long replyToSenderId;
     private String replyToSenderNickname;
     private String contentPreview;
+    private String thumbnailUrl;
     private ChatRoomType replyToRoomType;
     private Long replyToRoomId;
     private Long replyToDerivedRoomId;

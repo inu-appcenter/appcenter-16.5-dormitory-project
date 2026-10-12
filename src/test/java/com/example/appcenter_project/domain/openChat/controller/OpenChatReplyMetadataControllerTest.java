@@ -111,7 +111,7 @@ class OpenChatReplyMetadataControllerTest {
     void should_return_200_when_fetching_messages_with_reply_source() throws Exception {
         // given
         Long roomId = 1L;
-        given(openChatMessageService.getMessages(anyLong(), eq(roomId), isNull(), any(Integer.class), any()))
+        given(openChatMessageService.getMessages(anyLong(), eq(roomId), isNull(), isNull(), any(Integer.class), any()))
                 .willReturn(null);
 
         // when
