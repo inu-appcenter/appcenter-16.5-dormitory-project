@@ -321,7 +321,7 @@ public class OpenChatMessageService {
         openChatParticipantRepository.findByRoomIdAndUserId(roomId, userId)
                 .orElseThrow(() -> new CustomException(ErrorCode.OPEN_CHAT_NOT_PARTICIPANT));
 
-        Long cursorId = anchorMessageId != null ? anchorMessageId + 1 : lastMessageId;
+        Long cursorId = anchorMessageId != null ? Long.valueOf(anchorMessageId + 1) : lastMessageId;
         List<OpenChatMessage> messages = openChatMessageQuerydslRepository.findByRoomIdWithCursor(roomId, cursorId, size + 1);
 
         boolean hasNext = messages.size() > size;
