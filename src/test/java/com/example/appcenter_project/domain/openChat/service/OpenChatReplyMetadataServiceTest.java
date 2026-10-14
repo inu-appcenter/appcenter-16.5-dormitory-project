@@ -130,25 +130,26 @@ class OpenChatReplyMetadataServiceTest {
     }
 
     @Test
-    @DisplayName("CustomException 발생 — BR-769-9 이미 답장인 메시지에 중첩 답장")
-    void should_throw_CustomException_when_nested_reply_attempted() {
+    @DisplayName("답장 대상이 flatten — BR-769-9 이미 답장인 메시지에 답장 시 root 메시지로 자동 교체")
+    void should_flatten_reply_to_root_when_target_is_nested_reply() {
         // given
         Long roomId = 1L;
+        Long rootMessageId = 50L;
         Long replyMessageId = 88L;
+        OpenChatMessage rootMessage = ChatReplyMetadataFixture.createTextMessage(rootMessageId, roomId, 2L);
         OpenChatMessage existingReplyMessage = ChatReplyMetadataFixture.createNestedReplyMessage(
-                replyMessageId, roomId, 3L, 50L);
+                replyMessageId, roomId, 3L, rootMessageId);
         given(openChatMessageRepository.findById(replyMessageId))
                 .willReturn(Optional.of(existingReplyMessage));
+        given(openChatMessageRepository.findById(rootMessageId))
+                .willReturn(Optional.of(rootMessage));
 
         // when
-        ThrowingCallable action = () -> openChatMessageService.sendMessageWithReply(
-                roomId, 10L, "중첩 답장 시도", replyMessageId);
+        openChatMessageService.sendMessageWithReply(roomId, 10L, "중첩 답장 시도", replyMessageId);
 
         // then
-        assertThatThrownBy(action)
-                .isInstanceOf(CustomException.class)
-                .extracting("errorCode")
-                .isEqualTo(ErrorCode.OPEN_CHAT_NESTED_REPLY_NOT_ALLOWED);
+        then(openChatMessageRepository).should().save(
+                argThat(msg -> rootMessageId.equals(msg.getReplyToMessageId())));
     }
 
     // ─── 답장 전송 — 성공 케이스 ───────────────────────────────────────────────
