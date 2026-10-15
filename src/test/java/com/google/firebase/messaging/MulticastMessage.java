@@ -16,6 +16,10 @@ public class MulticastMessage {
 
     private MulticastMessage() {}
 
+    public List<String> getTokens() { return tokens; }
+
+    public Notification getNotification() { return notification; }
+
     public ApnsConfig getApnsConfig() {
         return apnsConfig;
     }

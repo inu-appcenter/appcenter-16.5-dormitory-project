@@ -4,6 +4,16 @@ import com.example.appcenter_project.domain.fcm.entity.FcmOutbox;
 import com.example.appcenter_project.domain.fcm.enums.OutboxStatus;
 import com.example.appcenter_project.domain.fcm.repository.FcmOutboxRepository;
 import jakarta.annotation.PreDestroy;
+import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.redis.core.RedisTemplate;
+import org.springframework.scheduling.annotation.Scheduled;
+import org.springframework.stereotype.Component;
+import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.support.TransactionTemplate;
+
 import java.net.URI;
 import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
@@ -16,16 +26,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 import java.util.stream.Collectors;
-import lombok.RequiredArgsConstructor;
-import lombok.extern.slf4j.Slf4j;
-import org.springframework.beans.factory.annotation.Value;
-import org.springframework.data.domain.PageRequest;
-import org.springframework.data.domain.Pageable;
-import org.springframework.data.redis.core.RedisTemplate;
-import org.springframework.scheduling.annotation.Scheduled;
-import org.springframework.stereotype.Component;
-import org.springframework.transaction.annotation.Transactional;
-import org.springframework.transaction.support.TransactionTemplate;
 
 @Component
 @Slf4j
@@ -57,7 +57,7 @@ public class FcmOutboxProcessor {
     public void cleanup() {
         LocalDateTime threshold = LocalDateTime.now().minusDays(CLEANUP_RETENTION_DAYS);
         int deleted = fcmOutboxRepository.deleteOldOutboxes(
-                List.of(OutboxStatus.SENT, OutboxStatus.DEAD_PERMANENT, OutboxStatus.DEAD_EXHAUSTED, OutboxStatus.EXPIRED),
+                List.of(OutboxStatus.SENT, OutboxStatus.DEAD_PERMANENT, OutboxStatus.DEAD_EXHAUSTED, OutboxStatus.EXPIRED, OutboxStatus.DELETE),
                 threshold
         );
         if (deleted > 0) {
@@ -97,7 +97,8 @@ public class FcmOutboxProcessor {
 
             Map<String, List<FcmOutbox>> groups = chunk.stream()
                     .collect(Collectors.groupingBy(o -> o.getTitle() + "\0" + o.getBody()
-                            + "\0" + o.getRoutingType() + "\0" + o.getRoutingId()));
+                            + "\0" + o.getRoutingType() + "\0" + o.getRoutingId()
+                            + "\0" + o.getMessageId() + "\0" + o.getAction()));
 
             List<CompletableFuture<int[]>> futures = new ArrayList<>();
             for (List<FcmOutbox> group : groups.values()) {
