@@ -13,9 +13,14 @@ import java.time.LocalDateTime;
 public class ResponseOpenChatMessageEditEventDto {
 
     private Long messageId;
+
     private Long roomId;
+
     private String content;
+
     private LocalDateTime editedAt;
+
+    @Builder.Default
     private EventType eventType = EventType.MESSAGE_UPDATED;
 
     public static ResponseOpenChatMessageEditEventDto from(OpenChatMessage message) {
