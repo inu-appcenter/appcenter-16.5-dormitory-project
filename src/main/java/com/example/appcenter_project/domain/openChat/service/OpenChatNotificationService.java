@@ -159,18 +159,44 @@ public class OpenChatNotificationService {
         fcmOutboxRepository.bulkMarkDelete(
                 roomId, messageId, routingType, List.of(OutboxStatus.PENDING, OutboxStatus.FAILED), LocalDateTime.now());
 
-        // 발송 완료된 알림 처리
+        // 발송 완료된 알림
         List<FcmOutbox> sent = fcmOutboxRepository.findSentMessageNotificationsForUpdate(roomId, messageId, routingType);
         if (sent.isEmpty()) {
             return;
         }
 
-        // 현재 참여자/알림 설정 대신 실제 발송했던 기기 토큰을 재사용
+        // 취소 알림 생성
         List<FcmOutbox> cancellations = sent.stream()
                 .collect(Collectors.toMap(FcmOutbox::getToken, FcmOutbox::createCancellation, (first, duplicate) -> first))
                 .values().stream().toList();
         fcmOutboxRepository.saveAll(cancellations);
 
+        // 이미 발송된 알림 삭제 처리
         fcmOutboxRepository.markCancellationQueued(sent.stream().map(FcmOutbox::getId).toList(), LocalDateTime.now());
+    }
+
+    public void updateNotificationsForMessage(Long roomId, Long messageId, OpenChatRoomType roomType, String body) {
+        FcmRoutingType routing = roomType == OpenChatRoomType.PERSONAL ? FcmRoutingType.CHAT_PERSONAL : FcmRoutingType.CHAT_OPEN;
+        List<OutboxStatus> unsent = List.of(OutboxStatus.PENDING, OutboxStatus.FAILED);
+        LocalDateTime now = LocalDateTime.now();
+
+        //발송된 알림
+        List<FcmOutbox> sent = fcmOutboxRepository.findSentMessageNotificationsForUpdate(roomId, messageId, routing);
+
+        // 대기·실패 상태인 원본 알림의 본문만 최신 내용으로 변경 (action=CREATE 유지)
+        fcmOutboxRepository.updateUnsentMessageContent(roomId, messageId, routing, unsent, body, now);
+
+        // 최신 내용으로 UPDATE를 새로 생성하기 전에, 대기·실패 상태인 이전 UPDATE의 발송을 취소
+        fcmOutboxRepository.supersedeUnsentUpdateMessage(roomId, messageId, routing, unsent, now);
+
+        //Update용 알림 생성
+        List<FcmOutbox> updates = sent.stream()
+                .collect(Collectors.toMap(FcmOutbox::getToken,
+                        original -> original.createUpdate(original.getTitle(), body), (first, duplicate) -> first))
+                .values().stream().toList();
+
+        if (!updates.isEmpty()) {
+            fcmOutboxRepository.saveAll(updates);
+        }
     }
 }

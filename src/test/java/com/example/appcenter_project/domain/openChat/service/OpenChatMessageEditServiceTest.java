@@ -36,8 +36,23 @@ class OpenChatMessageEditServiceTest {
     @Mock
     SimpMessagingTemplate messagingTemplate;
 
+    @Mock
+    OpenChatNotificationService openChatNotificationService;
+
     @InjectMocks
     OpenChatMessageService openChatMessageService;
+
+    @Test
+    void rejectsMessageFromAnotherRoomWithoutSendingNotification() {
+        var message = OpenChatMessageEditFixture.createTextMessage(42L, 5L);
+        given(openChatMessageRepository.findById(1L)).willReturn(Optional.of(message));
+
+        assertThatThrownBy(() -> openChatMessageService.editMessage(
+                42L, 6L, 1L, OpenChatMessageEditFixture.createEditRequest()))
+                .isInstanceOf(CustomException.class)
+                .extracting("errorCode").isEqualTo(ErrorCode.OPEN_CHAT_MESSAGE_ROOM_MISMATCH);
+        then(openChatNotificationService).shouldHaveNoInteractions();
+    }
 
     @Test
     @DisplayName("CustomException 발생 — AC 존재하지 않는 messageId OPEN_CHAT_MESSAGE_NOT_FOUND")
@@ -156,6 +171,8 @@ class OpenChatMessageEditServiceTest {
     @Test
     @DisplayName("save 호출 — AC-1 정상 텍스트 메시지 수정 시 repository save 실행")
     void should_call_save_when_message_edit_succeeds() {
+        var room = OpenChatMessageEditFixture.createOpenChatRoom(5L);
+        given(openChatRoomRepository.findById(5L)).willReturn(Optional.of(room));
         // given
         Long senderId = 42L;
         var message = OpenChatMessageEditFixture.createTextMessage(senderId, 5L);
@@ -169,11 +186,15 @@ class OpenChatMessageEditServiceTest {
 
         // then
         then(openChatMessageRepository).should().save(message);
+        then(openChatNotificationService).should().updateNotificationsForMessage(
+                5L, 1L, room.getRoomType(), dto.getContent());
     }
 
     @Test
     @DisplayName("WebSocket broadcast 호출 — AC-10 수정 성공 시 이벤트 전송")
     void should_broadcast_edit_event_when_message_edit_succeeds() {
+        given(openChatRoomRepository.findById(5L))
+                .willReturn(Optional.of(OpenChatMessageEditFixture.createOpenChatRoom(5L)));
         // given
         Long senderId = 42L;
         var message = OpenChatMessageEditFixture.createTextMessage(senderId, 5L);
@@ -215,6 +236,8 @@ class OpenChatMessageEditServiceTest {
     @Test
     @DisplayName("room.lastMessage 미갱신 — AC-8 수정 대상이 채팅방 최신 메시지가 아닌 경우")
     void should_not_update_room_last_message_when_message_is_not_latest() {
+        var room = spy(OpenChatMessageEditFixture.createOpenChatRoom(5L));
+        given(openChatRoomRepository.findById(5L)).willReturn(Optional.of(room));
         // given
         Long senderId = 42L;
         Long messageId = 1L;
@@ -229,6 +252,6 @@ class OpenChatMessageEditServiceTest {
         openChatMessageService.editMessage(senderId, 5L, messageId, dto);
 
         // then
-        then(openChatRoomRepository).should(never()).findById(anyLong());
+        then(room).should(never()).updateLastMessage(any(), any());
     }
 }

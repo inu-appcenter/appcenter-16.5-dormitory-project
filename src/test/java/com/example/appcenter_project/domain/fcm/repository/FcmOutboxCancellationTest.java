@@ -103,6 +103,48 @@ class FcmOutboxCancellationTest {
         assertThat(repository.findSentMessageNotificationsForUpdate(10L, 123L, FcmRoutingType.CHAT_OPEN)).isEmpty();
     }
 
+    @ParameterizedTest
+    @EnumSource(OpenChatRoomType.class)
+    void editsPendingContentAndReplacesQueuedUpdatesOnlyForOriginalRecipients(OpenChatRoomType roomType) {
+        FcmRoutingType routing = roomType == OpenChatRoomType.PERSONAL
+                ? FcmRoutingType.CHAT_PERSONAL : FcmRoutingType.CHAT_OPEN;
+        FcmOutbox pending = save(routing, 10L, 123L, OutboxStatus.PENDING);
+        FcmOutbox failed = save(routing, 10L, 123L, OutboxStatus.FAILED);
+        FcmOutbox sent = save(routing, 10L, 123L, OutboxStatus.SENT);
+        save(routing, 10L, 123L, OutboxStatus.SENT); // 동일 기기의 중복 발송 기록
+        FcmOutbox unrelated = save(routing, 10L, 124L, OutboxStatus.PENDING);
+        FcmOutbox bundled = save(routing, 10L, null, OutboxStatus.PENDING);
+        FcmOutbox cancellation = repository.save(sent.createCancellation());
+        OpenChatNotificationService service = new OpenChatNotificationService(null, null, null, repository);
+
+        service.updateNotificationsForMessage(10L, 123L, roomType, "first edit");
+        service.updateNotificationsForMessage(10L, 123L, roomType, "latest edit");
+        repository.flush();
+        entityManager.clear();
+
+        for (FcmOutbox original : List.of(pending, failed)) {
+            FcmOutbox actual = repository.findById(original.getId()).orElseThrow();
+            assertThat(actual.getBody()).isEqualTo("latest edit");
+            assertThat(actual.getTitle()).isEqualTo(original.getTitle());
+            assertThat(actual.getAction()).isEqualTo(original.getAction());
+            assertThat(actual.getStatus()).isEqualTo(original.getStatus());
+        }
+        for (FcmOutbox original : List.of(unrelated, bundled)) {
+            assertThat(repository.findById(original.getId()).orElseThrow().getBody()).isEqualTo("body");
+        }
+        assertThat(repository.findById(sent.getId()).orElseThrow().getStatus()).isEqualTo(OutboxStatus.SENT);
+        assertThat(repository.findById(cancellation.getId()).orElseThrow().getStatus()).isEqualTo(OutboxStatus.PENDING);
+        List<FcmOutbox> updates = repository.findAll().stream()
+                .filter(o -> o.getAction() == com.example.appcenter_project.domain.fcm.enums.FcmAction.UPDATE)
+                .filter(o -> o.getStatus() == OutboxStatus.PENDING).toList();
+        assertThat(updates).singleElement().satisfies(o -> {
+            assertThat(o.getToken()).isEqualTo("token");
+            assertThat(o.getBody()).isEqualTo("latest edit");
+            assertThat(o.getTitle()).isEqualTo(sent.getTitle());
+            assertThat(o.getMessageId()).isEqualTo(123L);
+        });
+    }
+
     private FcmOutbox save(FcmRoutingType routing, Long roomId, Long messageId, OutboxStatus status) {
         FcmOutbox outbox = FcmOutbox.create("token", "title", "body", routing, roomId, messageId);
         ReflectionTestUtils.setField(outbox, "messageId", messageId);

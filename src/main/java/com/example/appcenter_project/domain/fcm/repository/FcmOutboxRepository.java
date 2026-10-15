@@ -94,4 +94,28 @@ public interface FcmOutboxRepository extends JpaRepository<FcmOutbox, Long> {
                        @Param("routingType") FcmRoutingType routingType,
                        @Param("statuses") List<OutboxStatus> statuses,
                        @Param("now") LocalDateTime now);
+
+    @Transactional
+    @Modifying(clearAutomatically = true, flushAutomatically = true)
+    @Query("""
+            UPDATE FcmOutbox o SET o.body = :body, o.modifiedDate = :now
+            WHERE o.routingId = :roomId AND o.messageId = :messageId AND o.routingType = :routingType
+              AND o.status IN :statuses
+              AND (o.action IS NULL OR o.action = com.example.appcenter_project.domain.fcm.enums.FcmAction.CREATE)
+            """)
+    int updateUnsentMessageContent(@Param("roomId") Long roomId, @Param("messageId") Long messageId,
+                                   @Param("routingType") FcmRoutingType routingType, @Param("statuses") List<OutboxStatus> statuses,
+                                   @Param("body") String body, @Param("now") LocalDateTime now);
+
+    @Transactional
+    @Modifying(clearAutomatically = true, flushAutomatically = true)
+    @Query("""
+            UPDATE FcmOutbox o SET o.status = com.example.appcenter_project.domain.fcm.enums.OutboxStatus.DELETE,
+                o.modifiedDate = :now
+            WHERE o.routingId = :roomId AND o.messageId = :messageId AND o.routingType = :routingType
+              AND o.status IN :statuses AND o.action = com.example.appcenter_project.domain.fcm.enums.FcmAction.UPDATE
+            """)
+    int supersedeUnsentUpdateMessage(@Param("roomId") Long roomId, @Param("messageId") Long messageId,
+                                     @Param("routingType") FcmRoutingType routingType, @Param("statuses") List<OutboxStatus> statuses,
+                                     @Param("now") LocalDateTime now);
 }

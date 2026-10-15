@@ -621,6 +621,9 @@ public class OpenChatMessageService {
         OpenChatMessage message = openChatMessageRepository.findById(messageId)
                 .orElseThrow(() -> new CustomException(ErrorCode.OPEN_CHAT_MESSAGE_NOT_FOUND));
 
+        if (!message.getRoomId().equals(roomId)) {
+            throw new CustomException(ErrorCode.OPEN_CHAT_MESSAGE_ROOM_MISMATCH);
+        }
         if (!message.getSenderId().equals(requesterId)) {
             throw new CustomException(ErrorCode.OPEN_CHAT_MESSAGE_NOT_OWNED_BY_USER);
         }
@@ -637,14 +640,19 @@ public class OpenChatMessageService {
             throw new CustomException(ErrorCode.OPEN_CHAT_MESSAGE_CONTENT_UNCHANGED);
         }
 
+        OpenChatRoom room = openChatRoomRepository.findById(roomId)
+                .orElseThrow(() -> new CustomException(ErrorCode.OPEN_CHAT_ROOM_NOT_FOUND));
+
         message.updateContent(dto.getContent());
         openChatMessageRepository.save(message);
 
         Optional<Long> latestIdOpt = openChatMessageQuerydslRepository.findLatestMessageIdByRoomId(roomId);
         if (latestIdOpt.isPresent() && latestIdOpt.get().equals(messageId)) {
-            openChatRoomRepository.findById(roomId).ifPresent(r ->
-                    r.updateLastMessage(message.getId(), message.getEditedAt()));
+            room.updateLastMessage(message.getId(), message.getEditedAt());
         }
+
+        openChatNotificationService.updateNotificationsForMessage(
+                roomId, messageId, room.getRoomType(), message.getContent());
 
         messagingTemplate.convertAndSend("/sub/openchat/" + roomId,
                 ResponseOpenChatMessageEditEventDto.from(message));
