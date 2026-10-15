@@ -101,7 +101,7 @@ public class OpenChatMessageService {
 
         if (openChatNotificationService != null) {
             openChatNotificationService.sendImmediateNotifications(
-                    request.getRoomId(), room.getRoomType(), usersToRead, room.getName(), request.getContent());
+                    request.getRoomId(), room.getRoomType(), usersToRead, room.getName(), request.getContent(), message.getId());
         }
     }
 
@@ -202,7 +202,7 @@ public class OpenChatMessageService {
                     ResponseOpenChatReadEventDto.of(message.getId(), unreadCount));
 
             if (openChatNotificationService != null) {
-                openChatNotificationService.sendImmediateNotifications(roomId, room.getRoomType(), usersToRead, room.getName(), "[이미지]");
+                openChatNotificationService.sendImmediateNotifications(roomId, room.getRoomType(), usersToRead, room.getName(), "[이미지]", message.getId());
             }
 
             results.add(response);
@@ -442,7 +442,7 @@ public class OpenChatMessageService {
 
         if (openChatNotificationService != null) {
             openChatNotificationService.sendImmediateNotifications(
-                    roomId, room.getRoomType(), subscribers, room.getName(), content);
+                    roomId, room.getRoomType(), subscribers, room.getName(), content, message.getId());
         }
     }
 
@@ -476,6 +476,8 @@ public class OpenChatMessageService {
         }
 
         openChatMessage.softDelete();
+
+        openChatNotificationService.cancelNotificationsForMessage(roomId, messageId, openChatRoom.getRoomType());
 
         ResponseOpenChatMessageDeleteEventDto deleteEventDto = new ResponseOpenChatMessageDeleteEventDto(openChatMessage.getId(), openChatRoom.getId());
         messagingTemplate.convertAndSend(OPEN_CHAT_TOPIC_PREFIX + roomId, deleteEventDto);

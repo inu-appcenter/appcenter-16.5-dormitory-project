@@ -153,13 +153,13 @@ public class RoommateChattingChatService {
             if (mode == null) {
                 mode = ChatNotificationMode.EVERY;
             }
-            sendChatNotification(sender, receiver, room.getId(), chat.getContent(), mode);
+            sendChatNotification(sender, receiver, room.getId(), chat.getContent(), mode, savedChat.getId());
         }
 
         return responseDto;
     }
 
-    private void sendChatNotification(User sender, User receiver, Long chatRoomId, String content, ChatNotificationMode mode) {
+    private void sendChatNotification(User sender, User receiver, Long chatRoomId, String content, ChatNotificationMode mode, Long messageId) {
         if (mode != ChatNotificationMode.EVERY) {
             return;
         }
@@ -167,7 +167,7 @@ public class RoommateChattingChatService {
         List<FcmToken> tokens = fcmTokenRepository.findAllByUser(receiver);
         List<FcmOutbox> outboxes = tokens.stream()
                 .map(token -> FcmOutbox.create(token.getToken(), chatNotification.getTitle(), chatNotification.getBody(),
-                        FcmRoutingType.CHAT_ROOMMATE, chatRoomId))
+                        FcmRoutingType.CHAT_ROOMMATE, chatRoomId, messageId))
                 .toList();
         if (!outboxes.isEmpty()) {
             fcmOutboxRepository.saveAll(outboxes);
