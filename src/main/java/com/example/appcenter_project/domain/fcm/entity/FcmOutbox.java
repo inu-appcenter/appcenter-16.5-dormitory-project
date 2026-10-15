@@ -3,6 +3,7 @@ package com.example.appcenter_project.domain.fcm.entity;
 import com.example.appcenter_project.common.BaseTimeEntity;
 import com.example.appcenter_project.domain.fcm.converter.FcmRoutingTypeConverter;
 import com.example.appcenter_project.domain.fcm.enums.FcmRoutingType;
+import com.example.appcenter_project.domain.fcm.enums.FcmAction;
 import com.example.appcenter_project.domain.fcm.enums.OutboxStatus;
 import jakarta.persistence.*;
 import lombok.AccessLevel;
@@ -56,20 +57,33 @@ public class FcmOutbox extends BaseTimeEntity {
 
     private Long routingId;
 
+    private Long messageId;
+
+    @Enumerated(EnumType.STRING)
+    private FcmAction action;
+
+
     private static final int TTL_HOURS = 24;
 
     public static FcmOutbox create(String token, String title, String body) {
-        return create(token, title, body, null, null);
+        return create(token, title, body, null, null, null);
     }
 
     public static FcmOutbox create(String token, String title, String body,
-                                   FcmRoutingType routingType, Long routingId) {
+                                  FcmRoutingType routingType, Long routingId) {
+        return create(token, title, body, routingType, routingId, null);
+    }
+
+    public static FcmOutbox create(String token, String title, String body,
+                                   FcmRoutingType routingType, Long routingId, Long messageId) {
         FcmOutbox outbox = new FcmOutbox();
         outbox.token = token;
         outbox.title = title;
         outbox.body = body;
         outbox.routingType = routingType;
         outbox.routingId = routingId;
+        outbox.messageId = messageId;
+        outbox.action = FcmAction.CREATE;
         outbox.status = OutboxStatus.PENDING;
         outbox.retryCount = 0;
         outbox.maxRetry = 3;
@@ -80,6 +94,18 @@ public class FcmOutbox extends BaseTimeEntity {
 
     public void markProcessing() {
         this.status = OutboxStatus.PROCESSING;
+    }
+
+    public FcmOutbox createCancellation() {
+        FcmOutbox cancel = create(token, "", "", routingType, routingId, messageId);
+        cancel.action = FcmAction.DELETE;
+        return cancel;
+    }
+
+    public FcmOutbox createUpdate(String title, String body) {
+        FcmOutbox update = create(token, title, body, routingType, routingId, messageId);
+        update.action = FcmAction.UPDATE;
+        return update;
     }
 
     public void markSent() {
@@ -115,5 +141,9 @@ public class FcmOutbox extends BaseTimeEntity {
 
     public boolean isExhausted() {
         return retryCount >= maxRetry;
+    }
+
+    public FcmAction getAction() {
+        return action == null ? FcmAction.CREATE : action;
     }
 }
