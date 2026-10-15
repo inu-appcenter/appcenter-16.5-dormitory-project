@@ -2,24 +2,18 @@ package com.example.appcenter_project.domain.fcm.service;
 
 import com.example.appcenter_project.domain.fcm.entity.FcmOutbox;
 import com.example.appcenter_project.domain.fcm.entity.FcmToken;
+import com.example.appcenter_project.domain.fcm.enums.FcmAction;
 import com.example.appcenter_project.domain.fcm.enums.FcmRoutingType;
 import com.example.appcenter_project.domain.fcm.enums.OutboxStatus;
 import com.example.appcenter_project.domain.fcm.repository.FcmOutboxRepository;
 import com.example.appcenter_project.domain.user.repository.FcmTokenRepository;
+import com.example.appcenter_project.global.exception.CustomException;
+import com.example.appcenter_project.global.exception.ErrorCode;
 import com.example.appcenter_project.global.mixpanel.MixpanelService;
-import com.google.firebase.messaging.AndroidConfig;
-import com.google.firebase.messaging.AndroidNotification;
-import com.google.firebase.messaging.ApnsConfig;
-import com.google.firebase.messaging.Aps;
-import com.google.firebase.messaging.BatchResponse;
-import com.google.firebase.messaging.FirebaseMessaging;
-import com.google.firebase.messaging.FirebaseMessagingException;
-import com.google.firebase.messaging.Message;
-import com.google.firebase.messaging.MulticastMessage;
-import com.google.firebase.messaging.Notification;
-import com.google.firebase.messaging.SendResponse;
+import com.google.firebase.messaging.*;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.json.JSONObject;
 import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Component;
@@ -32,10 +26,8 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.Objects;
 import java.util.concurrent.CompletableFuture;
 import java.util.stream.Collectors;
-import org.json.JSONObject;
 
 /**
  * FCM 전송을 fcmExecutor 스레드 풀에서 비동기로 처리하는 컴포넌트.
@@ -54,8 +46,8 @@ public class FcmAsyncSender {
 
     private static final int MULTICAST_LIMIT = 500;
     private static final String FCM_SUCCESS_KEY_PREFIX = "fcm:success:";
-    private static final String FCM_FAIL_KEY_PREFIX    = "fcm:fail:";
-    private static final String FCM_DEAD_KEY_PREFIX    = "fcm:dead:";
+    private static final String FCM_FAIL_KEY_PREFIX = "fcm:fail:";
+    private static final String FCM_DEAD_KEY_PREFIX = "fcm:dead:";
     private static final List<String> PERMANENT_ERROR_CODES = List.of("UNREGISTERED", "INVALID_ARGUMENT");
 
     private final FcmTokenRepository fcmTokenRepository;
@@ -64,7 +56,8 @@ public class FcmAsyncSender {
     private final FirebaseMessaging firebaseMessaging;
     private final MixpanelService mixpanelService;
 
-    public record RetryKey(int retryCount, String errorCode) {}
+    public record RetryKey(int retryCount, String errorCode) {
+    }
 
     /**
      * 토큰 목록(최대 500개)을 MulticastMessage로 묶어 HTTP 1회에 전송.
@@ -149,37 +142,11 @@ public class FcmAsyncSender {
         List<String> tokens = batch.stream().map(FcmOutbox::getToken).toList();
 
         FcmOutbox rep = batch.get(0);
-        FcmRoutingType rt = rep.getRoutingType();
-        Long rid = rep.getRoutingId();
 
         MulticastMessage.Builder builder = MulticastMessage.builder()
-                .addAllTokens(tokens)
-                .setNotification(Notification.builder().setTitle(title).setBody(body).build());
+                .addAllTokens(tokens);
 
-        log.info("======== sendoutboxbatch start ============");
-        if (rt != null && rid != null) {
-            String groupKey = rt.threadId(rid);
-            String fcmPayloadLog = String.format(
-                    "{\"notification\":{\"title\":\"%s\",\"body\":\"%s\"}," +
-                            "\"apns\":{\"payload\":{\"aps\":{\"sound\":\"default\",\"thread-id\":\"%s\"}}}," +
-                            "\"android\":{\"notification\":{\"sound\":\"default\",\"tag\":\"%s\"}}," +
-                            "\"data\":{\"path\":\"%s\",\"type\":\"%s\",\"%s\":\"%s\"}}",
-                    title, body, groupKey, groupKey, rt.path(rid), rt.dataType(), rt.dataKey(), rid);
-            log.info("FCM Outbox 전송 payload: {}", fcmPayloadLog);
-          builder
-                    .setApnsConfig(ApnsConfig.builder()
-                            .setAps(Aps.builder().setSound("default").setThreadId(groupKey).build())
-                            .build())
-                    .setAndroidConfig(AndroidConfig.builder()
-                            .setNotification(AndroidNotification.builder()
-                                    .setSound("default").setTag(groupKey).build())
-                            .build())
-                    .putData("path", rt.path(rid))
-                    .putData("type", rt.dataType())
-                    .putData(rt.dataKey(), String.valueOf(rid));
-        }
-        log.info("======== sendoutboxbatch end ============");
-
+        configurePayload(builder, rep, title, body);
         MulticastMessage message = builder.build();
 
         try {
@@ -294,6 +261,48 @@ public class FcmAsyncSender {
             });
             recordOutboxStats(0, batch.size(), deadCount);
             return CompletableFuture.completedFuture(new int[]{0, batch.size(), deadCount});
+        }
+    }
+
+    private void configurePayload(MulticastMessage.Builder builder, FcmOutbox outbox, String title, String body) {
+        FcmAction action = outbox.getAction();
+        FcmRoutingType routing = outbox.getRoutingType();
+        Long roomId = outbox.getRoutingId();
+        Long messageId = outbox.getMessageId();
+
+        if (action != FcmAction.CREATE && (routing == null || roomId == null || messageId == null)) {
+            throw new CustomException(ErrorCode.FCM_INVALID_PAYLOAD);
+        }
+
+        //data field
+        builder.putData("action", action.name());
+        if (routing != null && roomId != null) {
+            builder.putData("type", routing.dataType())
+                    .putData("path", routing.path(roomId))
+                    .putData(routing.dataKey(), String.valueOf(roomId));
+        }
+        if (messageId != null) {
+            builder.putData("messageId", String.valueOf(messageId));
+        }
+
+        //알림 삭제 (notification field 제외)
+        if (action == FcmAction.DELETE) {
+            builder.setApnsConfig(ApnsConfig.builder()
+                            .putHeader("apns-push-type", "background")
+                            .putHeader("apns-priority", "5")
+                            .setAps(Aps.builder().setContentAvailable(true).build()).build());
+            return;
+        }
+
+        //notification field (알림 생성, 수정)
+        builder.setNotification(Notification.builder().setTitle(title).setBody(body).build());
+
+        if (routing != null && roomId != null) {
+            String groupKey = routing.threadId(roomId);
+            builder.setApnsConfig(ApnsConfig.builder()
+                            .setAps(Aps.builder().setSound("default").setThreadId(groupKey).build()).build())
+                    .setAndroidConfig(AndroidConfig.builder().setNotification(AndroidNotification.builder()
+                            .setSound("default").setTag(groupKey).build()).build());
         }
     }
 

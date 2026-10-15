@@ -3,6 +3,7 @@ package com.example.appcenter_project.domain.openChat.service;
 import com.example.appcenter_project.domain.fcm.entity.FcmOutbox;
 import com.example.appcenter_project.domain.fcm.entity.FcmToken;
 import com.example.appcenter_project.domain.fcm.enums.FcmRoutingType;
+import com.example.appcenter_project.domain.fcm.enums.OutboxStatus;
 import com.example.appcenter_project.domain.fcm.repository.FcmOutboxRepository;
 import com.example.appcenter_project.domain.openChat.dto.UnreadNotificationInfo;
 import com.example.appcenter_project.domain.openChat.entity.OpenChatParticipant;
@@ -27,6 +28,7 @@ import java.util.stream.Collectors;
 @Service
 @RequiredArgsConstructor
 @Slf4j
+@Transactional
 public class OpenChatNotificationService {
 
     private final OpenChatParticipantRepository participantRepository;
@@ -34,7 +36,6 @@ public class OpenChatNotificationService {
     private final FcmTokenRepository fcmTokenRepository;
     private final FcmOutboxRepository fcmOutboxRepository;
 
-    @Transactional
     public void sendHourlyUnreadNotifications() {
         List<UnreadNotificationInfo> unreadInfos = participantRepository.findUnreadCountsForNotification();
 
@@ -75,7 +76,7 @@ public class OpenChatNotificationService {
                     OpenChatRoomType roomType = roomTypeMap.getOrDefault(info.roomId(), OpenChatRoomType.OPEN);
                     FcmRoutingType routingType = (roomType == OpenChatRoomType.PERSONAL)
                             ? FcmRoutingType.CHAT_PERSONAL : FcmRoutingType.CHAT_OPEN;
-                    return FcmOutbox.create(token, roomName, body, routingType, info.roomId());
+                    return FcmOutbox.create(token, roomName, body, routingType, info.roomId(), null);
                 })
                 .toList();
 
@@ -103,7 +104,6 @@ public class OpenChatNotificationService {
         log.info("[BUNDLE-DIAG] lastBundledNotifiedAt → {} 로 갱신 완료", notifiedAt);
     }
 
-    @Transactional
     public void cancelPendingChatNotifications(Long userId, Long roomId) {
         List<String> tokens = fcmTokenRepository.findAllByUserIdIn(List.of(userId)).stream()
                 .map(FcmToken::getToken)
@@ -114,8 +114,7 @@ public class OpenChatNotificationService {
         }
     }
 
-    @Transactional
-    public void sendImmediateNotifications(Long roomId, OpenChatRoomType roomType, Set<Long> onlineUserIds, String title, String body) {
+    public void sendImmediateNotifications(Long roomId, OpenChatRoomType roomType, Set<Long> onlineUserIds, String title, String body, Long messageId) {
         List<OpenChatParticipant> everyParticipants =
                 participantRepository.findAllByRoomIdAndNotificationMode(roomId, ChatNotificationMode.EVERY);
 
@@ -140,11 +139,64 @@ public class OpenChatNotificationService {
 
         List<FcmOutbox> outboxes = targetUserIds.stream()
                 .filter(tokenMap::containsKey)
-                .map(userId -> FcmOutbox.create(tokenMap.get(userId), title, body, routingType, roomId))
+                .map(userId -> FcmOutbox.create(tokenMap.get(userId), title, body, routingType, roomId, messageId))
                 .toList();
 
         if (!outboxes.isEmpty()) {
             fcmOutboxRepository.saveAll(outboxes);
+        }
+    }
+
+    /**
+     * 메시지에 연결된 모든 수신자의 발송 대기/재시도 알림을 취소한다.
+     * 발송 완료 알림은 원래 수신 토큰에 데이터 취소 이벤트를 예약한다.
+     * 발송 중 알림과 messageId가 없는 묶음 알림은 별도로 처리해야 한다.
+     */
+    public void cancelNotificationsForMessage(Long roomId, Long messageId, OpenChatRoomType roomType) {
+        FcmRoutingType routingType = roomType == OpenChatRoomType.PERSONAL ? FcmRoutingType.CHAT_PERSONAL : FcmRoutingType.CHAT_OPEN;
+
+        // 이미 발송 중이거나 발송된 알림은 별도의 클라이언트 취소 처리가 필요
+        fcmOutboxRepository.bulkMarkDelete(
+                roomId, messageId, routingType, List.of(OutboxStatus.PENDING, OutboxStatus.FAILED), LocalDateTime.now());
+
+        // 발송 완료된 알림
+        List<FcmOutbox> sent = fcmOutboxRepository.findSentMessageNotificationsForUpdate(roomId, messageId, routingType);
+        if (sent.isEmpty()) {
+            return;
+        }
+
+        // 취소 알림 생성
+        List<FcmOutbox> cancellations = sent.stream()
+                .collect(Collectors.toMap(FcmOutbox::getToken, FcmOutbox::createCancellation, (first, duplicate) -> first))
+                .values().stream().toList();
+        fcmOutboxRepository.saveAll(cancellations);
+
+        // 이미 발송된 알림 삭제 처리
+        fcmOutboxRepository.markCancellationQueued(sent.stream().map(FcmOutbox::getId).toList(), LocalDateTime.now());
+    }
+
+    public void updateNotificationsForMessage(Long roomId, Long messageId, OpenChatRoomType roomType, String body) {
+        FcmRoutingType routing = roomType == OpenChatRoomType.PERSONAL ? FcmRoutingType.CHAT_PERSONAL : FcmRoutingType.CHAT_OPEN;
+        List<OutboxStatus> unsent = List.of(OutboxStatus.PENDING, OutboxStatus.FAILED);
+        LocalDateTime now = LocalDateTime.now();
+
+        //발송된 알림
+        List<FcmOutbox> sent = fcmOutboxRepository.findSentMessageNotificationsForUpdate(roomId, messageId, routing);
+
+        // 대기·실패 상태인 원본 알림의 본문만 최신 내용으로 변경 (action=CREATE 유지)
+        fcmOutboxRepository.updateUnsentMessageContent(roomId, messageId, routing, unsent, body, now);
+
+        // 최신 내용으로 UPDATE를 새로 생성하기 전에, 대기·실패 상태인 이전 UPDATE의 발송을 취소
+        fcmOutboxRepository.supersedeUnsentUpdateMessage(roomId, messageId, routing, unsent, now);
+
+        //Update용 알림 생성
+        List<FcmOutbox> updates = sent.stream()
+                .collect(Collectors.toMap(FcmOutbox::getToken,
+                        original -> original.createUpdate(original.getTitle(), body), (first, duplicate) -> first))
+                .values().stream().toList();
+
+        if (!updates.isEmpty()) {
+            fcmOutboxRepository.saveAll(updates);
         }
     }
 }

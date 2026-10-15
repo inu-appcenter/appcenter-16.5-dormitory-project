@@ -101,7 +101,7 @@ public class OpenChatMessageService {
 
         if (openChatNotificationService != null) {
             openChatNotificationService.sendImmediateNotifications(
-                    request.getRoomId(), room.getRoomType(), usersToRead, room.getName(), request.getContent());
+                    request.getRoomId(), room.getRoomType(), usersToRead, room.getName(), request.getContent(), message.getId());
         }
     }
 
@@ -208,7 +208,7 @@ public class OpenChatMessageService {
                     ResponseOpenChatReadEventDto.of(message.getId(), unreadCount));
 
             if (openChatNotificationService != null) {
-                openChatNotificationService.sendImmediateNotifications(roomId, room.getRoomType(), usersToRead, room.getName(), "[이미지]");
+                openChatNotificationService.sendImmediateNotifications(roomId, room.getRoomType(), usersToRead, room.getName(), "[이미지]", message.getId());
             }
 
             results.add(response);
@@ -457,7 +457,7 @@ public class OpenChatMessageService {
 
         if (openChatNotificationService != null) {
             openChatNotificationService.sendImmediateNotifications(
-                    roomId, room.getRoomType(), subscribers, room.getName(), content);
+                    roomId, room.getRoomType(), subscribers, room.getName(), content, message.getId());
         }
     }
 
@@ -491,6 +491,8 @@ public class OpenChatMessageService {
         }
 
         openChatMessage.softDelete();
+
+        openChatNotificationService.cancelNotificationsForMessage(roomId, messageId, openChatRoom.getRoomType());
 
         ResponseOpenChatMessageDeleteEventDto deleteEventDto = new ResponseOpenChatMessageDeleteEventDto(openChatMessage.getId(), openChatRoom.getId());
         messagingTemplate.convertAndSend(OPEN_CHAT_TOPIC_PREFIX + roomId, deleteEventDto);
@@ -639,6 +641,9 @@ public class OpenChatMessageService {
         OpenChatMessage message = openChatMessageRepository.findById(messageId)
                 .orElseThrow(() -> new CustomException(ErrorCode.OPEN_CHAT_MESSAGE_NOT_FOUND));
 
+        if (!message.getRoomId().equals(roomId)) {
+            throw new CustomException(ErrorCode.OPEN_CHAT_MESSAGE_ROOM_MISMATCH);
+        }
         if (!message.getSenderId().equals(requesterId)) {
             throw new CustomException(ErrorCode.OPEN_CHAT_MESSAGE_NOT_OWNED_BY_USER);
         }
@@ -655,14 +660,19 @@ public class OpenChatMessageService {
             throw new CustomException(ErrorCode.OPEN_CHAT_MESSAGE_CONTENT_UNCHANGED);
         }
 
+        OpenChatRoom room = openChatRoomRepository.findById(roomId)
+                .orElseThrow(() -> new CustomException(ErrorCode.OPEN_CHAT_ROOM_NOT_FOUND));
+
         message.updateContent(dto.getContent());
         openChatMessageRepository.save(message);
 
         Optional<Long> latestIdOpt = openChatMessageQuerydslRepository.findLatestMessageIdByRoomId(roomId);
         if (latestIdOpt.isPresent() && latestIdOpt.get().equals(messageId)) {
-            openChatRoomRepository.findById(roomId).ifPresent(r ->
-                    r.updateLastMessage(message.getId(), message.getEditedAt()));
+            room.updateLastMessage(message.getId(), message.getEditedAt());
         }
+
+        openChatNotificationService.updateNotificationsForMessage(
+                roomId, messageId, room.getRoomType(), message.getContent());
 
         messagingTemplate.convertAndSend("/sub/openchat/" + roomId,
                 ResponseOpenChatMessageEditEventDto.from(message));

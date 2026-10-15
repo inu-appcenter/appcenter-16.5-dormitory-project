@@ -3,6 +3,7 @@ package com.example.appcenter_project.domain.openChat.service;
 import com.example.appcenter_project.domain.openChat.entity.OpenChatMessage;
 import com.example.appcenter_project.domain.openChat.entity.OpenChatRoom;
 import com.example.appcenter_project.domain.openChat.enums.OpenChatMessageType;
+import com.example.appcenter_project.domain.openChat.enums.OpenChatRoomType;
 import com.example.appcenter_project.domain.openChat.fixture.ChatReplyMetadataFixture;
 import com.example.appcenter_project.domain.openChat.repository.OpenChatMessageRepository;
 import com.example.appcenter_project.domain.openChat.repository.OpenChatParticipantRepository;
@@ -38,6 +39,9 @@ class OpenChatReplyMetadataServiceTest {
 
     @Mock
     SimpMessagingTemplate messagingTemplate;
+
+    @Mock
+    OpenChatNotificationService openChatNotificationService;
 
     @InjectMocks
     OpenChatMessageService openChatMessageService;
@@ -232,6 +236,7 @@ class OpenChatReplyMetadataServiceTest {
         OpenChatMessage message = ChatReplyMetadataFixture.createTextMessage(messageId, roomId, ownerId);
         OpenChatRoom room = mock(OpenChatRoom.class);
         given(room.getId()).willReturn(roomId);
+        given(room.getRoomType()).willReturn(OpenChatRoomType.OPEN);
         given(openChatRoomRepository.findById(roomId)).willReturn(Optional.of(room));
         given(openChatMessageRepository.findById(messageId))
                 .willReturn(Optional.of(message));
@@ -242,6 +247,8 @@ class OpenChatReplyMetadataServiceTest {
 
         // then
         assertThat(message.isDeleted()).isTrue();
+        then(openChatNotificationService).should().cancelNotificationsForMessage(
+                roomId, messageId, OpenChatRoomType.OPEN);
         then(messagingTemplate).should().convertAndSend(
                 eq("/sub/openchat/" + roomId), any(Object.class));
     }

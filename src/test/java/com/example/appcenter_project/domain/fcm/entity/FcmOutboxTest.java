@@ -9,6 +9,22 @@ import static org.assertj.core.api.Assertions.assertThat;
 class FcmOutboxTest {
 
     @Test
+    void createPreservesMessageIdForCancellation() {
+        FcmOutbox outbox = FcmOutbox.create("device", "room", "text", FcmRoutingType.CHAT_OPEN, 10L, 123L);
+        assertThat(outbox.getMessageId()).isEqualTo(123L);
+        assertThat(outbox.createCancellation().getMessageId()).isEqualTo(123L);
+    }
+
+    @Test
+    void nonMessageNotificationsMayOmitMessageId() {
+        assertThat(FcmOutbox.create("device", "title", "body").getMessageId()).isNull();
+        assertThat(FcmOutbox.create("device", "title", "body", FcmRoutingType.ANNOUNCEMENT, 1L)
+                .getMessageId()).isNull();
+        assertThat(FcmOutbox.create("device", "room", "새 메시지 3개", FcmRoutingType.CHAT_OPEN, 10L, null)
+                .getMessageId()).isNull();
+    }
+
+    @Test
     @DisplayName("routingType = ANNOUNCEMENT 저장 — AC-3: 공지사항 routing 저장")
     void should_set_routingType_ANNOUNCEMENT_when_announcement_routing_provided() {
         // given
