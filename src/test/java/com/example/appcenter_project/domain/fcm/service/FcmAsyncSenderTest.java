@@ -277,6 +277,7 @@ class FcmAsyncSenderTest {
         assertThat(captor.getValue().getData())
                 .containsExactlyInAnyOrderEntriesOf(java.util.Map.of(
                         "action", "UPDATE",
+                        "messageId", "123",
                         "type", "CHAT_PERSONAL",
                         "path", "/chat/open/10",
                         "chatRoomId", "10"));
@@ -299,6 +300,7 @@ class FcmAsyncSenderTest {
                 .containsExactlyInAnyOrderEntriesOf(java.util.Map.of(
                         "type", "CHAT_OPEN",
                         "action", "DELETE",
+                        "path", "/chat/open/10",
                         "chatRoomId", "10",
                         "messageId", "123"));
         assertThat(message.getApnsConfig().getAps().isContentAvailable()).isTrue();
@@ -306,7 +308,7 @@ class FcmAsyncSenderTest {
     }
 
     @Test
-    void normalNotificationContainsOnlyRoutingData() throws Exception {
+    void normalNotificationContainsMessageIdAndRoutingData() throws Exception {
         FcmOutbox original = FcmOutbox.create("device", "room", "message",
                 com.example.appcenter_project.domain.fcm.enums.FcmRoutingType.CHAT_OPEN, 10L, 123L);
         ArgumentCaptor<MulticastMessage> captor = ArgumentCaptor.forClass(MulticastMessage.class);
@@ -316,6 +318,7 @@ class FcmAsyncSenderTest {
         assertThat(captor.getValue().getData())
                 .containsExactlyInAnyOrderEntriesOf(java.util.Map.of(
                         "action", "CREATE",
+                        "messageId", "123",
                         "type", "CHAT_OPEN",
                         "path", "/chat/open/10",
                         "chatRoomId", "10"));

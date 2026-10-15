@@ -268,31 +268,33 @@ public class FcmAsyncSender {
         FcmAction action = outbox.getAction();
         FcmRoutingType routing = outbox.getRoutingType();
         Long roomId = outbox.getRoutingId();
-        builder.putData("action", action.name());
+        Long messageId = outbox.getMessageId();
 
-        if (action != FcmAction.CREATE && (routing == null || roomId == null || outbox.getMessageId() == null)) {
+        if (action != FcmAction.CREATE && (routing == null || roomId == null || messageId == null)) {
             throw new CustomException(ErrorCode.FCM_INVALID_PAYLOAD);
         }
 
-        //알림 삭제
-        if (action == FcmAction.DELETE) {
+        //data field
+        builder.putData("action", action.name());
+        if (routing != null && roomId != null) {
             builder.putData("type", routing.dataType())
-                    .putData("chatRoomId", String.valueOf(roomId))
-                    .putData("messageId", String.valueOf(outbox.getMessageId()))
-                    .setApnsConfig(ApnsConfig.builder()
+                    .putData("path", routing.path(roomId))
+                    .putData(routing.dataKey(), String.valueOf(roomId));
+        }
+        if (messageId != null) {
+            builder.putData("messageId", String.valueOf(messageId));
+        }
+
+        //알림 삭제 (notification field 제외)
+        if (action == FcmAction.DELETE) {
+            builder.setApnsConfig(ApnsConfig.builder()
                             .putHeader("apns-push-type", "background")
                             .putHeader("apns-priority", "5")
                             .setAps(Aps.builder().setContentAvailable(true).build()).build());
             return;
         }
 
-        //알림 생성·수정
-        if (routing != null && roomId != null) {
-            builder.putData("type", routing.dataType())
-                    .putData("path", routing.path(roomId))
-                    .putData(routing.dataKey(), String.valueOf(roomId));
-        }
-
+        //notification field (알림 생성, 수정)
         builder.setNotification(Notification.builder().setTitle(title).setBody(body).build());
 
         if (routing != null && roomId != null) {
