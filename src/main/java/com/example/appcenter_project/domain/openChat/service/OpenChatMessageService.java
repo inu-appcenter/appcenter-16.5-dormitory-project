@@ -114,15 +114,6 @@ public class OpenChatMessageService {
 
         if (!original.getRoomId().equals(roomId))
             throw new CustomException(ErrorCode.OPEN_CHAT_REPLY_TARGET_NOT_IN_SAME_ROOM);
-        if (original.getReplyToMessageId() != null) {
-            Long rootId = original.getReplyToMessageId();
-            original = openChatMessageRepository.findById(rootId)
-                    .orElseThrow(() -> new CustomException(ErrorCode.OPEN_CHAT_MESSAGE_NOT_FOUND));
-            if (original.isDeleted())
-                throw new CustomException(ErrorCode.OPEN_CHAT_MESSAGE_ALREADY_DELETED);
-            replyToMessageId = rootId;
-        }
-
         OpenChatMessageType originalType = original.getType();
         if (originalType == OpenChatMessageType.SYSTEM || originalType == OpenChatMessageType.BOT
                 || originalType == OpenChatMessageType.ROOM_LINK
@@ -598,15 +589,6 @@ public class OpenChatMessageService {
 
         if (!originalMessage.getRoomId().equals(roomId)) {
             throw new CustomException(ErrorCode.OPEN_CHAT_REPLY_TARGET_NOT_IN_SAME_ROOM);
-        }
-
-        if (originalMessage.getReplyToMessageId() != null) {
-            Long rootId = originalMessage.getReplyToMessageId();
-            originalMessage = openChatMessageRepository.findById(rootId)
-                    .orElseThrow(() -> new CustomException(ErrorCode.OPEN_CHAT_MESSAGE_NOT_FOUND));
-            if (originalMessage.isDeleted())
-                throw new CustomException(ErrorCode.OPEN_CHAT_MESSAGE_ALREADY_DELETED);
-            replyToMessageId = rootId;
         }
 
         OpenChatMessageType originalType = originalMessage.getType();

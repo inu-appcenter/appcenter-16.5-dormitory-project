@@ -134,26 +134,23 @@ class OpenChatReplyMetadataServiceTest {
     }
 
     @Test
-    @DisplayName("답장 대상이 flatten — BR-769-9 이미 답장인 메시지에 답장 시 root 메시지로 자동 교체")
-    void should_flatten_reply_to_root_when_target_is_nested_reply() {
+    @DisplayName("직접 부모 유지 — BR-769-9 이미 답장인 메시지에 답장 시 직접 부모(중간 메시지)를 그대로 가리킴")
+    void should_point_to_direct_parent_when_replying_to_nested_reply() {
         // given
         Long roomId = 1L;
         Long rootMessageId = 50L;
         Long replyMessageId = 88L;
-        OpenChatMessage rootMessage = ChatReplyMetadataFixture.createTextMessage(rootMessageId, roomId, 2L);
         OpenChatMessage existingReplyMessage = ChatReplyMetadataFixture.createNestedReplyMessage(
                 replyMessageId, roomId, 3L, rootMessageId);
         given(openChatMessageRepository.findById(replyMessageId))
                 .willReturn(Optional.of(existingReplyMessage));
-        given(openChatMessageRepository.findById(rootMessageId))
-                .willReturn(Optional.of(rootMessage));
 
         // when
         openChatMessageService.sendMessageWithReply(roomId, 10L, "중첩 답장 시도", replyMessageId);
 
-        // then
+        // then: 직접 부모(replyMessageId)를 가리켜야 함 — root(rootMessageId)로 올라가면 안 됨
         then(openChatMessageRepository).should().save(
-                argThat(msg -> rootMessageId.equals(msg.getReplyToMessageId())));
+                argThat(msg -> replyMessageId.equals(msg.getReplyToMessageId())));
     }
 
     // ─── 답장 전송 — 성공 케이스 ───────────────────────────────────────────────
