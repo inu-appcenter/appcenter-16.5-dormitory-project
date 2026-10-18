@@ -1,6 +1,7 @@
 package com.example.appcenter_project.domain.openChat.dto.response;
 
 import com.example.appcenter_project.domain.openChat.enums.EventType;
+import com.example.appcenter_project.shared.enums.ReplySourceStatus;
 import lombok.Builder;
 import lombok.Getter;
 
@@ -13,6 +14,8 @@ public class ResponseReplySourceUpdatedEventDto {
     private Long roomId;
 
     private Long replyToMessageId;
+
+    private ReplySourceStatus status;
 
     private String contentPreview;
 

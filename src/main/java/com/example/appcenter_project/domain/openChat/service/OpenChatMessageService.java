@@ -487,6 +487,17 @@ public class OpenChatMessageService {
 
         ResponseOpenChatMessageDeleteEventDto deleteEventDto = new ResponseOpenChatMessageDeleteEventDto(openChatMessage.getId(), openChatRoom.getId());
         messagingTemplate.convertAndSend(OPEN_CHAT_TOPIC_PREFIX + roomId, deleteEventDto);
+
+        List<Long> referencingIds = openChatMessageRepository.findIdsByReplyToMessageId(messageId);
+        for (Long refId : referencingIds) {
+            messagingTemplate.convertAndSend(OPEN_CHAT_TOPIC_PREFIX + roomId,
+                    ResponseReplySourceUpdatedEventDto.builder()
+                            .messageId(refId)
+                            .roomId(roomId)
+                            .replyToMessageId(messageId)
+                            .status(ReplySourceStatus.DELETED)
+                            .build());
+        }
     }
 
     // ========== Private Methods ========== //
