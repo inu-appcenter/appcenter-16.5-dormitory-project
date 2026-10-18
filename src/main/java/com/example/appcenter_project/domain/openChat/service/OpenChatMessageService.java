@@ -116,7 +116,6 @@ public class OpenChatMessageService {
             throw new CustomException(ErrorCode.OPEN_CHAT_REPLY_TARGET_NOT_IN_SAME_ROOM);
         OpenChatMessageType originalType = original.getType();
         if (originalType == OpenChatMessageType.SYSTEM || originalType == OpenChatMessageType.BOT
-                || originalType == OpenChatMessageType.ROOM_LINK
                 || originalType == OpenChatMessageType.STUDENT_ID_REQUEST) {
             throw new CustomException(ErrorCode.OPEN_CHAT_REPLY_NOT_ALLOWED_FOR_TYPE);
         }
@@ -126,7 +125,7 @@ public class OpenChatMessageService {
                 .orElse(ChatRoomType.OPEN);
 
         Long derivedRoomId = null;
-        if (originalType == OpenChatMessageType.REOPEN_CARD) {
+        if (originalType == OpenChatMessageType.REOPEN_CARD || originalType == OpenChatMessageType.ROOM_LINK) {
             derivedRoomId = parseDerivedRoomId(original.getContent());
             if (derivedRoomId == null) throw new CustomException(ErrorCode.OPEN_CHAT_DERIVED_ROOM_ID_PARSE_FAILED);
         }
@@ -136,7 +135,7 @@ public class OpenChatMessageService {
         String senderNickname = userRepository.findById(original.getSenderId())
                 .map(User::getName).orElse(null);
 
-        if (originalType == OpenChatMessageType.REOPEN_CARD) {
+        if (originalType == OpenChatMessageType.REOPEN_CARD || originalType == OpenChatMessageType.ROOM_LINK) {
             boolean closed = openChatRoomRepository.findById(derivedRoomId)
                     .map(OpenChatRoom::isRecruitmentClosed).orElse(false);
             return ReplySourceDto.builder()
@@ -613,13 +612,12 @@ public class OpenChatMessageService {
         OpenChatMessageType originalType = originalMessage.getType();
         if (originalType == OpenChatMessageType.SYSTEM
                 || originalType == OpenChatMessageType.BOT
-                || originalType == OpenChatMessageType.ROOM_LINK
                 || originalType == OpenChatMessageType.STUDENT_ID_REQUEST) {
             throw new CustomException(ErrorCode.OPEN_CHAT_REPLY_NOT_ALLOWED_FOR_TYPE);
         }
 
         Long derivedRoomId = null;
-        if (originalType == OpenChatMessageType.REOPEN_CARD) {
+        if (originalType == OpenChatMessageType.REOPEN_CARD || originalType == OpenChatMessageType.ROOM_LINK) {
             derivedRoomId = parseDerivedRoomId(originalMessage.getContent());
             if (derivedRoomId == null) {
                 throw new CustomException(ErrorCode.OPEN_CHAT_DERIVED_ROOM_ID_PARSE_FAILED);
