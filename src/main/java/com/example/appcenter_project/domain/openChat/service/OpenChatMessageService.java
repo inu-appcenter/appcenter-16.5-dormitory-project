@@ -659,6 +659,20 @@ public class OpenChatMessageService {
         messagingTemplate.convertAndSend("/sub/openchat/" + roomId,
                 ResponseOpenChatMessageEditEventDto.from(message));
 
+        String newPreview = dto.getContent().length() > 100
+                ? dto.getContent().substring(0, 100)
+                : dto.getContent();
+        List<Long> referencingIds = openChatMessageRepository.findIdsByReplyToMessageId(messageId);
+        for (Long refId : referencingIds) {
+            messagingTemplate.convertAndSend("/sub/openchat/" + roomId,
+                    ResponseReplySourceUpdatedEventDto.builder()
+                            .messageId(refId)
+                            .roomId(roomId)
+                            .replyToMessageId(messageId)
+                            .contentPreview(newPreview)
+                            .build());
+        }
+
         return ResponseOpenChatMessageDto.from(message, null, 0, java.util.List.of(), null);
     }
 

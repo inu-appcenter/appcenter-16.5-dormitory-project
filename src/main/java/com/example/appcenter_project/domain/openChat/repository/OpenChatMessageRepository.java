@@ -5,9 +5,13 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Slice;
 import org.springframework.data.jpa.repository.JpaRepository;
 
+import java.util.List;
+
 public interface OpenChatMessageRepository extends JpaRepository<OpenChatMessage, Long> {
 
     Slice<OpenChatMessage> findByRoomIdOrderByCreatedDateAsc(Long roomId, Pageable pageable);
 
     boolean existsByDuplKey(String duplKey);
+
+    List<Long> findIdsByReplyToMessageId(Long replyToMessageId);
 }
