@@ -502,7 +502,7 @@ public class OpenChatMessageService {
                     ResponseReplySourceUpdatedEventDto.builder()
                             .messageId(refId)
                             .roomId(roomId)
-                            .replyToMessageId(messageId)
+                            .replyToMessageId(null)
                             .status(ReplySourceStatus.DELETED)
                             .build());
         }
@@ -772,7 +772,7 @@ public class OpenChatMessageService {
 
             if (orig == null) {
                 result.put(replyMsg.getId(), ReplySourceDto.builder()
-                        .replyToMessageId(origId)
+                        .replyToMessageId(null)
                         .status(ReplySourceStatus.NOT_FOUND)
                         .replyToRoomType(replyMsg.getReplyToRoomType())
                         .replyToRoomId(replyMsg.getReplyToRoomId())
@@ -782,7 +782,7 @@ public class OpenChatMessageService {
 
             if (orig.isDeleted()) {
                 result.put(replyMsg.getId(), ReplySourceDto.builder()
-                        .replyToMessageId(origId)
+                        .replyToMessageId(null)
                         .status(ReplySourceStatus.DELETED)
                         .replyToRoomType(replyMsg.getReplyToRoomType())
                         .replyToRoomId(replyMsg.getReplyToRoomId())
