@@ -312,6 +312,14 @@ public class OpenChatMessageService {
         openChatParticipantRepository.findByRoomIdAndUserId(roomId, userId)
                 .orElseThrow(() -> new CustomException(ErrorCode.OPEN_CHAT_NOT_PARTICIPANT));
 
+        if (anchorMessageId != null) {
+            OpenChatMessage anchor = openChatMessageRepository.findById(anchorMessageId)
+                    .orElseThrow(() -> new CustomException(ErrorCode.OPEN_CHAT_MESSAGE_NOT_FOUND));
+            if (anchor.isDeleted()) {
+                throw new CustomException(ErrorCode.OPEN_CHAT_MESSAGE_ALREADY_DELETED);
+            }
+        }
+
         Long cursorId = anchorMessageId != null ? Long.valueOf(anchorMessageId + 1) : lastMessageId;
         List<OpenChatMessage> messages = openChatMessageQuerydslRepository.findByRoomIdWithCursor(roomId, cursorId, size + 1);
 
