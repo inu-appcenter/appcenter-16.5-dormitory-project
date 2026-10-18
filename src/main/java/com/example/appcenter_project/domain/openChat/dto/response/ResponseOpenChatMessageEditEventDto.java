@@ -17,6 +17,8 @@ public class ResponseOpenChatMessageEditEventDto {
 
     private String content;
 
+    private String contentPreview;
+
     private LocalDateTime editedAt;
 
     @Builder.Default
@@ -24,10 +26,13 @@ public class ResponseOpenChatMessageEditEventDto {
 
 
     public static ResponseOpenChatMessageEditEventDto from(OpenChatMessage message) {
+        String preview = message.getContent();
+        if (preview != null && preview.length() > 100) preview = preview.substring(0, 100);
         return ResponseOpenChatMessageEditEventDto.builder()
                 .messageId(message.getId())
                 .roomId(message.getRoomId())
                 .content(message.getContent())
+                .contentPreview(preview)
                 .editedAt(message.getEditedAt())
                 .build();
     }
