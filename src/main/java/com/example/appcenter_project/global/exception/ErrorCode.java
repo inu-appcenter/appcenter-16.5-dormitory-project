@@ -199,6 +199,7 @@ public enum ErrorCode {
     OPEN_CHAT_DORM_OFFICIAL_ROOM_ALREADY_EXISTS(CONFLICT, 22027, "[OpenChat] 해당 기숙사의 공식 채팅방이 이미 존재합니다."),
     OPEN_CHAT_BOT_TARGET_PERSONAL(BAD_REQUEST, 22028, "[OpenChat] 개인 채팅방에는 챗봇 메시지를 전송할 수 없습니다."),
     OPEN_CHAT_ROOM_NOT_DERIVED(BAD_REQUEST, 22029, "[OpenChat] 파생 톡방이 아닌 방은 마감할 수 없습니다."),
+    OPEN_CHAT_ROOM_NOT_ALLOWED_TYPE(BAD_REQUEST, 22043, "[OpenChat] 모집 상태를 변경할 수 없는 방 타입입니다."),
     OPEN_CHAT_ROOM_ALREADY_CLOSED(CONFLICT, 22030, "[OpenChat] 이미 마감된 채팅방입니다."),
     OPEN_CHAT_ROOM_CLOSED_FOR_JOIN(CONFLICT, 22031, "[OpenChat] 마감된 채팅방에는 참여할 수 없습니다."),
     OPEN_CHAT_ROOM_ALREADY_OPEN(CONFLICT, 22032, "[OpenChat] 이미 모집 중인 채팅방입니다."),

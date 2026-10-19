@@ -523,6 +523,11 @@ public class OpenChatMessageService {
             Integer maxParticipants = parsed.get("maxParticipants") != null
                     ? ((Number) parsed.get("maxParticipants")).intValue() : null;
             OpenChatRoom linkedRoom = linkedRoomMap.get(derivedRoomId);
+            if (linkedRoom != null) {
+                roomName = linkedRoom.getName();
+                description = linkedRoom.getDescription();
+                maxParticipants = linkedRoom.getMaxParticipants();
+            }
             boolean recruitmentClosed = linkedRoom != null && linkedRoom.isRecruitmentClosed();
             OpenChatRoomRecruitmentStatus recruitmentStatus = recruitmentClosed
                     ? OpenChatRoomRecruitmentStatus.CLOSED
