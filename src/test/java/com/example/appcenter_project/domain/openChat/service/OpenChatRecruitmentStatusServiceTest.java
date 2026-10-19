@@ -172,12 +172,12 @@ class OpenChatRecruitmentStatusServiceTest {
     }
 
     @Test
-    @DisplayName("CustomException 발생 — BR-759-AC-08 DERIVED 아닌 방(OPEN 타입) → OPEN_CHAT_ROOM_NOT_DERIVED")
-    void should_throw_CustomException_when_room_is_not_derived_type() {
+    @DisplayName("CustomException 발생 — BR-782-AC-5 PERSONAL 타입 방에 방장이 CLOSED 요청 → OPEN_CHAT_ROOM_NOT_ALLOWED_TYPE")
+    void should_throw_CustomException_when_room_is_personal_type() {
         // given
-        OpenChatRoom openTypeRoom = OpenChatRecruitmentStatusFixture.createOpenTypeRoom(1L);
+        OpenChatRoom personalTypeRoom = OpenChatRecruitmentStatusFixture.createPersonalTypeRoom(1L);
         User owner = OpenChatRecruitmentStatusFixture.createOwner();
-        given(openChatRoomRepository.findById(1L)).willReturn(Optional.of(openTypeRoom));
+        given(openChatRoomRepository.findById(1L)).willReturn(Optional.of(personalTypeRoom));
         given(userRepository.findById(1L)).willReturn(Optional.of(owner));
 
         // when
@@ -188,7 +188,7 @@ class OpenChatRecruitmentStatusServiceTest {
         assertThatThrownBy(action)
                 .isInstanceOf(CustomException.class)
                 .extracting("errorCode")
-                .isEqualTo(ErrorCode.OPEN_CHAT_ROOM_NOT_DERIVED);
+                .isEqualTo(ErrorCode.OPEN_CHAT_ROOM_NOT_ALLOWED_TYPE);
     }
 
     @Test

@@ -25,6 +25,20 @@ public class OpenChatRecruitmentStatusFixture {
         return OpenChatRoom.create("OPEN 타입 방", "설명", OpenChatRoomScope.ALL, 10, createdBy, null, false);
     }
 
+    public static OpenChatRoom createOpenTypeOfficialRoom(Long createdBy) {
+        return OpenChatRoom.createOfficial("공식 OPEN 방", "설명", OpenChatRoomScope.ALL, 10, createdBy, null);
+    }
+
+    public static OpenChatRoom createOpenTypeRoomClosed(Long createdBy) {
+        OpenChatRoom room = createOpenTypeRoom(createdBy);
+        setField(room, "recruitmentClosed", true);
+        return room;
+    }
+
+    public static OpenChatRoom createPersonalTypeRoom(Long createdBy) {
+        return OpenChatRoom.createPersonal("개인 방", createdBy, null);
+    }
+
     public static User createOwner() {
         return User.createForTest(1L, "owner", DormType.DORM_1);
     }

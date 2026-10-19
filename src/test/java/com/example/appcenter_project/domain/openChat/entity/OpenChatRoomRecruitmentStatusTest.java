@@ -65,20 +65,20 @@ class OpenChatRoomRecruitmentStatusTest {
     }
 
     @Test
-    @DisplayName("CustomException 발생 — DERIVED 아닌 방(OPEN 타입)에서 updateRecruitmentStatus 호출 → OPEN_CHAT_ROOM_NOT_DERIVED")
-    void should_throw_CustomException_when_room_is_not_derived() {
+    @DisplayName("CustomException 발생 — PERSONAL 타입 방에서 updateRecruitmentStatus 호출 → OPEN_CHAT_ROOM_NOT_ALLOWED_TYPE (BR-782)")
+    void should_throw_CustomException_when_room_is_personal_type() {
         // given
-        OpenChatRoom openTypeRoom = OpenChatRecruitmentStatusFixture.createOpenTypeRoom(1L);
+        OpenChatRoom personalTypeRoom = OpenChatRecruitmentStatusFixture.createPersonalTypeRoom(1L);
 
         // when
         org.assertj.core.api.ThrowableAssert.ThrowingCallable action =
-                () -> openTypeRoom.updateRecruitmentStatus(OpenChatRoomRecruitmentStatus.CLOSED, 1L);
+                () -> personalTypeRoom.updateRecruitmentStatus(OpenChatRoomRecruitmentStatus.CLOSED, 1L);
 
         // then
         assertThatThrownBy(action)
                 .isInstanceOf(CustomException.class)
                 .extracting("errorCode")
-                .isEqualTo(ErrorCode.OPEN_CHAT_ROOM_NOT_DERIVED);
+                .isEqualTo(ErrorCode.OPEN_CHAT_ROOM_NOT_ALLOWED_TYPE);
     }
 
     @Test

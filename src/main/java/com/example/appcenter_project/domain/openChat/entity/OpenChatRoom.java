@@ -279,8 +279,8 @@ public class OpenChatRoom extends BaseTimeEntity {
     }
 
     public void updateRecruitmentStatus(OpenChatRoomRecruitmentStatus status, Long actorId) {
-        if (this.roomType != OpenChatRoomType.DERIVED) {
-            throw new CustomException(ErrorCode.OPEN_CHAT_ROOM_NOT_DERIVED);
+        if (this.roomType == OpenChatRoomType.PERSONAL) {
+            throw new CustomException(ErrorCode.OPEN_CHAT_ROOM_NOT_ALLOWED_TYPE);
         }
         boolean targetClosed = (status == OpenChatRoomRecruitmentStatus.CLOSED);
         if (this.recruitmentClosed == targetClosed) {
