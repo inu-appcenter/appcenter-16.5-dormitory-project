@@ -7,10 +7,15 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageImpl;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
 
 import java.util.List;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.BDDMockito.*;
 
 @ExtendWith(MockitoExtension.class)
@@ -27,15 +32,16 @@ class OpenChatRecruitmentSortRepositoryTest {
         // given
         OpenChatRoom openRoom = OpenChatRoom.createForTest(1L, "OPEN 방", OpenChatRoomType.DERIVED);
         OpenChatRoom closedRoom = OpenChatRoom.createForTest(2L, "CLOSED 방", OpenChatRoomType.DERIVED);
+        Pageable pageable = PageRequest.of(0, 20);
 
-        given(openChatRoomQuerydslRepository.findAllPublicRooms(null))
-                .willReturn(List.of(openRoom, closedRoom));
+        given(openChatRoomQuerydslRepository.findAllPublicRooms(null, pageable))
+                .willReturn(new PageImpl<>(List.of(openRoom, closedRoom)));
 
         // when
-        List<OpenChatRoom> result = openChatRoomQuerydslRepository.findAllPublicRooms(null);
+        Page<OpenChatRoom> result = openChatRoomQuerydslRepository.findAllPublicRooms(null, pageable);
 
         // then
-        assertThat(result.get(0).getId()).isEqualTo(1L);
+        assertThat(result.getContent().get(0).getId()).isEqualTo(1L);
     }
 
     @Test
@@ -44,15 +50,16 @@ class OpenChatRecruitmentSortRepositoryTest {
         // given
         OpenChatRoom openRoom = OpenChatRoom.createForTest(1L, "OPEN 방", OpenChatRoomType.DERIVED);
         OpenChatRoom closedRoom = OpenChatRoom.createForTest(2L, "CLOSED 방", OpenChatRoomType.DERIVED);
+        Pageable pageable = PageRequest.of(0, 20);
 
-        given(openChatRoomQuerydslRepository.findAllPublicRooms(null))
-                .willReturn(List.of(openRoom, closedRoom));
+        given(openChatRoomQuerydslRepository.findAllPublicRooms(null, pageable))
+                .willReturn(new PageImpl<>(List.of(openRoom, closedRoom)));
 
         // when
-        List<OpenChatRoom> result = openChatRoomQuerydslRepository.findAllPublicRooms(null);
+        Page<OpenChatRoom> result = openChatRoomQuerydslRepository.findAllPublicRooms(null, pageable);
 
         // then
-        assertThat(result.get(1).getId()).isEqualTo(2L);
+        assertThat(result.getContent().get(1).getId()).isEqualTo(2L);
     }
 
     // ────────── AC-06 DORMITORY 탭 정렬 ──────────
@@ -64,15 +71,16 @@ class OpenChatRecruitmentSortRepositoryTest {
         OpenChatRoom officialRoom = OpenChatRoom.createForTest(1L, "공식방", OpenChatRoomType.OPEN);
         OpenChatRoom normalOpenRoom = OpenChatRoom.createForTest(2L, "일반 OPEN 방", OpenChatRoomType.DERIVED);
         OpenChatRoom closedRoom = OpenChatRoom.createForTest(3L, "CLOSED 방", OpenChatRoomType.DERIVED);
+        Pageable pageable = PageRequest.of(0, 20);
 
-        given(openChatRoomQuerydslRepository.findByDormitory(isNull(), isNull()))
-                .willReturn(List.of(officialRoom, normalOpenRoom, closedRoom));
+        given(openChatRoomQuerydslRepository.findByDormitory(isNull(), isNull(), any(Pageable.class)))
+                .willReturn(new PageImpl<>(List.of(officialRoom, normalOpenRoom, closedRoom)));
 
         // when
-        List<OpenChatRoom> result = openChatRoomQuerydslRepository.findByDormitory(null, null);
+        Page<OpenChatRoom> result = openChatRoomQuerydslRepository.findByDormitory(null, null, pageable);
 
         // then
-        assertThat(result.get(0).getId()).isEqualTo(1L);
+        assertThat(result.getContent().get(0).getId()).isEqualTo(1L);
     }
 
     @Test
@@ -82,15 +90,16 @@ class OpenChatRecruitmentSortRepositoryTest {
         OpenChatRoom officialRoom = OpenChatRoom.createForTest(1L, "공식방", OpenChatRoomType.OPEN);
         OpenChatRoom normalOpenRoom = OpenChatRoom.createForTest(2L, "일반 OPEN 방", OpenChatRoomType.DERIVED);
         OpenChatRoom closedRoom = OpenChatRoom.createForTest(3L, "CLOSED 방", OpenChatRoomType.DERIVED);
+        Pageable pageable = PageRequest.of(0, 20);
 
-        given(openChatRoomQuerydslRepository.findByDormitory(isNull(), isNull()))
-                .willReturn(List.of(officialRoom, normalOpenRoom, closedRoom));
+        given(openChatRoomQuerydslRepository.findByDormitory(isNull(), isNull(), any(Pageable.class)))
+                .willReturn(new PageImpl<>(List.of(officialRoom, normalOpenRoom, closedRoom)));
 
         // when
-        List<OpenChatRoom> result = openChatRoomQuerydslRepository.findByDormitory(null, null);
+        Page<OpenChatRoom> result = openChatRoomQuerydslRepository.findByDormitory(null, null, pageable);
 
         // then
-        assertThat(result.get(2).getId()).isEqualTo(3L);
+        assertThat(result.getContent().get(2).getId()).isEqualTo(3L);
     }
 
     // ────────── AC-09 검색 결과 동일 정렬 ──────────
@@ -100,17 +109,17 @@ class OpenChatRecruitmentSortRepositoryTest {
     void should_return_open_rooms_before_closed_when_keyword_search() {
         // given
         String keyword = "기숙사";
-
         OpenChatRoom openRoom = OpenChatRoom.createForTest(1L, "기숙사 OPEN 방", OpenChatRoomType.DERIVED);
         OpenChatRoom closedRoom = OpenChatRoom.createForTest(2L, "기숙사 CLOSED 방", OpenChatRoomType.DERIVED);
+        Pageable pageable = PageRequest.of(0, 20);
 
-        given(openChatRoomQuerydslRepository.findAllPublicRooms(keyword))
-                .willReturn(List.of(openRoom, closedRoom));
+        given(openChatRoomQuerydslRepository.findAllPublicRooms(keyword, pageable))
+                .willReturn(new PageImpl<>(List.of(openRoom, closedRoom)));
 
         // when
-        List<OpenChatRoom> result = openChatRoomQuerydslRepository.findAllPublicRooms(keyword);
+        Page<OpenChatRoom> result = openChatRoomQuerydslRepository.findAllPublicRooms(keyword, pageable);
 
         // then
-        assertThat(result.get(0).getId()).isEqualTo(1L);
+        assertThat(result.getContent().get(0).getId()).isEqualTo(1L);
     }
 }
