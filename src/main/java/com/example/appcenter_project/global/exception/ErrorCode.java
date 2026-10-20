@@ -68,7 +68,6 @@ public enum ErrorCode {
 
 
     // ROOMMATE
-    // ROOMMATE
     ROOMMATE_USER_NOT_FOUND(NOT_FOUND, 7001, "[Roommate] 해당 유저가 존재하지 않습니다."),
     ROOMMATE_BOARD_NOT_FOUND(NOT_FOUND, 7002, "[Roommate] 게시글을 찾을 수 없습니다."),
     ROOMMATE_CHECKLIST_NOT_FOUND(NOT_FOUND, 7003, "[Roommate] 체크리스트를 찾을 수 없습니다."),
@@ -98,11 +97,18 @@ public enum ErrorCode {
 
     // ROOMMATE_CHAT
     ROOMMATE_CHAT_CANNOT_CHAT_WITH_SELF(BAD_REQUEST, 10001, "[RoommateChat] 자신에게는 채팅을 보낼 수 없습니다."),
-    DUPLICATE_CHAT_ROOM(CONFLICT, 10001, "[RoommateChat] 이미 존재하는 채팅방입니다."),
-    ROOMMATE_CHAT_ROOM_NOT_FOUND(NOT_FOUND, 7013, "[RoommateChat] 채팅방을 찾을 수 없습니다."),
-    ROOMMATE_CHAT_ROOM_FORBIDDEN(FORBIDDEN, 10004, "[RoommateChat] 이 채팅방에 속하지 않은 사용자입니다."),
-    ROOMMATE_CHAT_ROOM_DENIED(PRECONDITION_FAILED, 10004, "[RoommateChat] 양방향 채팅방 생성은 할 수 없습니다."),
-
+    DUPLICATE_CHAT_ROOM(CONFLICT, 10002, "[RoommateChat] 이미 존재하는 채팅방입니다."),
+    ROOMMATE_CHAT_ROOM_NOT_FOUND(NOT_FOUND, 10003, "[RoommateChat] 채팅방을 찾을 수 없습니다."),
+    ROOMMATE_CHAT_PARTICIPANT_FORBIDDEN(FORBIDDEN, 10004, "[RoommateChat] 이 채팅방에 속하지 않은 사용자입니다."),
+    ROOMMATE_CHAT_ROOM_DENIED(PRECONDITION_FAILED, 10005, "[RoommateChat] 양방향 채팅방 생성은 할 수 없습니다."),
+    ROOMMATE_CHAT_MESSAGE_NOT_FOUND(NOT_FOUND, 10006, "[RoommateChat] 메시지를 찾을 수 없습니다."),
+    ROOMMATE_CHAT_NOT_SENDER(FORBIDDEN, 10007, "[RoommateChat] 메시지 작성자만 메시지를 삭제할 수 있습니다."),
+    ROOMMATE_CHAT_MESSAGE_ROOM_MISMATCH(BAD_REQUEST, 10008, "[RoommateChat] 해당 채팅방의 메시지가 아닙니다."),
+    ROOMMATE_CHAT_MESSAGE_ALREADY_DELETED(BAD_REQUEST, 10009, "[RoommateChat] 이미 삭제된 메시지입니다."),
+    ROOMMATE_CHAT_REPLY_NOT_ALLOWED_FOR_TYPE(BAD_REQUEST, 10010, "[RoommateChat] 답장할 수 없는 메시지 유형입니다."),
+    ROOMMATE_CHAT_REPLY_TARGET_NOT_IN_SAME_ROOM(BAD_REQUEST, 10011, "[RoommateChat] 원본 메시지가 다른 채팅방 소속입니다."),
+    ROOMMATE_CHAT_NESTED_REPLY_NOT_ALLOWED(BAD_REQUEST, 10012, "[RoommateChat] 답장에 대한 답장은 불가합니다."),
+    ROOMMATE_CHAT_MESSAGE_NOT_OWNED_BY_USER(FORBIDDEN, 10013, "[RoommateChat] 메시지 발신자가 아닙니다."),
 
     // REPORT
     REPORT_NOT_REGISTERED(NOT_FOUND, 11001, "[Report] 해당 신고 정보를 찾을 수 없습니다"),
@@ -142,6 +148,7 @@ public enum ErrorCode {
     FCM_SEND_FAILED(INTERNAL_SERVER_ERROR, 17002, "[FCM] FCM 메시지 전송 중 오류가 발생했습니다."),
     FCM_OUTBOX_NOT_FOUND(NOT_FOUND, 17003, "[FCM] 해당 Outbox 레코드를 찾을 수 없습니다."),
     FCM_OUTBOX_NOT_RETRYABLE(BAD_REQUEST, 17004, "[FCM] DEAD_EXHAUSTED 상태인 Outbox 레코드만 재시도할 수 있습니다."),
+    FCM_INVALID_PAYLOAD(BAD_REQUEST, 17005, "[FCM] 채팅 알림 수정·삭제에 필요한 정보가 누락되었습니다."),
 
     // SURVEY
     SURVEY_NOT_FOUND(NOT_FOUND, 18001, "[Survey] 해당 설문을 찾을 수 없습니다."),
@@ -192,8 +199,20 @@ public enum ErrorCode {
     OPEN_CHAT_DORM_OFFICIAL_ROOM_ALREADY_EXISTS(CONFLICT, 22027, "[OpenChat] 해당 기숙사의 공식 채팅방이 이미 존재합니다."),
     OPEN_CHAT_BOT_TARGET_PERSONAL(BAD_REQUEST, 22028, "[OpenChat] 개인 채팅방에는 챗봇 메시지를 전송할 수 없습니다."),
     OPEN_CHAT_ROOM_NOT_DERIVED(BAD_REQUEST, 22029, "[OpenChat] 파생 톡방이 아닌 방은 마감할 수 없습니다."),
+    OPEN_CHAT_ROOM_NOT_ALLOWED_TYPE(BAD_REQUEST, 22043, "[OpenChat] 모집 상태를 변경할 수 없는 방 타입입니다."),
     OPEN_CHAT_ROOM_ALREADY_CLOSED(CONFLICT, 22030, "[OpenChat] 이미 마감된 채팅방입니다."),
     OPEN_CHAT_ROOM_CLOSED_FOR_JOIN(CONFLICT, 22031, "[OpenChat] 마감된 채팅방에는 참여할 수 없습니다."),
+    OPEN_CHAT_ROOM_ALREADY_OPEN(CONFLICT, 22032, "[OpenChat] 이미 모집 중인 채팅방입니다."),
+    OPEN_CHAT_MESSAGE_ALREADY_DELETED(BAD_REQUEST, 22033, "[OpenChat] 이미 삭제된 메시지입니다."),
+    OPEN_CHAT_REPLY_NOT_ALLOWED_FOR_TYPE(BAD_REQUEST, 22034, "[OpenChat] 답장할 수 없는 메시지 유형입니다."),
+    OPEN_CHAT_REPLY_TARGET_NOT_IN_SAME_ROOM(BAD_REQUEST, 22035, "[OpenChat] 원본 메시지가 다른 채팅방 소속입니다."),
+    OPEN_CHAT_NESTED_REPLY_NOT_ALLOWED(BAD_REQUEST, 22036, "[OpenChat] 답장에 대한 답장은 불가합니다."),
+    OPEN_CHAT_DERIVED_ROOM_ID_PARSE_FAILED(INTERNAL_SERVER_ERROR, 22037, "[OpenChat] REOPEN_CARD content에서 derivedRoomId 파싱 실패."),
+    OPEN_CHAT_MESSAGE_NOT_OWNED_BY_USER(FORBIDDEN, 22038, "[OpenChat] 메시지 발신자가 아닙니다."),
+    OPEN_CHAT_MESSAGE_EDIT_FORBIDDEN_TYPE(BAD_REQUEST, 22039, "[OpenChat] 텍스트 메시지만 수정할 수 있습니다."),
+    OPEN_CHAT_MESSAGE_CONTENT_UNCHANGED(BAD_REQUEST, 22040, "[OpenChat] 기존 내용과 동일한 수정 요청입니다."),
+    OPEN_CHAT_MESSAGE_ROOM_MISMATCH(BAD_REQUEST, 22041, "[OpenChat] 해당 채팅방의 메시지가 아닙니다."),
+    OPEN_CHAT_PARTICIPANT_FORBIDDEN(FORBIDDEN, 22042, "[OpenChat] 해당 채팅방의 참여자가 아닙니다."),
 
     // STUDENT_ID_DISCLOSURE
     DISCLOSURE_REQUEST_NOT_FOUND(NOT_FOUND, 23001, "[StudentIdDisclosure] 학번 공개 요청을 찾을 수 없습니다."),

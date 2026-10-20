@@ -1,33 +1,20 @@
 package com.example.appcenter_project.domain.openChat.service;
 
+import com.example.appcenter_project.domain.block.service.BlockService;
 import com.example.appcenter_project.domain.openChat.dto.request.RequestCreateDerivedRoomDto;
 import com.example.appcenter_project.domain.openChat.dto.request.RequestCreateOpenChatRoomDto;
 import com.example.appcenter_project.domain.openChat.dto.request.RequestCreatePersonalRoomDto;
 import com.example.appcenter_project.domain.openChat.dto.request.RequestUpdateOpenChatRoomDto;
-import com.example.appcenter_project.domain.openChat.enums.ChatNotificationMode;
-import com.example.appcenter_project.domain.openChat.dto.response.ResponseChatRoomListDto;
-import com.example.appcenter_project.domain.openChat.dto.response.ResponseDerivedRoomCreatedDto;
-import com.example.appcenter_project.domain.openChat.dto.response.ResponseLeaveOpenChatRoomDto;
-import com.example.appcenter_project.domain.openChat.dto.response.ResponseOpenChatParticipantDto;
-import com.example.appcenter_project.domain.openChat.dto.response.ResponseOpenChatParticipantListDto;
-import com.example.appcenter_project.domain.openChat.dto.response.ResponseOpenChatRoomDetailDto;
-import com.example.appcenter_project.domain.openChat.dto.response.ResponseOpenChatRoomDto;
-import com.example.appcenter_project.domain.openChat.dto.response.ResponsePersonalRoomCreatedDto;
-import com.example.appcenter_project.domain.openChat.dto.response.ResponseSimpleParticipantDto;
-import com.example.appcenter_project.domain.openChat.dto.response.ResponseSimpleParticipantListDto;
+import com.example.appcenter_project.domain.openChat.dto.response.*;
+import com.example.appcenter_project.domain.openChat.entity.OpenChatMessage;
 import com.example.appcenter_project.domain.openChat.entity.OpenChatParticipant;
 import com.example.appcenter_project.domain.openChat.entity.OpenChatRoom;
-import com.example.appcenter_project.domain.openChat.enums.KickReason;
-import com.example.appcenter_project.domain.openChat.enums.OpenChatRoomScope;
-import com.example.appcenter_project.domain.openChat.enums.OpenChatRoomTab;
-import com.example.appcenter_project.domain.openChat.enums.OpenChatRoomType;
+import com.example.appcenter_project.domain.openChat.enums.*;
+import com.example.appcenter_project.domain.openChat.repository.OpenChatMessageQuerydslRepository;
 import com.example.appcenter_project.domain.openChat.repository.OpenChatMessageRepository;
 import com.example.appcenter_project.domain.openChat.repository.OpenChatParticipantRepository;
 import com.example.appcenter_project.domain.openChat.repository.OpenChatRoomQuerydslRepository;
 import com.example.appcenter_project.domain.openChat.repository.OpenChatRoomRepository;
-import com.example.appcenter_project.domain.openChat.dto.response.ResponseNotificationModeDto;
-import org.springframework.beans.factory.annotation.Qualifier;
-import com.example.appcenter_project.domain.block.service.BlockService;
 import com.example.appcenter_project.domain.roommate.entity.RoommateChattingChat;
 import com.example.appcenter_project.domain.roommate.entity.RoommateChattingRoom;
 import com.example.appcenter_project.domain.roommate.repository.MyRoommateRepository;
@@ -40,6 +27,7 @@ import com.example.appcenter_project.global.exception.CustomException;
 import com.example.appcenter_project.global.exception.ErrorCode;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.context.annotation.Lazy;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageImpl;
@@ -49,14 +37,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.time.Instant;
 import java.time.LocalDateTime;
-import java.util.ArrayList;
-import java.util.Collections;
-import java.util.Comparator;
-import java.util.List;
-import java.util.Map;
-import java.util.Objects;
-import java.util.Optional;
-import java.util.Set;
+import java.util.*;
 import java.util.stream.Collectors;
 
 @Slf4j
@@ -66,6 +47,7 @@ public class OpenChatRoomService {
     private final OpenChatRoomRepository openChatRoomRepository;
     private final OpenChatParticipantRepository openChatParticipantRepository;
     private final OpenChatMessageRepository openChatMessageRepository;
+    private final OpenChatMessageQuerydslRepository openChatMessageQuerydslRepository;
     private final UserRepository userRepository;
     private final OpenChatMessageService openChatMessageService;
     private final OpenChatRoomQuerydslRepository openChatRoomQuerydslRepository;
@@ -80,6 +62,7 @@ public class OpenChatRoomService {
             OpenChatRoomRepository openChatRoomRepository,
             OpenChatParticipantRepository openChatParticipantRepository,
             OpenChatMessageRepository openChatMessageRepository,
+            OpenChatMessageQuerydslRepository openChatMessageQuerydslRepository,
             UserRepository userRepository,
             @Lazy OpenChatMessageService openChatMessageService,
             @Qualifier("openChatRoomQuerydslRepositoryImpl") OpenChatRoomQuerydslRepository openChatRoomQuerydslRepository,
@@ -91,6 +74,7 @@ public class OpenChatRoomService {
         this.openChatRoomRepository = openChatRoomRepository;
         this.openChatParticipantRepository = openChatParticipantRepository;
         this.openChatMessageRepository = openChatMessageRepository;
+        this.openChatMessageQuerydslRepository = openChatMessageQuerydslRepository;
         this.userRepository = userRepository;
         this.openChatMessageService = openChatMessageService;
         this.openChatRoomQuerydslRepository = openChatRoomQuerydslRepository;
@@ -102,7 +86,7 @@ public class OpenChatRoomService {
     }
 
     @Transactional
-    public ResponseDerivedRoomCreatedDto createDerivedRoom(Long userId, RequestCreateDerivedRoomDto request) {
+    public com.example.appcenter_project.domain.openChat.dto.response.ResponseDerivedRoomCreatedDto createDerivedRoom(Long userId, RequestCreateDerivedRoomDto request) {
         OpenChatRoom originRoom = openChatRoomRepository.findById(request.getOriginRoomId())
                 .orElseThrow(() -> new CustomException(ErrorCode.OPEN_CHAT_ROOM_NOT_FOUND));
 
@@ -120,6 +104,7 @@ public class OpenChatRoomService {
                 originRoom.getCreatorDormitory(),
                 originRoom.getScope()
         );
+        derivedRoom.setOriginRoomId(request.getOriginRoomId());
         OpenChatRoom savedRoom = openChatRoomRepository.save(derivedRoom);
         openChatParticipantRepository.save(OpenChatParticipant.create(savedRoom.getId(), userId, true));
 
@@ -127,7 +112,7 @@ public class OpenChatRoomService {
                 request.getOriginRoomId(), userId,
                 savedRoom.getId(), request.getName(), request.getDescription(), request.getMaxParticipants());
 
-        return ResponseDerivedRoomCreatedDto.of(savedRoom.getId());
+        return com.example.appcenter_project.domain.openChat.dto.response.ResponseDerivedRoomCreatedDto.of(savedRoom.getId());
     }
 
     @Transactional
@@ -163,7 +148,7 @@ public class OpenChatRoomService {
     }
 
     @Transactional
-    public ResponsePersonalRoomCreatedDto createPersonalRoom(Long userId, RequestCreatePersonalRoomDto request) {
+    public com.example.appcenter_project.domain.openChat.dto.response.ResponsePersonalRoomCreatedDto createPersonalRoom(Long userId, RequestCreatePersonalRoomDto request) {
         if (userId.equals(request.getTargetUserId())) {
             throw new CustomException(ErrorCode.OPEN_CHAT_SELF_PERSONAL_FORBIDDEN);
         }
@@ -177,32 +162,32 @@ public class OpenChatRoomService {
         OpenChatRoom savedRoom = openChatRoomRepository.save(room);
         openChatParticipantRepository.save(OpenChatParticipant.create(savedRoom.getId(), userId, true));
         openChatParticipantRepository.save(OpenChatParticipant.create(savedRoom.getId(), request.getTargetUserId(), false));
-        return ResponsePersonalRoomCreatedDto.of(savedRoom.getId());
+        return com.example.appcenter_project.domain.openChat.dto.response.ResponsePersonalRoomCreatedDto.of(savedRoom.getId());
     }
 
     @Transactional(readOnly = true)
-    public ResponseChatRoomListDto getRooms(Long userId, OpenChatRoomTab tab, String keyword, Pageable pageable) {
+    public com.example.appcenter_project.domain.openChat.dto.response.ResponseChatRoomListDto getRooms(Long userId, OpenChatRoomTab tab, String keyword, Pageable pageable) {
         String k = (keyword == null || keyword.isBlank()) ? null : keyword;
 
         if (tab == OpenChatRoomTab.MY) {
             return getMyRooms(userId, k, pageable);
         } else if (tab == OpenChatRoomTab.ALL) {
             List<OpenChatRoom> rooms = openChatRoomQuerydslRepository.findAllPublicRooms(k);
-            List<ResponseOpenChatRoomDto> dtos = buildOpenChatDtos(rooms, userId, false);
-            return ResponseChatRoomListDto.of(dtos, pageable, 0);
+            List<com.example.appcenter_project.domain.openChat.dto.response.ResponseOpenChatRoomDto> dtos = buildOpenChatDtos(rooms, userId, false);
+            return com.example.appcenter_project.domain.openChat.dto.response.ResponseChatRoomListDto.of(dtos, pageable, 0);
         } else {
             String dormType = Optional.ofNullable(userRepository)
                     .flatMap(r -> r.findById(userId))
                     .map(u -> u.getDormType() != null ? u.getDormType().name() : "NONE")
                     .orElse("NONE");
             List<OpenChatRoom> rooms = openChatRoomQuerydslRepository.findByDormitory(dormType, k);
-            List<ResponseOpenChatRoomDto> dtos = buildOpenChatDtos(rooms, userId, false);
-            return ResponseChatRoomListDto.of(dtos, pageable, 0);
+            List<com.example.appcenter_project.domain.openChat.dto.response.ResponseOpenChatRoomDto> dtos = buildOpenChatDtos(rooms, userId, false);
+            return com.example.appcenter_project.domain.openChat.dto.response.ResponseChatRoomListDto.of(dtos, pageable, 0);
         }
     }
 
     @Transactional(readOnly = true)
-    public Page<ResponseOpenChatRoomDto> getRoomsForDormitory(Long userId, String dormType, Pageable pageable) {
+    public Page<com.example.appcenter_project.domain.openChat.dto.response.ResponseOpenChatRoomDto> getRoomsForDormitory(Long userId, String dormType, Pageable pageable) {
         if ("NONE".equals(dormType)) {
             return new PageImpl<>(Collections.emptyList(), pageable, 0);
         }
@@ -210,7 +195,7 @@ public class OpenChatRoomService {
         return toPageDto(rooms, userId, pageable);
     }
 
-    private ResponseChatRoomListDto getMyRooms(Long userId, String keyword, Pageable pageable) {
+    private com.example.appcenter_project.domain.openChat.dto.response.ResponseChatRoomListDto getMyRooms(Long userId, String keyword, Pageable pageable) {
         List<OpenChatRoom> openChatRooms = openChatRoomQuerydslRepository.findMyRooms(userId, keyword);
 
         List<RoommateChattingRoom> roommateRooms = roommateChattingRoomRepository.findActiveRoomsByUserId(userId);
@@ -233,7 +218,7 @@ public class OpenChatRoomService {
                 .map(mr -> mr.getRoommate().getId())
                 .orElse(null);
 
-        List<ResponseOpenChatRoomDto> openChatDtos = buildOpenChatDtosWithUnread(openChatRooms, userId);
+        List<com.example.appcenter_project.domain.openChat.dto.response.ResponseOpenChatRoomDto> openChatDtos = buildOpenChatDtosWithUnread(openChatRooms, userId);
 
         List<Long> personalRoomIds = openChatRooms.stream()
                 .filter(r -> r.getRoomType() == OpenChatRoomType.PERSONAL)
@@ -248,27 +233,26 @@ public class OpenChatRoomService {
                             OpenChatParticipant::getRoomId,
                             OpenChatParticipant::getUserId,
                             (a, b) -> a));
-            Map<Long, ResponseOpenChatRoomDto> dtoByRoomId = openChatDtos.stream()
-                    .collect(Collectors.toMap(ResponseOpenChatRoomDto::getRoomId, r -> r));
+            Map<Long, com.example.appcenter_project.domain.openChat.dto.response.ResponseOpenChatRoomDto> dtoByRoomId = openChatDtos.stream()
+                    .collect(Collectors.toMap(com.example.appcenter_project.domain.openChat.dto.response.ResponseOpenChatRoomDto::getRoomId, r -> r));
             partnerIdByRoomId.forEach((roomId, partnerId) -> {
                 if (blockService.isBlockedBy(partnerId, userId)) {
-                    ResponseOpenChatRoomDto dto = dtoByRoomId.get(roomId);
+                    com.example.appcenter_project.domain.openChat.dto.response.ResponseOpenChatRoomDto dto = dtoByRoomId.get(roomId);
                     if (dto != null) dto.updateIsBlockedByPartner(true);
                 }
             });
         }
 
-        List<ResponseOpenChatRoomDto> roommateDtos = roommateRooms.stream()
+        List<com.example.appcenter_project.domain.openChat.dto.response.ResponseOpenChatRoomDto> roommateDtos = roommateRooms.stream()
                 .map(r -> {
                     RoommateChattingChat lastChat = lastMsgMap.get(r.getId());
                     int unread = unreadMap.getOrDefault(r.getId(), 0L).intValue();
                     Long opponentId = r.getHost().getId().equals(userId) ? r.getGuest().getId() : r.getHost().getId();
                     boolean isMyRoommate = myRoommateId != null && myRoommateId.equals(opponentId);
-                    ResponseOpenChatRoomDto dto = ResponseOpenChatRoomDto.fromRoommate(
+                    com.example.appcenter_project.domain.openChat.dto.response.ResponseOpenChatRoomDto dto = com.example.appcenter_project.domain.openChat.dto.response.ResponseOpenChatRoomDto.fromRoommate(
                             r.getId(),
                             getOpponentName(r, userId),
-                            lastChat != null ? lastChat.getCreatedDate() : null,
-                            lastChat != null ? lastChat.getContent() : null,
+                            lastChat,
                             unread,
                             isMyRoommate);
                     if (blockService.isBlockedBy(opponentId, userId)) {
@@ -278,18 +262,20 @@ public class OpenChatRoomService {
                 })
                 .toList();
 
-        List<ResponseOpenChatRoomDto> merged = new ArrayList<>();
+        List<com.example.appcenter_project.domain.openChat.dto.response.ResponseOpenChatRoomDto> merged = new ArrayList<>();
         merged.addAll(openChatDtos);
         merged.addAll(roommateDtos);
         merged.sort(Comparator
-                .comparing(ResponseOpenChatRoomDto::isMyRoommate, Comparator.reverseOrder())
-                .thenComparing(ResponseOpenChatRoomDto::getLastMessageAt,
+                .comparingInt((com.example.appcenter_project.domain.openChat.dto.response.ResponseOpenChatRoomDto r) ->
+                        r.getRecruitmentStatus() == OpenChatRoomRecruitmentStatus.OPEN ? 0 : 1)
+                .thenComparing(com.example.appcenter_project.domain.openChat.dto.response.ResponseOpenChatRoomDto::isMyRoommate, Comparator.reverseOrder())
+                .thenComparing(com.example.appcenter_project.domain.openChat.dto.response.ResponseOpenChatRoomDto::getLastMessageAt,
                         Comparator.nullsLast(Comparator.reverseOrder())));
 
-        int openChatUnread = openChatDtos.stream().mapToInt(ResponseOpenChatRoomDto::getUnreadCount).sum();
+        int openChatUnread = openChatDtos.stream().mapToInt(com.example.appcenter_project.domain.openChat.dto.response.ResponseOpenChatRoomDto::getUnreadCount).sum();
         int roommateUnread = (int) unreadMap.values().stream().mapToLong(Long::longValue).sum();
 
-        return ResponseChatRoomListDto.of(merged, pageable, openChatUnread + roommateUnread);
+        return com.example.appcenter_project.domain.openChat.dto.response.ResponseChatRoomListDto.of(merged, pageable, openChatUnread + roommateUnread);
     }
 
     private String getOpponentName(RoommateChattingRoom room, Long userId) {
@@ -300,7 +286,7 @@ public class OpenChatRoomService {
     }
 
     @Transactional
-    public ResponseOpenChatRoomDetailDto joinRoom(Long userId, Long roomId, String password) {
+    public com.example.appcenter_project.domain.openChat.dto.response.ResponseOpenChatRoomDetailDto joinRoom(Long userId, Long roomId, String password) {
         OpenChatRoom room = openChatRoomRepository.findByIdWithLock(roomId)
                 .orElseThrow(() -> new CustomException(ErrorCode.OPEN_CHAT_ROOM_NOT_FOUND));
 
@@ -343,7 +329,7 @@ public class OpenChatRoomService {
     }
 
     @Transactional
-    public ResponseLeaveOpenChatRoomDto leaveRoom(Long roomId, Long userId, Long newHostUserId) {
+    public com.example.appcenter_project.domain.openChat.dto.response.ResponseLeaveOpenChatRoomDto leaveRoom(Long roomId, Long userId, Long newHostUserId) {
         List<OpenChatParticipant> lockedParticipants =
                 openChatParticipantRepository.findAllByRoomIdWithLock(roomId);
 
@@ -371,7 +357,7 @@ public class OpenChatRoomService {
 
             log.info("[OpenChat-Exit] exitType=VOLUNTARY roomId={} targetUserId={} actorId={} processedAt={}",
                     roomId, userId, userId, Instant.now());
-            return ResponseLeaveOpenChatRoomDto.builder().roomDeleted(false).build();
+            return com.example.appcenter_project.domain.openChat.dto.response.ResponseLeaveOpenChatRoomDto.builder().roomDeleted(false).build();
         }
 
         if (self.isHost()) {
@@ -385,7 +371,7 @@ public class OpenChatRoomService {
                         openChatRoomRepository.delete(room);
                         log.info("[OpenChat-Exit] exitType=VOLUNTARY roomId={} targetUserId={} actorId={} processedAt={}",
                                 roomId, userId, userId, Instant.now());
-                        return ResponseLeaveOpenChatRoomDto.builder().roomDeleted(true).build();
+                        return com.example.appcenter_project.domain.openChat.dto.response.ResponseLeaveOpenChatRoomDto.builder().roomDeleted(true).build();
                     }
                 }
                 throw new CustomException(ErrorCode.OPEN_CHAT_SOLE_HOST_CANNOT_LEAVE);
@@ -396,7 +382,7 @@ public class OpenChatRoomService {
 
         log.info("[OpenChat-Exit] exitType=VOLUNTARY roomId={} targetUserId={} actorId={} processedAt={}",
                 roomId, userId, userId, Instant.now());
-        return ResponseLeaveOpenChatRoomDto.builder().roomDeleted(false).build();
+        return com.example.appcenter_project.domain.openChat.dto.response.ResponseLeaveOpenChatRoomDto.builder().roomDeleted(false).build();
     }
 
     @Transactional
@@ -438,11 +424,11 @@ public class OpenChatRoomService {
     }
 
     @Transactional(readOnly = true)
-    public ResponseNotificationModeDto getNotificationMode(Long userId, Long roomId) {
+    public com.example.appcenter_project.domain.openChat.dto.response.ResponseNotificationModeDto getNotificationMode(Long userId, Long roomId) {
         OpenChatParticipant participant = openChatParticipantRepository
                 .findByRoomIdAndUserId(roomId, userId)
                 .orElseThrow(() -> new CustomException(ErrorCode.OPEN_CHAT_PARTICIPANT_NOT_FOUND));
-        return ResponseNotificationModeDto.of(participant.getNotificationMode());
+        return com.example.appcenter_project.domain.openChat.dto.response.ResponseNotificationModeDto.of(participant.getNotificationMode());
     }
 
     @Transactional
@@ -506,6 +492,37 @@ public class OpenChatRoomService {
 
         log.info("[OpenChat-Exit] exitType={} roomId={} targetUserId={} actorId={} reason={} processedAt={}",
                 isAdmin ? "ADMIN_KICK" : "HOST_KICK", roomId, targetUserId, actorId, reason, Instant.now());
+    }
+
+    @Transactional
+    public void updateRecruitmentStatus(Long actorId, Long roomId, OpenChatRoomRecruitmentStatus status) {
+        OpenChatRoom room = openChatRoomRepository.findById(roomId)
+                .orElseThrow(() -> new CustomException(ErrorCode.OPEN_CHAT_ROOM_NOT_FOUND));
+
+        User actor = userRepository.findById(actorId)
+                .orElseThrow(() -> new CustomException(ErrorCode.USER_NOT_FOUND));
+
+        if (actor.getRole() != Role.ROLE_ADMIN
+                && !Objects.equals(room.getCreatedBy(), actorId)) {
+            throw new CustomException(ErrorCode.OPEN_CHAT_ROOM_FORBIDDEN);
+        }
+
+        room.updateRecruitmentStatus(status, actorId);
+
+        Long originRoomId = room.getOriginRoomId();
+        if (originRoomId == null) {
+            return;
+        }
+
+        openChatMessageService.sendRecruitmentStatusEvent(originRoomId, roomId, status);
+
+        if (status == OpenChatRoomRecruitmentStatus.OPEN) {
+            room.incrementTransitionCount();
+            openChatMessageService.sendReopenCardMessage(
+                    originRoomId, actorId, roomId,
+                    room.getName(), room.getDescription(), room.getMaxParticipants(),
+                    room.getTransitionCount());
+        }
     }
 
     @Transactional
@@ -673,8 +690,9 @@ public class OpenChatRoomService {
         return ResponseSimpleParticipantListDto.of(roomId, dtos);
     }
 
-    private List<ResponseOpenChatRoomDto> buildOpenChatDtos(List<OpenChatRoom> rooms, Long userId, boolean withUnread) {
+    private List<com.example.appcenter_project.domain.openChat.dto.response.ResponseOpenChatRoomDto> buildOpenChatDtos(List<OpenChatRoom> rooms, Long userId, boolean withUnread) {
         if (rooms.isEmpty()) return Collections.emptyList();
+        Map<Long, OpenChatMessage> latestMessages = findLatestMessages(rooms);
         List<Long> roomIds = rooms.stream().map(OpenChatRoom::getId).toList();
 
         Map<Long, Long> countMap = openChatParticipantRepository != null
@@ -689,8 +707,9 @@ public class OpenChatRoomService {
             return rooms.stream()
                     .map(room -> {
                         Long lastReadMessageId = lastReadMap.get(room.getId());
-                        int unread = (int) openChatMessageRepository.countByRoomIdAndIdGreaterThan(room.getId(), lastReadMessageId);
-                        return ResponseOpenChatRoomDto.from(room,
+                        int unread = (int) openChatMessageQuerydslRepository.countByRoomIdAndIdGreaterThan(room.getId(), lastReadMessageId);
+                        return com.example.appcenter_project.domain.openChat.dto.response.ResponseOpenChatRoomDto.from(room,
+                                latestMessages.get(room.getLastMessageId()),
                                 countMap.getOrDefault(room.getId(), 0L).intValue(),
                                 joinedRoomIds.contains(room.getId()),
                                 unread);
@@ -698,36 +717,39 @@ public class OpenChatRoomService {
         }
 
         return rooms.stream()
-                .map(room -> ResponseOpenChatRoomDto.from(
+                .map(room -> com.example.appcenter_project.domain.openChat.dto.response.ResponseOpenChatRoomDto.from(
                         room,
+                        latestMessages.get(room.getLastMessageId()),
                         countMap.getOrDefault(room.getId(), 0L).intValue(),
                         joinedRoomIds.contains(room.getId())))
                 .toList();
     }
 
-    private List<ResponseOpenChatRoomDto> buildOpenChatDtosWithUnread(List<OpenChatRoom> rooms, Long userId) {
+    private List<com.example.appcenter_project.domain.openChat.dto.response.ResponseOpenChatRoomDto> buildOpenChatDtosWithUnread(List<OpenChatRoom> rooms, Long userId) {
         return buildOpenChatDtos(rooms, userId, true);
     }
 
-    private Page<ResponseOpenChatRoomDto> toPageDto(List<OpenChatRoom> rooms, Long userId, Pageable pageable) {
+    private Page<com.example.appcenter_project.domain.openChat.dto.response.ResponseOpenChatRoomDto> toPageDto(List<OpenChatRoom> rooms, Long userId, Pageable pageable) {
         if (rooms.isEmpty()) {
             return new PageImpl<>(Collections.emptyList(), pageable, 0);
         }
+        Map<Long, OpenChatMessage> latestMessages = findLatestMessages(rooms);
         List<Long> roomIds = rooms.stream().map(OpenChatRoom::getId).toList();
         Map<Long, Long> countMap = openChatParticipantRepository.countByRoomIds(roomIds);
         Set<Long> joinedRoomIds = openChatParticipantRepository.findJoinedRoomIds(userId, roomIds);
-        List<ResponseOpenChatRoomDto> dtos = rooms.stream()
-                .map(room -> ResponseOpenChatRoomDto.from(
+        List<com.example.appcenter_project.domain.openChat.dto.response.ResponseOpenChatRoomDto> dtos = rooms.stream()
+                .map(room -> com.example.appcenter_project.domain.openChat.dto.response.ResponseOpenChatRoomDto.from(
                         room,
+                        latestMessages.get(room.getLastMessageId()),
                         countMap.getOrDefault(room.getId(), 0L).intValue(),
                         joinedRoomIds.contains(room.getId())))
                 .toList();
         return new PageImpl<>(dtos, pageable, dtos.size());
     }
 
-    private ResponseOpenChatRoomDetailDto toDetailDto(OpenChatRoom room, Long roomId) {
+    private com.example.appcenter_project.domain.openChat.dto.response.ResponseOpenChatRoomDetailDto toDetailDto(OpenChatRoom room, Long roomId) {
         long count = openChatParticipantRepository.countByRoomId(roomId);
-        return ResponseOpenChatRoomDetailDto.builder()
+        return com.example.appcenter_project.domain.openChat.dto.response.ResponseOpenChatRoomDetailDto.builder()
                 .roomId(room.getId())
                 .name(room.getName())
                 .description(room.getDescription())
@@ -737,11 +759,16 @@ public class OpenChatRoomService {
                 .isOfficial(room.isOfficial())
                 .createdAt(room.getCreatedDate())
                 .recruitmentClosed(room.isRecruitmentClosed())
+                .recruitmentStatus(room.isRecruitmentClosed()
+                        ? OpenChatRoomRecruitmentStatus.CLOSED
+                        : OpenChatRoomRecruitmentStatus.OPEN)
+                .lastStatusChangedAt(room.getLastStatusChangedAt())
+                .lastStatusChangedBy(room.getLastStatusChangedBy())
                 .build();
     }
 
-    private ResponseOpenChatRoomDetailDto toDetailDtoWithBlockedCheck(OpenChatRoom room, Long roomId, Long userId) {
-        ResponseOpenChatRoomDetailDto dto = toDetailDto(room, roomId);
+    private com.example.appcenter_project.domain.openChat.dto.response.ResponseOpenChatRoomDetailDto toDetailDtoWithBlockedCheck(OpenChatRoom room, Long roomId, Long userId) {
+        com.example.appcenter_project.domain.openChat.dto.response.ResponseOpenChatRoomDetailDto dto = toDetailDto(room, roomId);
         if (room.getRoomType() == OpenChatRoomType.PERSONAL) {
             openChatParticipantRepository.findAllByRoomId(roomId).stream()
                     .filter(p -> !p.getUserId().equals(userId))
@@ -753,5 +780,18 @@ public class OpenChatRoomService {
                     });
         }
         return dto;
+    }
+
+    private Map<Long, OpenChatMessage> findLatestMessages(List<OpenChatRoom> rooms) {
+        List<Long> ids = rooms.stream()
+                .map(OpenChatRoom::getLastMessageId)
+                .filter(Objects::nonNull)
+                .distinct()
+                .toList();
+
+        if (ids.isEmpty()) return Collections.emptyMap();
+
+        return openChatMessageRepository.findAllById(ids).stream()
+                .collect(Collectors.toMap(OpenChatMessage::getId, message -> message));
     }
 }

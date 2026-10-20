@@ -11,4 +11,5 @@ public class ResponseOpenChatMessageListDto {
     private List<ResponseOpenChatMessageDto> messages;
     private boolean hasNext;
     private Long nextCursor;
+    private boolean hasNewer;
 }

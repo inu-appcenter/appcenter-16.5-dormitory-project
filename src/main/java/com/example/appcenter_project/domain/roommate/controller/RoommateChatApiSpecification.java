@@ -106,4 +106,29 @@ public interface RoommateChatApiSpecification  {
     default void sendChatViaWebSocket() {
         // 설명용으로 Swagger UI에만 노출되며 실제 구현은 컨트롤러에 있음.
     }
+
+    @Operation(
+            summary = "룸메이트 채팅 메시지 삭제",
+            description = """
+                    - 메시지 작성자이면서 채팅방 참여자인 사용자만 메시지를 삭제할 수 있습니다.
+                    - 메시지 작성 후 경과 시간에 제한 없이 소프트 삭제합니다.
+                    - 삭제 성공 시 응답 본문 없이 204 No Content를 반환합니다.
+                    - 이후 채팅 내역 조회 시 본문은 `삭제된 메시지입니다.`로 반환됩니다.
+                    - WebSocket 구독 경로: `/sub/roommate/chat/{roomId}`
+                    - 삭제 이벤트 DTO: `ResponseRoommateChatDeleteEventDto`
+                    """,
+            responses = {
+                    @ApiResponse(responseCode = "204", description = "삭제 성공", content = @Content),
+                    @ApiResponse(responseCode = "400", description = "해당 채팅방의 메시지가 아님"),
+                    @ApiResponse(responseCode = "401", description = "인증 필요"),
+                    @ApiResponse(responseCode = "403", description = "채팅방 참여자가 아니거나 메시지 작성자가 아님"),
+                    @ApiResponse(responseCode = "404", description = "채팅방 또는 메시지를 찾을 수 없음")
+            }
+    )
+    ResponseEntity<Void> deleteMessage(
+            @Parameter(hidden = true) @AuthenticationPrincipal CustomUserDetails userDetails,
+            @Parameter(description = "채팅방 ID", required = true, example = "1")
+            @PathVariable Long roomId,
+            @Parameter(description = "채팅 메시지 ID", required = true, example = "1")
+            @PathVariable Long messageId);
 }

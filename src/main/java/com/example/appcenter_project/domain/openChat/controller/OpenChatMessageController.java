@@ -1,31 +1,29 @@
 package com.example.appcenter_project.domain.openChat.controller;
 
+import com.example.appcenter_project.domain.openChat.dto.request.RequestEditOpenChatMessageDto;
 import com.example.appcenter_project.domain.openChat.dto.request.RequestOpenChatMessageDto;
 import com.example.appcenter_project.domain.openChat.dto.response.ResponseOpenChatMessageDto;
 import com.example.appcenter_project.domain.openChat.dto.response.ResponseOpenChatMessageListDto;
 import com.example.appcenter_project.domain.openChat.service.OpenChatMessageService;
+import com.example.appcenter_project.global.exception.CustomException;
 import com.example.appcenter_project.global.security.CustomUserDetails;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.messaging.handler.annotation.MessageMapping;
 import org.springframework.messaging.simp.SimpMessageHeaderAccessor;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
-import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.PathVariable;
-import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RequestParam;
-import org.springframework.web.bind.annotation.RequestPart;
-import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 
 import java.util.List;
 import java.util.Map;
 
+@Slf4j
 @RestController
 @RequiredArgsConstructor
 @RequestMapping("/open-chat-rooms")
@@ -40,7 +38,11 @@ public class OpenChatMessageController implements OpenChatMessageApiSpecificatio
         String userIdStr = (String) sessionAttributes.get("userId");
         if (userIdStr == null) return;
         Long userId = Long.parseLong(userIdStr);
-        openChatMessageService.sendMessage(userId, dto);
+        try {
+            openChatMessageService.sendMessage(userId, dto);
+        } catch (CustomException e) {
+            log.warn("소켓 메시지 전송 실패: userId={}, roomId={}, error={}", userId, dto.getRoomId(), e.getErrorCode());
+        }
     }
 
     @GetMapping("/{roomId}/messages")
@@ -48,9 +50,11 @@ public class OpenChatMessageController implements OpenChatMessageApiSpecificatio
             @AuthenticationPrincipal CustomUserDetails user,
             @PathVariable Long roomId,
             @RequestParam(required = false) Long lastMessageId,
+            @RequestParam(required = false) Long anchorMessageId,
             @RequestParam(defaultValue = "30") int size,
             HttpServletRequest request) {
-        return ResponseEntity.ok(openChatMessageService.getMessages(user.getId(), roomId, lastMessageId, size, request));
+        Long userId = user != null ? user.getId() : -1L;
+        return ResponseEntity.ok(openChatMessageService.getMessages(userId, roomId, lastMessageId, anchorMessageId, size, request));
     }
 
     @PostMapping(value = "/{roomId}/messages/image", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
@@ -61,5 +65,26 @@ public class OpenChatMessageController implements OpenChatMessageApiSpecificatio
             HttpServletRequest request) {
         return ResponseEntity.status(HttpStatus.CREATED)
                 .body(openChatMessageService.sendImageMessage(user.getId(), roomId, images, request));
+    }
+
+    @DeleteMapping("/{roomId}/messages/{messageId}")
+    public ResponseEntity<Void> deleteMessage(
+            @AuthenticationPrincipal CustomUserDetails user,
+            @PathVariable Long roomId,
+            @PathVariable Long messageId) {
+        Long userId = user != null ? user.getId() : -1L;
+        openChatMessageService.deleteMessage(userId, roomId, messageId);
+
+        return ResponseEntity.noContent().build();
+    }
+
+    @PatchMapping("/{roomId}/messages/{messageId}")
+    public ResponseEntity<ResponseOpenChatMessageDto> editMessage(
+            @AuthenticationPrincipal CustomUserDetails user,
+            @PathVariable Long roomId,
+            @PathVariable Long messageId,
+            @RequestBody @Valid RequestEditOpenChatMessageDto dto) {
+        Long userId = user != null ? user.getId() : -1L;
+        return ResponseEntity.ok(openChatMessageService.editMessage(userId, roomId, messageId, dto));
     }
 }

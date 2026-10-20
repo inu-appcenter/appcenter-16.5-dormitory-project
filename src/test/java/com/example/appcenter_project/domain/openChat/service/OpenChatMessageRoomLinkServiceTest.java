@@ -1,6 +1,5 @@
 package com.example.appcenter_project.domain.openChat.service;
 
-import com.example.appcenter_project.domain.openChat.entity.OpenChatMessage;
 import com.example.appcenter_project.domain.openChat.entity.OpenChatRoom;
 import com.example.appcenter_project.domain.openChat.enums.OpenChatMessageType;
 import com.example.appcenter_project.domain.openChat.repository.OpenChatMessageRepository;
@@ -127,11 +126,17 @@ class OpenChatMessageRoomLinkServiceTest {
                 "{\"derivedRoomId\":42,\"roomName\":\"토론방\",\"description\":\"자유롭게 토론해요\",\"maxParticipants\":30}");
         given(sessionRegistry.getSubscriberUserIds(1L)).willReturn(Set.of());
 
+        given(openChatMessageRepository.save(any())).willAnswer(inv -> {
+            com.example.appcenter_project.domain.openChat.entity.OpenChatMessage saved = inv.getArgument(0);
+            org.springframework.test.util.ReflectionTestUtils.setField(saved, "id", 123L);
+            return saved;
+        });
+
         // when
         openChatMessageService.sendRoomLinkMessage(1L, 7L, 42L, "토론방", "자유롭게 토론해요", 30);
 
         // then
-        then(originRoom).should(atLeastOnce()).updateLastMessage(anyString(), any());
+        then(originRoom).should(atLeastOnce()).updateLastMessage(eq(123L), any());
     }
 
     @Test

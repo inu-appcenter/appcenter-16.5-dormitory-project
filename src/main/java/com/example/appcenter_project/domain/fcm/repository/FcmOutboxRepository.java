@@ -1,6 +1,7 @@
 package com.example.appcenter_project.domain.fcm.repository;
 
 import com.example.appcenter_project.domain.fcm.entity.FcmOutbox;
+import com.example.appcenter_project.domain.fcm.enums.FcmRoutingType;
 import com.example.appcenter_project.domain.fcm.enums.OutboxStatus;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -14,6 +15,9 @@ import java.time.LocalDateTime;
 import java.util.List;
 
 public interface FcmOutboxRepository extends JpaRepository<FcmOutbox, Long> {
+
+    @Query("SELECT o FROM FcmOutbox o WHERE o.routingId = :roomId AND o.messageId = :messageId AND o.routingType = :routingType AND o.status = com.example.appcenter_project.domain.fcm.enums.OutboxStatus.SENT AND (o.action IS NULL OR o.action = com.example.appcenter_project.domain.fcm.enums.FcmAction.CREATE)")
+    List<FcmOutbox> findSentMessageNotificationsForUpdate(@Param("roomId") Long roomId, @Param("messageId") Long messageId, @Param("routingType") FcmRoutingType routingType);
 
     List<FcmOutbox> findByStatusAndNextRetryAtBefore(OutboxStatus status, LocalDateTime now);
 
@@ -69,6 +73,49 @@ public interface FcmOutboxRepository extends JpaRepository<FcmOutbox, Long> {
 
     @Transactional
     @Modifying
-    @Query(value = "DELETE FROM fcm_outbox WHERE token IN :tokens AND routing_id = :roomId AND routing_type IN ('CHAT_OPEN', 'CHAT_PERSONAL') AND status = 'PENDING'", nativeQuery = true)
+    @Query(value = "DELETE FROM fcm_outbox WHERE token IN :tokens AND routing_id = :roomId AND routing_type IN ('CHAT_OPEN', 'CHAT_PERSONAL') AND status = 'PENDING' AND (action IS NULL OR action = 'CREATE')", nativeQuery = true)
     void cancelPendingChatOutboxesByTokensAndRoom(@Param("tokens") List<String> tokens, @Param("roomId") Long roomId);
+
+    @Transactional
+    @Modifying(clearAutomatically = true, flushAutomatically = true)
+    @Query("UPDATE FcmOutbox o SET o.status = com.example.appcenter_project.domain.fcm.enums.OutboxStatus.DELETE, o.modifiedDate = :now WHERE o.id IN :ids AND o.status = com.example.appcenter_project.domain.fcm.enums.OutboxStatus.SENT AND (o.action IS NULL OR o.action = com.example.appcenter_project.domain.fcm.enums.FcmAction.CREATE)")
+    int markCancellationQueued(@Param("ids") List<Long> ids, @Param("now") LocalDateTime now);
+
+    @Transactional
+    @Modifying(clearAutomatically = true, flushAutomatically = true)
+    @Query("""
+            UPDATE FcmOutbox o SET o.status = com.example.appcenter_project.domain.fcm.enums.OutboxStatus.DELETE,
+                o.modifiedDate = :now
+            WHERE o.routingId = :roomId AND o.messageId = :messageId
+              AND o.routingType = :routingType AND o.status IN :statuses AND (o.action IS NULL OR o.action <> com.example.appcenter_project.domain.fcm.enums.FcmAction.DELETE)
+            """)
+    int bulkMarkDelete(@Param("roomId") Long roomId,
+                       @Param("messageId") Long messageId,
+                       @Param("routingType") FcmRoutingType routingType,
+                       @Param("statuses") List<OutboxStatus> statuses,
+                       @Param("now") LocalDateTime now);
+
+    @Transactional
+    @Modifying(clearAutomatically = true, flushAutomatically = true)
+    @Query("""
+            UPDATE FcmOutbox o SET o.body = :body, o.modifiedDate = :now
+            WHERE o.routingId = :roomId AND o.messageId = :messageId AND o.routingType = :routingType
+              AND o.status IN :statuses
+              AND (o.action IS NULL OR o.action = com.example.appcenter_project.domain.fcm.enums.FcmAction.CREATE)
+            """)
+    int updateUnsentMessageContent(@Param("roomId") Long roomId, @Param("messageId") Long messageId,
+                                   @Param("routingType") FcmRoutingType routingType, @Param("statuses") List<OutboxStatus> statuses,
+                                   @Param("body") String body, @Param("now") LocalDateTime now);
+
+    @Transactional
+    @Modifying(clearAutomatically = true, flushAutomatically = true)
+    @Query("""
+            UPDATE FcmOutbox o SET o.status = com.example.appcenter_project.domain.fcm.enums.OutboxStatus.DELETE,
+                o.modifiedDate = :now
+            WHERE o.routingId = :roomId AND o.messageId = :messageId AND o.routingType = :routingType
+              AND o.status IN :statuses AND o.action = com.example.appcenter_project.domain.fcm.enums.FcmAction.UPDATE
+            """)
+    int supersedeUnsentUpdateMessage(@Param("roomId") Long roomId, @Param("messageId") Long messageId,
+                                     @Param("routingType") FcmRoutingType routingType, @Param("statuses") List<OutboxStatus> statuses,
+                                     @Param("now") LocalDateTime now);
 }

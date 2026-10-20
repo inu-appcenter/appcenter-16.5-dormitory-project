@@ -42,7 +42,7 @@ public class SecurityConfig {
 
                         /** 이미지 **/
                         .requestMatchers("/images/**").permitAll()
-                        .requestMatchers("/css/**", "/js/**", "/static/**", "/chat-test.html").permitAll()
+                        .requestMatchers("/css/**", "/js/**", "/static/**", "/chat-test.html", "/test-recruitment.html").permitAll()
 
                         /** 파일 **/
                         .requestMatchers("/files/**").permitAll()

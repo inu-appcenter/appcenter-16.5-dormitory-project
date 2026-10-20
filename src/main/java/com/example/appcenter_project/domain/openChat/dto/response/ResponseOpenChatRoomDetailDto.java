@@ -1,5 +1,6 @@
 package com.example.appcenter_project.domain.openChat.dto.response;
 
+import com.example.appcenter_project.domain.openChat.enums.OpenChatRoomRecruitmentStatus;
 import com.example.appcenter_project.domain.openChat.enums.OpenChatRoomScope;
 import lombok.Builder;
 import lombok.Getter;
@@ -20,6 +21,9 @@ public class ResponseOpenChatRoomDetailDto {
     private LocalDateTime createdAt;
     private boolean isBlockedByPartner;
     private boolean recruitmentClosed;
+    private OpenChatRoomRecruitmentStatus recruitmentStatus;
+    private LocalDateTime lastStatusChangedAt;
+    private Long lastStatusChangedBy;
 
     public void updateIsBlockedByPartner(boolean v) {
         this.isBlockedByPartner = v;

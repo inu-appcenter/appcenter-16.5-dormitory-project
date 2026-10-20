@@ -2,16 +2,9 @@ package com.example.appcenter_project.domain.openChat.service;
 
 import com.example.appcenter_project.common.image.repository.ImageRepository;
 import com.example.appcenter_project.common.image.service.ImageService;
-import com.example.appcenter_project.domain.openChat.dto.request.RequestOpenChatMessageDto;
-import com.example.appcenter_project.domain.openChat.entity.OpenChatMessage;
-import com.example.appcenter_project.domain.openChat.entity.OpenChatParticipant;
-import com.example.appcenter_project.domain.openChat.entity.OpenChatRoom;
-import com.example.appcenter_project.domain.openChat.enums.OpenChatMessageType;
-import com.example.appcenter_project.domain.openChat.fixture.ChatNotificationModeFixture;
 import com.example.appcenter_project.domain.openChat.repository.OpenChatMessageRepository;
 import com.example.appcenter_project.domain.openChat.repository.OpenChatParticipantRepository;
 import com.example.appcenter_project.domain.openChat.repository.OpenChatRoomRepository;
-import com.example.appcenter_project.domain.user.entity.User;
 import com.example.appcenter_project.domain.user.repository.UserRepository;
 import com.example.appcenter_project.global.config.OpenChatSessionRegistry;
 import org.junit.jupiter.api.DisplayName;
@@ -22,15 +15,9 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.messaging.simp.SimpMessagingTemplate;
 
-import java.util.Optional;
-import java.util.Set;
-
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
-import static org.mockito.BDDMockito.given;
-import static org.mockito.BDDMockito.then;
-import static org.mockito.Mockito.never;
 
 /**
  * BR-672 — OpenChatMessageService EVERY 모드 즉시 FCM 발송 연동 테스트

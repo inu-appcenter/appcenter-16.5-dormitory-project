@@ -1,6 +1,7 @@
 package com.example.appcenter_project.domain.openChat.entity;
 
 import com.example.appcenter_project.common.BaseTimeEntity;
+import com.example.appcenter_project.domain.openChat.enums.OpenChatRoomRecruitmentStatus;
 import com.example.appcenter_project.domain.openChat.enums.OpenChatRoomScope;
 import com.example.appcenter_project.domain.openChat.enums.OpenChatRoomType;
 import com.example.appcenter_project.domain.user.enums.DormType;
@@ -38,10 +39,9 @@ public class OpenChatRoom extends BaseTimeEntity {
 
     private String creatorDormitory;
 
-    private LocalDateTime lastMessageAt;
+    private Long lastMessageId;
 
-    @Column(length = 500)
-    private String lastMessage;
+    private LocalDateTime lastMessageAt;
 
     @Column(nullable = false)
     private boolean isOfficial;
@@ -67,6 +67,15 @@ public class OpenChatRoom extends BaseTimeEntity {
     private LocalDateTime closedAt;
 
     private Long closedBy;
+
+    private Long lastStatusChangedBy;
+
+    private LocalDateTime lastStatusChangedAt;
+
+    private Long originRoomId;
+
+    @Column(nullable = false)
+    private int transitionCount = 0;
 
     public boolean matchesPassword(String input) {
         return this.password == null || this.password.equals(input);
@@ -221,6 +230,19 @@ public class OpenChatRoom extends BaseTimeEntity {
         return room;
     }
 
+    public static OpenChatRoom createForTest(Long id, boolean recruitmentClosed) {
+        OpenChatRoom room = new OpenChatRoom();
+        room.id = id;
+        room.name = "test-room";
+        room.scope = OpenChatRoomScope.ALL;
+        room.maxParticipants = 10;
+        room.isOfficial = false;
+        room.roomType = OpenChatRoomType.DERIVED;
+        room.isPublic = true;
+        room.recruitmentClosed = recruitmentClosed;
+        return room;
+    }
+
     public void update(String name, String description, OpenChatRoomScope scope,
                        Integer maxParticipants, String password, Boolean isPublic) {
         if (name != null)            this.name = name;
@@ -231,8 +253,8 @@ public class OpenChatRoom extends BaseTimeEntity {
         if (isPublic != null)        this.isPublic = isPublic;
     }
 
-    public void updateLastMessage(String content, LocalDateTime at) {
-        this.lastMessage = content != null && content.length() > 500 ? content.substring(0, 500) : content;
+    public void updateLastMessage(Long messageId, LocalDateTime at) {
+        this.lastMessageId = messageId;
         this.lastMessageAt = at;
     }
 
@@ -246,5 +268,37 @@ public class OpenChatRoom extends BaseTimeEntity {
         this.recruitmentClosed = true;
         this.closedAt = LocalDateTime.now();
         this.closedBy = actorId;
+    }
+
+    public void setOriginRoomId(Long originRoomId) {
+        this.originRoomId = originRoomId;
+    }
+
+    public void incrementTransitionCount() {
+        this.transitionCount += 1;
+    }
+
+    public void updateRecruitmentStatus(OpenChatRoomRecruitmentStatus status, Long actorId) {
+        if (this.roomType == OpenChatRoomType.PERSONAL) {
+            throw new CustomException(ErrorCode.OPEN_CHAT_ROOM_NOT_ALLOWED_TYPE);
+        }
+        boolean targetClosed = (status == OpenChatRoomRecruitmentStatus.CLOSED);
+        if (this.recruitmentClosed == targetClosed) {
+            throw new CustomException(targetClosed
+                    ? ErrorCode.OPEN_CHAT_ROOM_ALREADY_CLOSED
+                    : ErrorCode.OPEN_CHAT_ROOM_ALREADY_OPEN);
+        }
+        LocalDateTime now = LocalDateTime.now();
+        if (targetClosed) {
+            this.recruitmentClosed = true;
+            this.closedAt = now;
+            this.closedBy = actorId;
+        } else {
+            this.recruitmentClosed = false;
+            this.closedAt = null;
+            this.closedBy = null;
+        }
+        this.lastStatusChangedBy = actorId;
+        this.lastStatusChangedAt = now;
     }
 }

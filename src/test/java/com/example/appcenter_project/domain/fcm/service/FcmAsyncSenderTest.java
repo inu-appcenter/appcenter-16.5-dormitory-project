@@ -18,7 +18,7 @@ import org.springframework.data.redis.core.RedisTemplate;
 import java.util.List;
 
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.mockito.BDDMockito.*;
+import static org.mockito.BDDMockito.given;
 
 @ExtendWith(MockitoExtension.class)
 class FcmAsyncSenderTest {
@@ -260,5 +260,67 @@ class FcmAsyncSenderTest {
         // then
         MulticastMessage message = captor.getValue();
         assertThat(message.getData()).containsEntry("noticeId", "7");
+    }
+
+    @Test
+    void updateIncludesNotificationAndActionSurvivesRetry() throws Exception {
+        FcmOutbox update = FcmOutbox.create("device", "old", "old",
+                        com.example.appcenter_project.domain.fcm.enums.FcmRoutingType.CHAT_PERSONAL, 10L, 123L)
+                .createUpdate("room", "edited");
+        update.markProcessing();
+        update.markFailed("UNAVAILABLE", java.time.LocalDateTime.now());
+        ArgumentCaptor<MulticastMessage> captor = ArgumentCaptor.forClass(MulticastMessage.class);
+        given(firebaseMessaging.sendEachForMulticast(captor.capture())).willReturn(null);
+        fcmAsyncSender.sendOutboxBatch(List.of(update), update.getTitle(), update.getBody()).join();
+        assertThat(captor.getValue().getNotification().getTitle()).isEqualTo("room");
+        assertThat(captor.getValue().getNotification().getBody()).isEqualTo("edited");
+        assertThat(captor.getValue().getData())
+                .containsExactlyInAnyOrderEntriesOf(java.util.Map.of(
+                        "action", "UPDATE",
+                        "messageId", "123",
+                        "type", "CHAT_PERSONAL",
+                        "path", "/chat/open/10",
+                        "chatRoomId", "10"));
+    }
+
+    @Test
+    void sendsCancellationDataOnlyToOriginalDevice() throws Exception {
+        FcmOutbox original = FcmOutbox.create("original-device", "room", "message",
+                com.example.appcenter_project.domain.fcm.enums.FcmRoutingType.CHAT_OPEN, 10L, 123L);
+        ArgumentCaptor<MulticastMessage> captor = ArgumentCaptor.forClass(MulticastMessage.class);
+        given(firebaseMessaging.sendEachForMulticast(captor.capture())).willReturn(null);
+
+        FcmOutbox cancel = original.createCancellation();
+        fcmAsyncSender.sendOutboxBatch(List.of(cancel), cancel.getTitle(), cancel.getBody()).join();
+
+        MulticastMessage message = captor.getValue();
+        assertThat(message.getTokens()).containsExactly("original-device");
+        assertThat(message.getNotification()).isNull();
+        assertThat(message.getData())
+                .containsExactlyInAnyOrderEntriesOf(java.util.Map.of(
+                        "type", "CHAT_OPEN",
+                        "action", "DELETE",
+                        "path", "/chat/open/10",
+                        "chatRoomId", "10",
+                        "messageId", "123"));
+        assertThat(message.getApnsConfig().getAps().isContentAvailable()).isTrue();
+        assertThat(message.getApnsConfig().getHeaders()).containsEntry("apns-push-type", "background");
+    }
+
+    @Test
+    void normalNotificationContainsMessageIdAndRoutingData() throws Exception {
+        FcmOutbox original = FcmOutbox.create("device", "room", "message",
+                com.example.appcenter_project.domain.fcm.enums.FcmRoutingType.CHAT_OPEN, 10L, 123L);
+        ArgumentCaptor<MulticastMessage> captor = ArgumentCaptor.forClass(MulticastMessage.class);
+        given(firebaseMessaging.sendEachForMulticast(captor.capture())).willReturn(null);
+        fcmAsyncSender.sendOutboxBatch(List.of(original), "room", "message").join();
+        assertThat(captor.getValue().getNotification()).isNotNull();
+        assertThat(captor.getValue().getData())
+                .containsExactlyInAnyOrderEntriesOf(java.util.Map.of(
+                        "action", "CREATE",
+                        "messageId", "123",
+                        "type", "CHAT_OPEN",
+                        "path", "/chat/open/10",
+                        "chatRoomId", "10"));
     }
 }

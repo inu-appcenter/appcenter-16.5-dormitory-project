@@ -1,5 +1,7 @@
 package com.example.appcenter_project.domain.roommate.service;
 
+import com.example.appcenter_project.common.DeletedMessageState;
+
 import com.example.appcenter_project.common.image.dto.ImageLinkDto;
 import com.example.appcenter_project.common.image.enums.ImageType;
 import com.example.appcenter_project.common.image.service.ImageService;
@@ -10,6 +12,7 @@ import com.example.appcenter_project.domain.user.repository.FcmTokenRepository;
 import com.example.appcenter_project.domain.notification.service.NotificationService;
 import com.example.appcenter_project.domain.roommate.dto.request.RequestRoommateChatDto;
 import com.example.appcenter_project.domain.roommate.dto.response.ResponseRoommateChatDto;
+import com.example.appcenter_project.domain.roommate.dto.response.ResponseRoommateChatCreateEventDto;
 import com.example.appcenter_project.domain.roommate.entity.RoommateChattingChat;
 import com.example.appcenter_project.domain.roommate.entity.RoommateChattingRoom;
 import com.example.appcenter_project.domain.roommate.repository.RoommateChattingChatRepository;
@@ -109,6 +112,7 @@ class RoommateChattingChatServiceTest {
         when(chatRoomRepository.findById(100L)).thenReturn(Optional.of(room));
 
         RoommateChattingChat savedChat = mock(RoommateChattingChat.class);
+        when(savedChat.getDeletedState()).thenReturn(new DeletedMessageState());
         when(savedChat.getId()).thenReturn(1L);
         when(savedChat.getMember()).thenReturn(guest);
         when(savedChat.getContent()).thenReturn("안녕하세요!");
@@ -127,7 +131,7 @@ class RoommateChattingChatServiceTest {
 
         assertThat(result).isNotNull();
         verify(chatRepository).save(any(RoommateChattingChat.class));
-        verify(messagingTemplate).convertAndSend(anyString(), any(ResponseRoommateChatDto.class));
+        verify(messagingTemplate).convertAndSend(anyString(), any(ResponseRoommateChatCreateEventDto.class));
     }
 
     @Test
@@ -176,7 +180,7 @@ class RoommateChattingChatServiceTest {
 
         assertThatThrownBy(() -> roommateChattingChatService.sendChat(3L, dto))
                 .isInstanceOf(CustomException.class)
-                .hasFieldOrPropertyWithValue("errorCode", ROOMMATE_CHAT_ROOM_FORBIDDEN);
+                .hasFieldOrPropertyWithValue("errorCode", ROOMMATE_CHAT_PARTICIPANT_FORBIDDEN);
     }
 
     @Test
@@ -213,7 +217,7 @@ class RoommateChattingChatServiceTest {
         assertThatThrownBy(() ->
                 roommateChattingChatService.getChatList(3L, 100L, mock(HttpServletRequest.class)))
                 .isInstanceOf(CustomException.class)
-                .hasFieldOrPropertyWithValue("errorCode", ROOMMATE_CHAT_ROOM_FORBIDDEN);
+                .hasFieldOrPropertyWithValue("errorCode", ROOMMATE_CHAT_PARTICIPANT_FORBIDDEN);
     }
 
     // ===== @ParameterizedTest: FCM 발송 조건 =====
@@ -236,6 +240,7 @@ class RoommateChattingChatServiceTest {
         when(chatRoomRepository.findById(100L)).thenReturn(Optional.of(room));
 
         RoommateChattingChat savedChat = mock(RoommateChattingChat.class);
+        when(savedChat.getDeletedState()).thenReturn(new DeletedMessageState());
         when(savedChat.getId()).thenReturn(1L);
         when(savedChat.getMember()).thenReturn(guest);
         when(savedChat.getContent()).thenReturn("테스트");
@@ -265,6 +270,15 @@ class RoommateChattingChatServiceTest {
         when(dto.getContent()).thenReturn("테스트");
 
         roommateChattingChatService.sendChat(2L, dto);
+
+        if (receiverOnline) {
+            verify(messagingTemplate).convertAndSend(eq("/sub/roommate/chat/100"),
+                    argThat((Object event) -> event instanceof
+                            com.example.appcenter_project.domain.roommate.dto.response.ResponseRoommateChatReadEventDto read
+                            && read.getReaderId().equals(1L)
+                            && read.getRoomId().equals(100L)
+                            && read.getMessageIds().equals(List.of(1L))));
+        }
 
         if (expectFcmSent) {
             verify(fcmOutboxRepository).saveAll(anyList());
@@ -298,6 +312,7 @@ class RoommateChattingChatServiceTest {
         when(chatRoomRepository.findById(100L)).thenReturn(Optional.of(room));
 
         RoommateChattingChat savedChat = mock(RoommateChattingChat.class);
+        when(savedChat.getDeletedState()).thenReturn(new DeletedMessageState());
         when(savedChat.getId()).thenReturn(1L);
         when(savedChat.getMember()).thenReturn(sender);
         when(savedChat.getContent()).thenReturn("안녕");
@@ -338,6 +353,7 @@ class RoommateChattingChatServiceTest {
         when(chatRoomRepository.findById(100L)).thenReturn(Optional.of(room));
 
         RoommateChattingChat savedChat = mock(RoommateChattingChat.class);
+        when(savedChat.getDeletedState()).thenReturn(new DeletedMessageState());
         when(savedChat.getId()).thenReturn(1L);
         when(savedChat.getMember()).thenReturn(guest);
         when(savedChat.getContent()).thenReturn("안녕하세요!");
@@ -375,6 +391,7 @@ class RoommateChattingChatServiceTest {
         when(chatRoomRepository.findById(100L)).thenReturn(Optional.of(room));
 
         RoommateChattingChat chat = mock(RoommateChattingChat.class);
+        when(chat.getDeletedState()).thenReturn(new DeletedMessageState());
         when(chat.getId()).thenReturn(1L);
         when(chat.getMember()).thenReturn(host);
         when(chat.getContent()).thenReturn("안녕하세요!");
@@ -409,6 +426,7 @@ class RoommateChattingChatServiceTest {
 
         // 일반 메시지 (host가 보냄)
         RoommateChattingChat normal = mock(RoommateChattingChat.class);
+        when(normal.getDeletedState()).thenReturn(new DeletedMessageState());
         when(normal.getId()).thenReturn(1L);
         when(normal.getMember()).thenReturn(host);
         when(normal.getContent()).thenReturn("안녕하세요!");
@@ -418,6 +436,7 @@ class RoommateChattingChatServiceTest {
 
         // 시스템 메시지 (member == null) — 예전 코드면 여기서 NPE
         RoommateChattingChat system = mock(RoommateChattingChat.class);
+        when(system.getDeletedState()).thenReturn(new DeletedMessageState());
         when(system.getId()).thenReturn(2L);
         when(system.getMember()).thenReturn(null);
         when(system.getContent()).thenReturn("사용자1님이 나갔습니다.");

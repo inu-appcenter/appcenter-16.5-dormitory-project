@@ -64,7 +64,7 @@ class OpenChatFcmRoutingServiceTest {
         ArgumentCaptor<List<FcmOutbox>> captor = ArgumentCaptor.forClass(List.class);
 
         // when
-        openChatNotificationService.sendImmediateNotifications(roomId, OpenChatRoomType.PERSONAL, Set.of(), title, body);
+        openChatNotificationService.sendImmediateNotifications(roomId, OpenChatRoomType.PERSONAL, Set.of(), title, body, 123L);
 
         // then
         then(fcmOutboxRepository).should().saveAll(captor.capture());
@@ -92,7 +92,7 @@ class OpenChatFcmRoutingServiceTest {
         ArgumentCaptor<List<FcmOutbox>> captor = ArgumentCaptor.forClass(List.class);
 
         // when
-        openChatNotificationService.sendImmediateNotifications(roomId, OpenChatRoomType.OPEN, Set.of(), title, body);
+        openChatNotificationService.sendImmediateNotifications(roomId, OpenChatRoomType.OPEN, Set.of(), title, body, 123L);
 
         // then
         then(fcmOutboxRepository).should().saveAll(captor.capture());
@@ -120,7 +120,7 @@ class OpenChatFcmRoutingServiceTest {
         ArgumentCaptor<List<FcmOutbox>> captor = ArgumentCaptor.forClass(List.class);
 
         // when
-        openChatNotificationService.sendImmediateNotifications(roomId, OpenChatRoomType.DERIVED, Set.of(), title, body);
+        openChatNotificationService.sendImmediateNotifications(roomId, OpenChatRoomType.DERIVED, Set.of(), title, body, 123L);
 
         // then
         then(fcmOutboxRepository).should().saveAll(captor.capture());
@@ -148,7 +148,7 @@ class OpenChatFcmRoutingServiceTest {
         ArgumentCaptor<List<FcmOutbox>> captor = ArgumentCaptor.forClass(List.class);
 
         // when
-        openChatNotificationService.sendImmediateNotifications(roomId, OpenChatRoomType.PERSONAL, Set.of(), title, body);
+        openChatNotificationService.sendImmediateNotifications(roomId, OpenChatRoomType.PERSONAL, Set.of(), title, body, 123L);
 
         // then
         then(fcmOutboxRepository).should().saveAll(captor.capture());

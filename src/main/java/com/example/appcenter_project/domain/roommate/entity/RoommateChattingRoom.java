@@ -87,6 +87,16 @@ public class RoommateChattingRoom extends BaseTimeEntity {
         return room;
     }
 
+    public static RoommateChattingRoom createForTest(Long id) {
+        RoommateChattingRoom room = new RoommateChattingRoom();
+        room.id = id;
+        return room;
+    }
+
+    public void setIdForTest(Long id) {
+        this.id = id;
+    }
+
     public void leaveAsHost() {
         this.hostLeft = true;
     }

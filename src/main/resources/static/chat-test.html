@@ -1484,12 +1484,8 @@ function connectWebSocket(roomId) {
 
       // 메시지 수신
       stompClient.subscribe(`/sub/openchat/${roomId}`, frame => {
-        try { appendMessage(JSON.parse(frame.body), true); } catch (_) {}
-      }, { Authorization: `Bearer ${token}` });
-
-      // 읽음 이벤트 수신 — 메시지의 unreadCount 실시간 갱신
-      stompClient.subscribe(`/sub/openchat/${roomId}/read`, frame => {
-        try { handleReadEvent(JSON.parse(frame.body)); } catch (_) {}
+        try { handleChatEvent(JSON.parse(frame.body)); }
+        catch (error) { log(`이벤트 처리 오류: ${error.message}`, 'err'); }
       }, { Authorization: `Bearer ${token}` });
 
       enableChatInput(true);
@@ -1499,6 +1495,31 @@ function connectWebSocket(roomId) {
     onWebSocketError: e => { setWsStatus('🔴 WS 오류'); log(`WebSocket 오류: ${e.message || e}`, 'err'); }
   });
   stompClient.activate();
+}
+
+function handleChatEvent(event) {
+  switch (event.eventType) {
+    case 'MESSAGE_CREATED':
+    case 'STUDENT_ID_REQUEST':
+    case 'ROOM_LINK_CREATED':
+      appendMessage(event, true);
+      break;
+    case 'MESSAGE_READ':
+      handleReadEvent(event);
+      break;
+    case 'MESSAGE_UPDATED':
+    case 'MESSAGE_DELETED': {
+      const row = document.querySelector(`[data-message-id="${event.messageId}"]`);
+      const bubble = row?.querySelector('.msg-bubble');
+      if (bubble) bubble.textContent = event.content || '';
+      break;
+    }
+    case 'RECRUITMENT_STATUS_CHANGED':
+      log(`방 ${event.derivedRoomId} 모집 상태: ${event.recruitmentStatus}`, 'ok');
+      break;
+    default:
+      log(`알 수 없는 이벤트: ${event.eventType}`, 'err');
+  }
 }
 
 function disconnectWs() {

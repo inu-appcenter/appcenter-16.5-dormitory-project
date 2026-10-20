@@ -2,6 +2,9 @@ package com.example.appcenter_project.domain.openChat.dto.response;
 
 import com.example.appcenter_project.domain.openChat.entity.OpenChatMessage;
 import com.example.appcenter_project.domain.openChat.enums.OpenChatMessageType;
+import com.example.appcenter_project.domain.openChat.enums.OpenChatRoomRecruitmentStatus;
+import com.example.appcenter_project.shared.dto.ReplySourceDto;
+import com.fasterxml.jackson.annotation.JsonProperty;
 import lombok.Builder;
 import lombok.Getter;
 
@@ -11,6 +14,8 @@ import java.util.List;
 @Getter
 @Builder
 public class ResponseOpenChatMessageDto {
+    private static final String DELETED_MESSAGE_PLACEHOLDER = "삭제된 메시지입니다.";
+
     private Long messageId;
     private Long roomId;
     private Long senderId;
@@ -25,25 +30,42 @@ public class ResponseOpenChatMessageDto {
     private String linkedRoomDescription;
     private Integer linkedRoomMaxParticipants;
     private Boolean linkedRoomRecruitmentClosed;
+    private OpenChatRoomRecruitmentStatus linkedRoomRecruitmentStatus;
     private Long disclosureRequestId;
+    @JsonProperty("isEdited")
+    private boolean isEdited;
+    private LocalDateTime editedAt;
+    @JsonProperty("isBot")
     private boolean isBot;
+    @JsonProperty("isDeleted")
+    private boolean isDeleted;
+    private ReplySourceDto replySource;
+
 
     public static ResponseOpenChatMessageDto from(OpenChatMessage message, String senderNickname, int unreadCount) {
-        return from(message, senderNickname, unreadCount, List.of());
+        return from(message, senderNickname, unreadCount, List.of(), null);
     }
 
     public static ResponseOpenChatMessageDto from(OpenChatMessage message, String senderNickname, int unreadCount, List<String> imageUrls) {
+        return from(message, senderNickname, unreadCount, imageUrls, null);
+    }
+
+    public static ResponseOpenChatMessageDto from(OpenChatMessage message, String senderNickname, int unreadCount, List<String> imageUrls, ReplySourceDto replySource) {
         return ResponseOpenChatMessageDto.builder()
                 .messageId(message.getId())
                 .roomId(message.getRoomId())
                 .senderId(message.getSenderId())
                 .senderNickname(senderNickname)
-                .content(message.getContent())
+                .content(getResponseContent(message))
                 .type(message.getType())
                 .imageUrls(imageUrls != null ? imageUrls : List.of())
                 .unreadCount(unreadCount)
                 .createdAt(message.getCreatedDate())
+                .isEdited(message.getEditedAt() != null)
+                .editedAt(message.getEditedAt())
                 .isBot(message.getType() == OpenChatMessageType.BOT)
+                .isDeleted(message.isDeleted())
+                .replySource(replySource)
                 .build();
     }
 
@@ -54,13 +76,14 @@ public class ResponseOpenChatMessageDto {
                 .roomId(message.getRoomId())
                 .senderId(message.getSenderId())
                 .senderNickname(senderNickname)
-                .content(message.getContent())
+                .content(getResponseContent(message))
                 .type(message.getType())
                 .imageUrls(List.of())
                 .unreadCount(unreadCount)
                 .createdAt(message.getCreatedDate())
                 .disclosureRequestId(disclosureRequestId)
                 .isBot(false)
+                .isDeleted(message.isDeleted())
                 .build();
     }
 
@@ -75,12 +98,22 @@ public class ResponseOpenChatMessageDto {
             OpenChatMessage message, String senderNickname, int unreadCount,
             Long linkedRoomId, String linkedRoomName, String linkedRoomDescription, Integer linkedRoomMaxParticipants,
             boolean linkedRoomRecruitmentClosed) {
+        return fromRoomLink(message, senderNickname, unreadCount,
+                linkedRoomId, linkedRoomName, linkedRoomDescription, linkedRoomMaxParticipants,
+                linkedRoomRecruitmentClosed,
+                linkedRoomRecruitmentClosed ? OpenChatRoomRecruitmentStatus.CLOSED : OpenChatRoomRecruitmentStatus.OPEN);
+    }
+
+    public static ResponseOpenChatMessageDto fromRoomLink(
+            OpenChatMessage message, String senderNickname, int unreadCount,
+            Long linkedRoomId, String linkedRoomName, String linkedRoomDescription, Integer linkedRoomMaxParticipants,
+            boolean linkedRoomRecruitmentClosed, OpenChatRoomRecruitmentStatus recruitmentStatus) {
         return ResponseOpenChatMessageDto.builder()
                 .messageId(message.getId())
                 .roomId(message.getRoomId())
                 .senderId(message.getSenderId())
                 .senderNickname(senderNickname)
-                .content(message.getContent())
+                .content(getResponseContent(message))
                 .type(message.getType())
                 .imageUrls(List.of())
                 .unreadCount(unreadCount)
@@ -90,7 +123,13 @@ public class ResponseOpenChatMessageDto {
                 .linkedRoomDescription(linkedRoomDescription)
                 .linkedRoomMaxParticipants(linkedRoomMaxParticipants)
                 .linkedRoomRecruitmentClosed(linkedRoomRecruitmentClosed)
+                .linkedRoomRecruitmentStatus(recruitmentStatus)
                 .isBot(false)
+                .isDeleted(message.isDeleted())
                 .build();
+    }
+
+    private static String getResponseContent(OpenChatMessage message) {
+        return message.isDeleted() ? DELETED_MESSAGE_PLACEHOLDER : message.getContent();
     }
 }

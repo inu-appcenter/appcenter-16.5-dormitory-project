@@ -11,4 +11,6 @@ public class RequestOpenChatMessageDto {
 
     @NotBlank
     private String content;
+
+    private Long replyToMessageId;
 }
