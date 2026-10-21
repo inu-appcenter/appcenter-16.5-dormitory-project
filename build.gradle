@@ -102,6 +102,10 @@ dependencies {
 
 	// HTML parsing (공지사항 크롤링 링크 보존)
 	implementation 'org.jsoup:jsoup:1.17.2'
+
+	//monitoring
+	implementation 'org.springframework.boot:spring-boot-starter-actuator'
+	implementation 'io.micrometer:micrometer-registry-prometheus'
 }
 
 tasks.named('test') {

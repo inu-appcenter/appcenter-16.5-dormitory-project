@@ -198,6 +198,9 @@ public class SecurityConfig {
                         /** 날씨 **/
                         .requestMatchers(GET, "/weather").permitAll()
 
+                        /** 모니터링 **/
+                        .requestMatchers("/actuator/**").permitAll()
+
                         /** 나머지 **/
                         .anyRequest().authenticated()
                 )
