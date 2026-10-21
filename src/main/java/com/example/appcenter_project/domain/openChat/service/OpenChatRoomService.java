@@ -266,9 +266,7 @@ public class OpenChatRoomService {
         merged.addAll(openChatDtos);
         merged.addAll(roommateDtos);
         merged.sort(Comparator
-                .comparingInt((com.example.appcenter_project.domain.openChat.dto.response.ResponseOpenChatRoomDto r) ->
-                        r.getRecruitmentStatus() == OpenChatRoomRecruitmentStatus.OPEN ? 0 : 1)
-                .thenComparing(com.example.appcenter_project.domain.openChat.dto.response.ResponseOpenChatRoomDto::isMyRoommate, Comparator.reverseOrder())
+                .comparing(com.example.appcenter_project.domain.openChat.dto.response.ResponseOpenChatRoomDto::isMyRoommate, Comparator.reverseOrder())
                 .thenComparing(com.example.appcenter_project.domain.openChat.dto.response.ResponseOpenChatRoomDto::getLastMessageAt,
                         Comparator.nullsLast(Comparator.reverseOrder())));
 
