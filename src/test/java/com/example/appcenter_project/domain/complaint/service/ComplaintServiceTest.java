@@ -286,8 +286,9 @@ class ComplaintServiceTest {
     @Test
     @DisplayName("민원 검색 - 정상 반환")
     void searchComplaints_정상_반환() {
-        Complaint mockComplaint = buildMockComplaint();
-        when(complaintRepository.findAll(any(Specification.class))).thenReturn(List.of(mockComplaint));
+        Complaint first = buildMockComplaint();
+        Complaint second = buildMockComplaint();
+        when(complaintRepository.findAll(any(Specification.class))).thenReturn(List.of(first, second));
 
         RequestComplaintSearchDto searchDto = mock(RequestComplaintSearchDto.class);
         when(searchDto.getDormType()).thenReturn(null);
@@ -302,7 +303,7 @@ class ComplaintServiceTest {
 
         List<ResponseComplaintListDto> result = complaintService.searchComplaints(null, searchDto);
 
-        assertThat(result).hasSize(1);
+        assertThat(result).hasSize(2);
     }
 
     @Test
