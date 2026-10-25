@@ -8,10 +8,15 @@ import com.example.appcenter_project.domain.openChat.enums.OpenChatRoomType;
 import com.example.appcenter_project.domain.user.enums.DormType;
 import com.querydsl.core.types.dsl.BooleanExpression;
 import com.querydsl.core.types.dsl.CaseBuilder;
+import com.querydsl.core.types.dsl.Coalesce;
 import com.querydsl.jpa.impl.JPAQueryFactory;
 import jakarta.persistence.EntityManager;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageImpl;
+import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Repository;
 
+import java.time.LocalDateTime;
 import java.util.List;
 
 @Repository
@@ -36,14 +41,13 @@ public class OpenChatRoomQuerydslRepositoryImpl implements OpenChatRoomQuerydslR
                 )
                 .where(keywordContains(keyword))
                 .orderBy(
-                        openChatRoom.lastMessageAt.desc().nullsLast(),
-                        openChatRoom.createdDate.desc()
+                        new Coalesce<>(LocalDateTime.class, openChatRoom.lastMessageAt, openChatRoom.createdDate).desc()
                 )
                 .fetch();
     }
 
     @Override
-    public List<OpenChatRoom> findByDormitory(String dormType, String keyword) {
+    public Page<OpenChatRoom> findByDormitory(String dormType, String keyword, Pageable pageable) {
         BooleanExpression regularRooms = openChatRoom.scope.eq(OpenChatRoomScope.DORMITORY)
                 .and(creatorDormitoryEq(dormType))
                 .and(
@@ -55,7 +59,8 @@ public class OpenChatRoomQuerydslRepositoryImpl implements OpenChatRoomQuerydslR
                 ? regularRooms.or(officialRoom)
                 : regularRooms;
         condition = condition.and(openChatRoom.isPublic.isTrue());   // 비노출 방 제외
-        return queryFactory
+
+        List<OpenChatRoom> content = queryFactory
                 .selectFrom(openChatRoom)
                 .where(condition, keywordContains(keyword))
                 .orderBy(
@@ -63,32 +68,49 @@ public class OpenChatRoomQuerydslRepositoryImpl implements OpenChatRoomQuerydslR
                         new CaseBuilder()
                                 .when(openChatRoom.targetDorm.isNotNull()).then(1)
                                 .otherwise(0).desc(),
-                        openChatRoom.lastMessageAt.desc().nullsLast(),
-                        openChatRoom.createdDate.desc()
+                        new Coalesce<>(LocalDateTime.class, openChatRoom.lastMessageAt, openChatRoom.createdDate).desc()
                 )
+                .offset(pageable.getOffset())
+                .limit(pageable.getPageSize())
                 .fetch();
+
+        long total = queryFactory
+                .select(openChatRoom.count())
+                .from(openChatRoom)
+                .where(condition, keywordContains(keyword))
+                .fetchOne();
+
+        return new PageImpl<>(content, pageable, total);
     }
 
     @Override
-    public List<OpenChatRoom> findAllPublicRooms(String keyword) {
-        return queryFactory
+    public Page<OpenChatRoom> findAllPublicRooms(String keyword, Pageable pageable) {
+        BooleanExpression condition = openChatRoom.isPublic.isTrue()
+                .and(openChatRoom.scope.eq(OpenChatRoomScope.ALL))
+                .and(openChatRoom.targetDorm.isNull())
+                .and(
+                        openChatRoom.roomType.eq(OpenChatRoomType.OPEN)
+                                .or(openChatRoom.roomType.eq(OpenChatRoomType.DERIVED))
+                );
+
+        List<OpenChatRoom> content = queryFactory
                 .selectFrom(openChatRoom)
-                .where(
-                        openChatRoom.isPublic.isTrue()
-                                .and(openChatRoom.scope.eq(OpenChatRoomScope.ALL))
-                                .and(openChatRoom.targetDorm.isNull())
-                                .and(
-                                        openChatRoom.roomType.eq(OpenChatRoomType.OPEN)
-                                                .or(openChatRoom.roomType.eq(OpenChatRoomType.DERIVED))
-                                ),
-                        keywordContains(keyword)
-                )
+                .where(condition, keywordContains(keyword))
                 .orderBy(
                         openChatRoom.recruitmentClosed.asc(),
-                        openChatRoom.lastMessageAt.desc().nullsLast(),
-                        openChatRoom.createdDate.desc()
+                        new Coalesce<>(LocalDateTime.class, openChatRoom.lastMessageAt, openChatRoom.createdDate).desc()
                 )
+                .offset(pageable.getOffset())
+                .limit(pageable.getPageSize())
                 .fetch();
+
+        long total = queryFactory
+                .select(openChatRoom.count())
+                .from(openChatRoom)
+                .where(condition, keywordContains(keyword))
+                .fetchOne();
+
+        return new PageImpl<>(content, pageable, total);
     }
 
     private BooleanExpression scopeEq(OpenChatRoomScope scope) {

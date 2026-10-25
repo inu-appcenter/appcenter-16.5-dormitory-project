@@ -33,4 +33,17 @@ public class ResponseChatRoomListDto {
                 .totalUnreadCount(totalUnreadCount)
                 .build();
     }
+
+    public static ResponseChatRoomListDto of(
+            List<ResponseOpenChatRoomDto> content, long total, Pageable pageable, int totalUnreadCount) {
+        int size = pageable.getPageSize();
+        return ResponseChatRoomListDto.builder()
+                .content(content)
+                .totalElements(total)
+                .totalPages(size == 0 ? 1 : (int) Math.ceil((double) total / size))
+                .pageNumber(pageable.getPageNumber())
+                .pageSize(size)
+                .totalUnreadCount(totalUnreadCount)
+                .build();
+    }
 }

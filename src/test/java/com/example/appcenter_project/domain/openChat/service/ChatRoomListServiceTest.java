@@ -16,6 +16,7 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 
@@ -64,8 +65,8 @@ class ChatRoomListServiceTest {
     @DisplayName("totalUnreadCount=0 반환 — BR-665 AC-1: ALL 탭은 항상 totalUnreadCount=0")
     void should_return_totalUnreadCount_zero_when_tab_is_ALL() {
         // given
-        given(openChatRoomQuerydslRepository.findAllPublicRooms(isNull()))
-                .willReturn(List.of());
+        given(openChatRoomQuerydslRepository.findAllPublicRooms(isNull(), any(Pageable.class)))
+                .willReturn(new PageImpl<>(List.of()));
         Pageable pageable = PageRequest.of(0, 20);
 
         // when
@@ -81,8 +82,8 @@ class ChatRoomListServiceTest {
         // given
         com.example.appcenter_project.domain.openChat.entity.OpenChatRoom room =
                 com.example.appcenter_project.domain.openChat.fixture.OpenChatRoomFixture.createRoom();
-        given(openChatRoomQuerydslRepository.findAllPublicRooms(isNull()))
-                .willReturn(List.of(room));
+        given(openChatRoomQuerydslRepository.findAllPublicRooms(isNull(), any(Pageable.class)))
+                .willReturn(new PageImpl<>(List.of(room)));
         Pageable pageable = PageRequest.of(0, 20);
 
         // when
@@ -100,15 +101,15 @@ class ChatRoomListServiceTest {
     @DisplayName("keyword 쿼리 위임 — BR-665 AC-2: keyword가 QuerydslRepository에 전달됨")
     void should_pass_keyword_to_querydsl_repository_when_ALL_tab_with_keyword() {
         // given
-        given(openChatRoomQuerydslRepository.findAllPublicRooms(eq("공부")))
-                .willReturn(List.of());
+        given(openChatRoomQuerydslRepository.findAllPublicRooms(eq("공부"), any(Pageable.class)))
+                .willReturn(new PageImpl<>(List.of()));
         Pageable pageable = PageRequest.of(0, 20);
 
         // when
         openChatRoomService.getRooms(1L, OpenChatRoomTab.ALL, "공부", pageable);
 
         // then
-        then(openChatRoomQuerydslRepository).should(times(1)).findAllPublicRooms("공부");
+        then(openChatRoomQuerydslRepository).should(times(1)).findAllPublicRooms(eq("공부"), any(Pageable.class));
     }
 
     // ============================================================
@@ -119,23 +120,23 @@ class ChatRoomListServiceTest {
     @DisplayName("keyword 쿼리 위임 — BR-665 AC-4: DORMITORY 탭 keyword가 QuerydslRepository에 전달됨")
     void should_pass_keyword_to_querydsl_repository_when_DORMITORY_tab_with_keyword() {
         // given
-        given(openChatRoomQuerydslRepository.findByDormitory(anyString(), eq("조용")))
-                .willReturn(List.of());
+        given(openChatRoomQuerydslRepository.findByDormitory(anyString(), eq("조용"), any(Pageable.class)))
+                .willReturn(new PageImpl<>(List.of()));
         Pageable pageable = PageRequest.of(0, 20);
 
         // when
         openChatRoomService.getRooms(1L, OpenChatRoomTab.DORMITORY, "조용", pageable);
 
         // then
-        then(openChatRoomQuerydslRepository).should(times(1)).findByDormitory(anyString(), eq("조용"));
+        then(openChatRoomQuerydslRepository).should(times(1)).findByDormitory(anyString(), eq("조용"), any(Pageable.class));
     }
 
     @Test
     @DisplayName("totalUnreadCount=0 반환 — BR-665: DORMITORY 탭은 항상 totalUnreadCount=0")
     void should_return_totalUnreadCount_zero_when_tab_is_DORMITORY() {
         // given
-        given(openChatRoomQuerydslRepository.findByDormitory(anyString(), isNull()))
-                .willReturn(List.of());
+        given(openChatRoomQuerydslRepository.findByDormitory(anyString(), isNull(), any(Pageable.class)))
+                .willReturn(new PageImpl<>(List.of()));
         Pageable pageable = PageRequest.of(0, 20);
 
         // when
@@ -434,15 +435,15 @@ class ChatRoomListServiceTest {
     @DisplayName("빈 keyword 처리 — BR-665 AC-12: trim 후 빈 문자열은 null로 처리")
     void should_treat_blank_keyword_as_null_filter() {
         // given
-        given(openChatRoomQuerydslRepository.findAllPublicRooms(isNull()))
-                .willReturn(List.of());
+        given(openChatRoomQuerydslRepository.findAllPublicRooms(isNull(), any(Pageable.class)))
+                .willReturn(new PageImpl<>(List.of()));
         Pageable pageable = PageRequest.of(0, 20);
 
         // when
         openChatRoomService.getRooms(1L, OpenChatRoomTab.ALL, " ", pageable);
 
         // then
-        then(openChatRoomQuerydslRepository).should(times(1)).findAllPublicRooms(null);
+        then(openChatRoomQuerydslRepository).should(times(1)).findAllPublicRooms(isNull(), any(Pageable.class));
     }
 
     // ============================================================

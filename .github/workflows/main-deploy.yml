@@ -89,7 +89,7 @@ jobs:
 
             docker network create unidorm-network || true
             docker network connect unidorm-network unidorm-main-mysql || true
-            docker network connect inu-network unidorm-main-redis || true
+            docker network connect unidorm-network unidorm-main-redis || true
 
             docker run -d --name ${{ secrets.MAIN_CONTAINER_NAME }} \
               --network unidorm-network \

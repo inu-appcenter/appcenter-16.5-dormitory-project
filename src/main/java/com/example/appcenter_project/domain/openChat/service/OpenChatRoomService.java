@@ -172,17 +172,17 @@ public class OpenChatRoomService {
         if (tab == OpenChatRoomTab.MY) {
             return getMyRooms(userId, k, pageable);
         } else if (tab == OpenChatRoomTab.ALL) {
-            List<OpenChatRoom> rooms = openChatRoomQuerydslRepository.findAllPublicRooms(k);
-            List<com.example.appcenter_project.domain.openChat.dto.response.ResponseOpenChatRoomDto> dtos = buildOpenChatDtos(rooms, userId, false);
-            return com.example.appcenter_project.domain.openChat.dto.response.ResponseChatRoomListDto.of(dtos, pageable, 0);
+            Page<OpenChatRoom> page = openChatRoomQuerydslRepository.findAllPublicRooms(k, pageable);
+            List<com.example.appcenter_project.domain.openChat.dto.response.ResponseOpenChatRoomDto> dtos = buildOpenChatDtos(page.getContent(), userId, false);
+            return com.example.appcenter_project.domain.openChat.dto.response.ResponseChatRoomListDto.of(dtos, page.getTotalElements(), pageable, 0);
         } else {
             String dormType = Optional.ofNullable(userRepository)
                     .flatMap(r -> r.findById(userId))
                     .map(u -> u.getDormType() != null ? u.getDormType().name() : "NONE")
                     .orElse("NONE");
-            List<OpenChatRoom> rooms = openChatRoomQuerydslRepository.findByDormitory(dormType, k);
-            List<com.example.appcenter_project.domain.openChat.dto.response.ResponseOpenChatRoomDto> dtos = buildOpenChatDtos(rooms, userId, false);
-            return com.example.appcenter_project.domain.openChat.dto.response.ResponseChatRoomListDto.of(dtos, pageable, 0);
+            Page<OpenChatRoom> page = openChatRoomQuerydslRepository.findByDormitory(dormType, k, pageable);
+            List<com.example.appcenter_project.domain.openChat.dto.response.ResponseOpenChatRoomDto> dtos = buildOpenChatDtos(page.getContent(), userId, false);
+            return com.example.appcenter_project.domain.openChat.dto.response.ResponseChatRoomListDto.of(dtos, page.getTotalElements(), pageable, 0);
         }
     }
 
@@ -191,8 +191,8 @@ public class OpenChatRoomService {
         if ("NONE".equals(dormType)) {
             return new PageImpl<>(Collections.emptyList(), pageable, 0);
         }
-        List<OpenChatRoom> rooms = openChatRoomQuerydslRepository.findByDormitory(dormType, null);
-        return toPageDto(rooms, userId, pageable);
+        Page<OpenChatRoom> roomPage = openChatRoomQuerydslRepository.findByDormitory(dormType, null, pageable);
+        return toPageDto(roomPage.getContent(), userId, pageable, roomPage.getTotalElements());
     }
 
     private com.example.appcenter_project.domain.openChat.dto.response.ResponseChatRoomListDto getMyRooms(Long userId, String keyword, Pageable pageable) {
@@ -266,9 +266,7 @@ public class OpenChatRoomService {
         merged.addAll(openChatDtos);
         merged.addAll(roommateDtos);
         merged.sort(Comparator
-                .comparingInt((com.example.appcenter_project.domain.openChat.dto.response.ResponseOpenChatRoomDto r) ->
-                        r.getRecruitmentStatus() == OpenChatRoomRecruitmentStatus.OPEN ? 0 : 1)
-                .thenComparing(com.example.appcenter_project.domain.openChat.dto.response.ResponseOpenChatRoomDto::isMyRoommate, Comparator.reverseOrder())
+                .comparing(com.example.appcenter_project.domain.openChat.dto.response.ResponseOpenChatRoomDto::isMyRoommate, Comparator.reverseOrder())
                 .thenComparing(com.example.appcenter_project.domain.openChat.dto.response.ResponseOpenChatRoomDto::getLastMessageAt,
                         Comparator.nullsLast(Comparator.reverseOrder())));
 
@@ -729,7 +727,7 @@ public class OpenChatRoomService {
         return buildOpenChatDtos(rooms, userId, true);
     }
 
-    private Page<com.example.appcenter_project.domain.openChat.dto.response.ResponseOpenChatRoomDto> toPageDto(List<OpenChatRoom> rooms, Long userId, Pageable pageable) {
+    private Page<com.example.appcenter_project.domain.openChat.dto.response.ResponseOpenChatRoomDto> toPageDto(List<OpenChatRoom> rooms, Long userId, Pageable pageable, long total) {
         if (rooms.isEmpty()) {
             return new PageImpl<>(Collections.emptyList(), pageable, 0);
         }
@@ -744,7 +742,7 @@ public class OpenChatRoomService {
                         countMap.getOrDefault(room.getId(), 0L).intValue(),
                         joinedRoomIds.contains(room.getId())))
                 .toList();
-        return new PageImpl<>(dtos, pageable, dtos.size());
+        return new PageImpl<>(dtos, pageable, total);
     }
 
     private com.example.appcenter_project.domain.openChat.dto.response.ResponseOpenChatRoomDetailDto toDetailDto(OpenChatRoom room, Long roomId) {

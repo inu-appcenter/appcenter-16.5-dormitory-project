@@ -431,7 +431,7 @@ public class ComplaintService {
                         .roomNumber(c.getRoomNumber())
                         .bedNumber(c.getBedNumber())
                         .build())
-                .toList();
+                .collect(Collectors.toList());
         Collections.reverse(list);
         return list;
     }
