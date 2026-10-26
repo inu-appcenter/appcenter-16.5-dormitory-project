@@ -1,7 +1,6 @@
 package com.example.appcenter_project.domain.complaint.service;
 
 import com.example.appcenter_project.common.file.repository.AttachedFileRepository;
-import com.example.appcenter_project.common.image.dto.ImageLinkDto;
 import com.example.appcenter_project.common.image.enums.ImageType;
 import com.example.appcenter_project.common.image.repository.ImageRepository;
 import com.example.appcenter_project.common.image.service.ImageService;
@@ -10,7 +9,6 @@ import com.example.appcenter_project.domain.complaint.dto.request.RequestComplai
 import com.example.appcenter_project.domain.complaint.dto.response.ResponseComplaintDto;
 import com.example.appcenter_project.domain.complaint.dto.response.ResponseComplaintListDto;
 import com.example.appcenter_project.domain.complaint.entity.Complaint;
-import com.example.appcenter_project.domain.complaint.entity.ComplaintReply;
 import com.example.appcenter_project.domain.complaint.enums.ComplaintStatus;
 import com.example.appcenter_project.domain.complaint.enums.ComplaintType;
 import com.example.appcenter_project.domain.complaint.enums.DormBuilding;
@@ -30,6 +28,7 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.mockito.junit.jupiter.MockitoSettings;
 import org.mockito.quality.Strictness;
+import org.springframework.data.domain.*;
 import org.springframework.data.jpa.domain.Specification;
 
 import java.time.LocalDateTime;
@@ -37,7 +36,8 @@ import java.util.List;
 import java.util.Optional;
 
 import static com.example.appcenter_project.global.exception.ErrorCode.*;
-import static org.assertj.core.api.Assertions.*;
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.*;
 import static org.mockito.Mockito.*;
 
@@ -288,43 +288,34 @@ class ComplaintServiceTest {
     void searchComplaints_정상_반환() {
         Complaint first = buildMockComplaint();
         Complaint second = buildMockComplaint();
-        when(complaintRepository.findAll(any(Specification.class))).thenReturn(List.of(first, second));
+        when(first.getId()).thenReturn(2L);
+        Pageable pageable = PageRequest.of(0, 20, Sort.by(Sort.Direction.DESC, "id"));
+        when(complaintRepository.findAll(any(Specification.class), eq(pageable)))
+                .thenReturn(new PageImpl<>(List.of(first, second), pageable, 2));
 
-        RequestComplaintSearchDto searchDto = mock(RequestComplaintSearchDto.class);
-        when(searchDto.getDormType()).thenReturn(null);
-        when(searchDto.getOfficer()).thenReturn(null);
-        when(searchDto.getStatus()).thenReturn(null);
-        when(searchDto.getKeyword()).thenReturn(null);
-        when(searchDto.getType()).thenReturn(null);
-        when(searchDto.getBuilding()).thenReturn(null);
-        when(searchDto.getFloor()).thenReturn(null);
-        when(searchDto.getRoomNumber()).thenReturn(null);
-        when(searchDto.getBedNumber()).thenReturn(null);
+        RequestComplaintSearchDto searchDto = new RequestComplaintSearchDto();
 
         List<ResponseComplaintListDto> result = complaintService.searchComplaints(null, searchDto);
 
-        assertThat(result).hasSize(2);
+        assertThat(result).extracting(ResponseComplaintListDto::getId).containsExactly(2L, 1L);
+        verify(complaintRepository).findAll(any(Specification.class), eq(pageable));
     }
 
     @Test
-    @DisplayName("민원 검색 - 사용자 ID 있으면 해당 사용자 민원만 반환")
-    void searchComplaints_userId_있으면_해당사용자만() {
-        when(complaintRepository.findAll(any(Specification.class))).thenReturn(List.of());
+    @DisplayName("사용자 민원 검색 - 커서 요청에도 첫 페이지와 요청한 크기를 사용하고 빈 결과 반환")
+    void searchComplaints_커서와조회개수_빈페이지() {
+        Pageable pageable = PageRequest.of(0, 10, Sort.by(Sort.Direction.DESC, "id"));
+        when(complaintRepository.findAll(any(Specification.class), eq(pageable)))
+                .thenReturn(Page.empty(pageable));
 
-        RequestComplaintSearchDto searchDto = mock(RequestComplaintSearchDto.class);
-        when(searchDto.getDormType()).thenReturn(null);
-        when(searchDto.getOfficer()).thenReturn(null);
-        when(searchDto.getStatus()).thenReturn(null);
-        when(searchDto.getKeyword()).thenReturn(null);
-        when(searchDto.getType()).thenReturn(null);
-        when(searchDto.getBuilding()).thenReturn(null);
-        when(searchDto.getFloor()).thenReturn(null);
-        when(searchDto.getRoomNumber()).thenReturn(null);
-        when(searchDto.getBedNumber()).thenReturn(null);
+        RequestComplaintSearchDto searchDto = new RequestComplaintSearchDto();
+        searchDto.setSize(10);
+        searchDto.setLastId(150L);
 
         List<ResponseComplaintListDto> result = complaintService.searchComplaints(1L, searchDto);
 
         assertThat(result).isEmpty();
+        verify(complaintRepository).findAll(any(Specification.class), eq(pageable));
     }
 
     @Test

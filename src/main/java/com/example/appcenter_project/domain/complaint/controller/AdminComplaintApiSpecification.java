@@ -15,6 +15,7 @@ import io.swagger.v3.oas.annotations.media.Schema;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.servlet.http.HttpServletRequest;
+import org.springdoc.core.annotations.ParameterObject;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -28,8 +29,8 @@ import java.util.List;
 public interface AdminComplaintApiSpecification {
 
     @Operation(
-            summary = "민원 전체 조회 (관리자)",
-            description = "등록된 모든 민원을 최신순으로 조회합니다. 목록용 필드(날짜, 유형, 제목, 현황)만 반환합니다.",
+            summary = "민원 목록 조회 및 검색 (관리자)",
+            description = "검색 조건 생략 시 전체 범위에서 ID 내림차순으로 조회합니다. startDate/endDate는 등록일 기준 yyyy-MM-dd이며 종료일을 포함합니다. lastId는 이전 응답 마지막 ID, size는 생략 시 20입니다. 응답 개수가 size보다 작으면 마지막 페이지입니다.",
             responses = {
                     @ApiResponse(
                             responseCode = "200",
@@ -41,7 +42,7 @@ public interface AdminComplaintApiSpecification {
                     )
             }
     )
-    ResponseEntity<List<ResponseComplaintListDto>> getAllComplaints();
+    ResponseEntity<List<ResponseComplaintListDto>> getAllComplaints(@ParameterObject RequestComplaintSearchDto dto);
 
     @Operation(
             summary = "민원 상세 조회 (관리자)",
@@ -59,7 +60,7 @@ public interface AdminComplaintApiSpecification {
             @PathVariable
             @Parameter(description = "민원 ID", required = true, example = "1")
             Long complaintId,
-            
+
             @Parameter(description = "HTTP 요청 정보", hidden = true)
             HttpServletRequest request
     );
@@ -90,7 +91,7 @@ public interface AdminComplaintApiSpecification {
             @RequestPart
             @Parameter(description = "답변 등록 정보", required = true)
             RequestComplaintReplyDto dto,
-            
+
             @RequestPart(value = "files", required = false)
             @Parameter(description = "첨부 파일 목록 (선택사항)")
             List<MultipartFile> files
@@ -137,7 +138,7 @@ public interface AdminComplaintApiSpecification {
             @RequestPart
             @Parameter(description = "답변 수정 정보", required = true)
             RequestComplaintReplyDto dto,
-            
+
             @RequestPart(value = "files", required = false)
             @Parameter(description = "첨부 파일 목록 (선택사항)")
             List<MultipartFile> files
@@ -171,7 +172,7 @@ public interface AdminComplaintApiSpecification {
             @PathVariable
             @Parameter(description = "민원 ID", required = true, example = "1")
             Long complaintId,
-            
+
             @PathVariable
             @Parameter(description = "담당자명", required = true, example = "김관리")
             String officer
