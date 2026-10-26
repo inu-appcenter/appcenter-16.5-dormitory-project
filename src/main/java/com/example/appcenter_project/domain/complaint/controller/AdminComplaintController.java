@@ -6,13 +6,13 @@ import com.example.appcenter_project.domain.complaint.dto.request.RequestComplai
 import com.example.appcenter_project.domain.complaint.dto.response.ResponseComplaintDetailDto;
 import com.example.appcenter_project.domain.complaint.dto.response.ResponseComplaintListDto;
 import com.example.appcenter_project.domain.complaint.dto.response.ResponseComplaintReplyDto;
-import com.example.appcenter_project.global.security.CustomUserDetails;
 import com.example.appcenter_project.domain.complaint.service.AdminComplaintService;
 import com.example.appcenter_project.domain.complaint.service.ComplaintService;
-import java.util.List;
-
+import com.example.appcenter_project.global.security.CustomUserDetails;
 import jakarta.servlet.http.HttpServletRequest;
+import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
+import org.springdoc.core.annotations.ParameterObject;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
@@ -20,10 +20,11 @@ import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 
-import java.time.LocalDateTime;
-import java.time.format.DateTimeFormatter;
 import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
+import java.time.LocalDateTime;
+import java.time.format.DateTimeFormatter;
+import java.util.List;
 
 import static org.springframework.http.HttpStatus.NO_CONTENT;
 import static org.springframework.http.HttpStatus.OK;
@@ -36,10 +37,10 @@ public class AdminComplaintController implements AdminComplaintApiSpecification 
     private final ComplaintService complaintService;         // 기존 조회 로직 재사용
     private final AdminComplaintService adminComplaintService; // 관리자 전용 기능
 
-    // 민원 전체 조회
+    // 민원 목록 조회 및 검색
     @GetMapping
-    public ResponseEntity<List<ResponseComplaintListDto>> getAllComplaints() {
-        return ResponseEntity.ok(complaintService.getAllComplaints());
+    public ResponseEntity<List<ResponseComplaintListDto>> getAllComplaints(@Valid @ParameterObject @ModelAttribute RequestComplaintSearchDto dto) {
+        return ResponseEntity.ok(complaintService.searchComplaints(null, dto));
     }
 
     // 민원 상세 조회
@@ -102,28 +103,19 @@ public class AdminComplaintController implements AdminComplaintApiSpecification 
         return ResponseEntity.status(NO_CONTENT).build();
     }
 
-    @GetMapping("/search")
-    public ResponseEntity<List<ResponseComplaintListDto>> searchComplaints(
-            @ModelAttribute RequestComplaintSearchDto dto
-    ) {
-        return ResponseEntity.ok(
-                complaintService.searchComplaints(null, dto)
-        );
-    }
-
     // 민원 목록 CSV 다운로드 (전체)
     @GetMapping("/export/csv")
     public ResponseEntity<byte[]> exportComplaintsToCsv() {
         byte[] csvData = complaintService.exportComplaintsToCsv();
-        
+
         String fileName = "민원목록_" + LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyyMMdd_HHmmss")) + ".csv";
         String encodedFileName = URLEncoder.encode(fileName, StandardCharsets.UTF_8);
-        
+
         HttpHeaders headers = new HttpHeaders();
         headers.setContentType(MediaType.valueOf("text/csv; charset=UTF-8"));
         headers.set("Content-Disposition", "attachment; filename=\"" + encodedFileName + "\"; filename*=UTF-8''" + encodedFileName);
         headers.setContentLength(csvData.length);
-        
+
         return ResponseEntity.ok()
                 .headers(headers)
                 .body(csvData);
@@ -132,18 +124,18 @@ public class AdminComplaintController implements AdminComplaintApiSpecification 
     // 민원 목록 CSV 다운로드 (필터링된)
     @GetMapping("/export/csv/search")
     public ResponseEntity<byte[]> exportComplaintsToCsvWithFilter(
-            @ModelAttribute RequestComplaintSearchDto dto
+            @Valid @ParameterObject @ModelAttribute RequestComplaintSearchDto dto
     ) {
         byte[] csvData = complaintService.exportComplaintsToCsv(dto);
-        
+
         String fileName = "민원목록_필터링_" + LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyyMMdd_HHmmss")) + ".csv";
         String encodedFileName = URLEncoder.encode(fileName, StandardCharsets.UTF_8);
-        
+
         HttpHeaders headers = new HttpHeaders();
         headers.setContentType(MediaType.valueOf("text/csv; charset=UTF-8"));
         headers.set("Content-Disposition", "attachment; filename=\"" + encodedFileName + "\"; filename*=UTF-8''" + encodedFileName);
         headers.setContentLength(csvData.length);
-        
+
         return ResponseEntity.ok()
                 .headers(headers)
                 .body(csvData);

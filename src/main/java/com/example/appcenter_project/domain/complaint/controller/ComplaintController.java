@@ -5,17 +5,20 @@ import com.example.appcenter_project.domain.complaint.dto.request.RequestComplai
 import com.example.appcenter_project.domain.complaint.dto.response.ResponseComplaintDetailDto;
 import com.example.appcenter_project.domain.complaint.dto.response.ResponseComplaintDto;
 import com.example.appcenter_project.domain.complaint.dto.response.ResponseComplaintListDto;
-import com.example.appcenter_project.global.security.CustomUserDetails;
 import com.example.appcenter_project.domain.complaint.service.ComplaintService;
-import java.util.List;
-
+import com.example.appcenter_project.global.security.CustomUserDetails;
+import io.swagger.v3.oas.annotations.Operation;
 import jakarta.servlet.http.HttpServletRequest;
+import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
+import org.springdoc.core.annotations.ParameterObject;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
+
+import java.util.List;
 
 import static org.springframework.http.HttpStatus.NO_CONTENT;
 import static org.springframework.http.HttpStatus.OK;
@@ -49,7 +52,7 @@ public class ComplaintController implements ComplaintApiSpecification {
     @GetMapping("/{complaintId}")
     public ResponseEntity<ResponseComplaintDetailDto> getComplaint(
             @AuthenticationPrincipal CustomUserDetails userDetails,
-            @PathVariable Long complaintId, 
+            @PathVariable Long complaintId,
             HttpServletRequest request) {
         return ResponseEntity.ok(complaintService.getComplaintDetailByUserId(userDetails.getId(), complaintId, request));
     }
@@ -57,9 +60,9 @@ public class ComplaintController implements ComplaintApiSpecification {
     @Override
     @PutMapping(value = "/{complaintId}", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
     public ResponseEntity<Void> updateComplaint(
-            @AuthenticationPrincipal CustomUserDetails userDetails, 
+            @AuthenticationPrincipal CustomUserDetails userDetails,
             @PathVariable Long complaintId,
-            @RequestPart RequestComplaintDto dto, 
+            @RequestPart RequestComplaintDto dto,
             @RequestPart(value = "files", required = false) List<MultipartFile> files) {
         complaintService.updateComplaint(userDetails.getId(), dto, complaintId, files);
         return ResponseEntity.status(OK).build();
@@ -74,10 +77,11 @@ public class ComplaintController implements ComplaintApiSpecification {
         return ResponseEntity.status(NO_CONTENT).build();
     }
 
+    @Operation(summary = "민원 검색 및 커서 페이징", description = "검색 조건 생략 시 전체 범위 조회(사용자는 본인 민원). 등록일 startDate/endDate는 yyyy-MM-dd, 종료일 포함. lastId는 이전 응답 마지막 ID, size는 기본 20/최대 100. ID 내림차순 배열이며 size보다 적으면 마지막 페이지입니다.")
     @GetMapping("/search")
     public ResponseEntity<List<ResponseComplaintListDto>> searchComplaints(
             @AuthenticationPrincipal CustomUserDetails userDetails,
-            @ModelAttribute RequestComplaintSearchDto dto
+            @Valid @ParameterObject @ModelAttribute RequestComplaintSearchDto dto
     ) {
         return ResponseEntity.ok(
                 complaintService.searchComplaints(userDetails.getId(), dto)

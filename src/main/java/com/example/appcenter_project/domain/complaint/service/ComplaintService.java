@@ -2,32 +2,38 @@ package com.example.appcenter_project.domain.complaint.service;
 
 import com.example.appcenter_project.common.file.dto.AttachedFileDto;
 import com.example.appcenter_project.common.file.entity.AttachedFile;
+import com.example.appcenter_project.common.file.repository.AttachedFileRepository;
 import com.example.appcenter_project.common.image.dto.ImageLinkDto;
 import com.example.appcenter_project.common.image.enums.ImageType;
+import com.example.appcenter_project.common.image.repository.ImageRepository;
 import com.example.appcenter_project.common.image.service.ImageService;
 import com.example.appcenter_project.domain.complaint.dto.request.RequestComplaintDto;
 import com.example.appcenter_project.domain.complaint.dto.request.RequestComplaintSearchDto;
-import com.example.appcenter_project.domain.complaint.dto.response.ResponseComplaintDetailDto;
-import com.example.appcenter_project.domain.complaint.dto.response.ResponseComplaintDto;
-import com.example.appcenter_project.domain.complaint.dto.response.ResponseComplaintListDto;
-import com.example.appcenter_project.domain.complaint.dto.response.ResponseComplaintReplyDto;
+import com.example.appcenter_project.domain.complaint.dto.response.*;
 import com.example.appcenter_project.domain.complaint.entity.Complaint;
 import com.example.appcenter_project.domain.complaint.entity.ComplaintReply;
-import com.example.appcenter_project.domain.user.entity.User;
 import com.example.appcenter_project.domain.complaint.enums.ComplaintType;
 import com.example.appcenter_project.domain.complaint.enums.DormBuilding;
-import com.example.appcenter_project.domain.user.enums.DormType;
-import com.example.appcenter_project.global.exception.CustomException;
-import com.example.appcenter_project.common.file.repository.AttachedFileRepository;
 import com.example.appcenter_project.domain.complaint.repository.ComplaintRepository;
 import com.example.appcenter_project.domain.complaint.repository.ComplaintSpecification;
-import com.example.appcenter_project.common.image.repository.ImageRepository;
-import com.example.appcenter_project.domain.user.repository.UserRepository;
 import com.example.appcenter_project.domain.notification.service.AdminComplaintNotificationService;
-import com.example.appcenter_project.domain.complaint.dto.response.ResponseComplaintCsvDto;
+import com.example.appcenter_project.domain.user.entity.User;
+import com.example.appcenter_project.domain.user.enums.DormType;
+import com.example.appcenter_project.domain.user.repository.UserRepository;
+import com.example.appcenter_project.global.exception.CustomException;
 import com.example.appcenter_project.global.mixpanel.MixpanelService;
 import com.example.appcenter_project.shared.utils.CsvUtils;
+import jakarta.servlet.http.HttpServletRequest;
+import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.json.JSONObject;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
+import org.springframework.data.jpa.domain.Specification;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+import org.springframework.web.multipart.MultipartFile;
 
 import java.io.File;
 import java.nio.file.Paths;
@@ -36,17 +42,8 @@ import java.time.LocalDateTime;
 import java.time.LocalTime;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
-import java.util.Collections;
 import java.util.List;
 import java.util.stream.Collectors;
-
-import jakarta.servlet.http.HttpServletRequest;
-import lombok.RequiredArgsConstructor;
-import lombok.extern.slf4j.Slf4j;
-import org.springframework.data.jpa.domain.Specification;
-import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
-import org.springframework.web.multipart.MultipartFile;
 
 import static com.example.appcenter_project.global.exception.ErrorCode.*;
 
@@ -64,6 +61,8 @@ public class ComplaintService {
     private final ImageService imageService;
     private final CsvUtils csvUtils;
     private final MixpanelService mixpanelService;
+
+    // ========== Public Methods ========== //
 
     // 민원 등록
     public ResponseComplaintDto createComplaint(Long userId, RequestComplaintDto dto, List<MultipartFile> images) {
@@ -271,7 +270,6 @@ public class ComplaintService {
         ComplaintReply r = c.getReply();
 
 
-
         if (r != null) {
             Long replyId = c.getReply().getId();
 
@@ -313,7 +311,102 @@ public class ComplaintService {
                 .build();
     }
 
-    private List<AttachedFileDto> getAttachedFile(List<AttachedFile> attachedFiles , HttpServletRequest request) {
+    public void updateComplaint(Long userId, RequestComplaintDto dto, Long complaintId, List<MultipartFile> images) {
+        Complaint complaint = complaintRepository.findByIdAndUserId(complaintId, userId).orElseThrow(() -> new CustomException(COMPLAINT_NOT_OWNED_BY_USER));
+        complaint.update(dto);
+
+        imageService.updateImages(ImageType.COMPLAINT, complaintId, images);
+    }
+
+    public void deleteComplaint(Long userId, Long complaintId) {
+        complaintRepository.deleteById(complaintId);
+        imageService.deleteImages(ImageType.COMPLAINT, complaintId);
+    }
+
+    // 유틸리티: 베이스 URL 생성 (ImageService와 동일)
+    private String getBaseUrl(HttpServletRequest request) {
+        String scheme = request.getScheme();
+        String serverName = request.getServerName();
+        int serverPort = request.getServerPort();
+        String contextPath = request.getContextPath();
+
+        StringBuilder baseUrl = new StringBuilder();
+        baseUrl.append(scheme).append("://").append(serverName);
+
+        // 기본 포트가 아닌 경우에만 포트 추가
+        if ((scheme.equals("http") && serverPort != 80) ||
+                (scheme.equals("https") && serverPort != 443)) {
+            baseUrl.append(":").append(serverPort);
+        }
+
+        baseUrl.append(contextPath);
+        return baseUrl.toString();
+    }
+
+    //필터 검색
+    @Transactional(readOnly = true)
+    public List<ResponseComplaintListDto> searchComplaints(Long userId, RequestComplaintSearchDto dto) {
+
+        Specification<Complaint> spec = buildSearchSpecification(dto)
+                .and(ComplaintSpecification.beforeId(dto.getLastId()));
+
+        // 사용자일 경우 본인 것만
+        if (userId != null) {
+            spec = spec.and((root, query, cb) -> cb.equal(root.get("user").get("id"), userId));
+        }
+
+        Pageable pageable = PageRequest.of(
+                0,
+                dto.getSize(),
+                Sort.by(Sort.Direction.DESC, "id")
+        );
+
+        List<ResponseComplaintListDto> list = complaintRepository.findAll(spec, pageable).stream()
+                .map(c -> ResponseComplaintListDto.builder()
+                        .id(c.getId())
+                        .date(c.getCreatedDate() != null
+                                ? c.getCreatedDate().toLocalDate().toString()
+                                : null)
+                        .type(c.getType() != null ? c.getType().toValue() : null)
+                        .title(c.getTitle())
+                        .status(c.getStatus() != null ? c.getStatus().toValue() : null)
+                        .officer(c.getOfficer())
+                        .dormType(c.getDormType() != null ? c.getDormType().toValue() : null)
+                        .building(c.getBuilding() != null ? c.getBuilding().toValue() : null)
+                        .floor(c.getFloor())
+                        .roomNumber(c.getRoomNumber())
+                        .bedNumber(c.getBedNumber())
+                        .build())
+                .collect(Collectors.toList());
+
+        return list;
+    }
+
+    // 민원 목록을 CSV로 변환 (전체 조회)
+    public byte[] exportComplaintsToCsv() {
+        List<Complaint> complaints = complaintRepository.findAllByOrderByCreatedDateDesc();
+        List<ResponseComplaintCsvDto> csvData = complaints.stream()
+                .map(this::convertToCsvDto)
+                .collect(Collectors.toList());
+
+        return csvUtils.generateComplaintCsv(csvData);
+    }
+
+    // 민원 목록을 CSV로 변환 (필터링된 조회)
+    public byte[] exportComplaintsToCsv(RequestComplaintSearchDto searchDto) {
+        Specification<Complaint> spec = buildSearchSpecification(searchDto);
+
+        List<Complaint> complaints = complaintRepository.findAll(spec);
+        List<ResponseComplaintCsvDto> csvData = complaints.stream()
+                .map(this::convertToCsvDto)
+                .collect(Collectors.toList());
+
+        return csvUtils.generateComplaintCsv(csvData);
+    }
+
+    // ========== Private Methods ========== //
+
+    private List<AttachedFileDto> getAttachedFile(List<AttachedFile> attachedFiles, HttpServletRequest request) {
         if (attachedFiles.isEmpty()) {
             return new ArrayList<>(); // 빈 리스트 반환
         }
@@ -358,129 +451,16 @@ public class ComplaintService {
         }
     }
 
-    public void updateComplaint(Long userId, RequestComplaintDto dto, Long complaintId, List<MultipartFile> images) {
-        Complaint complaint = complaintRepository.findByIdAndUserId(complaintId, userId).orElseThrow(() -> new CustomException(COMPLAINT_NOT_OWNED_BY_USER));
-        complaint.update(dto);
-
-        imageService.updateImages(ImageType.COMPLAINT, complaintId, images);
-    }
-
-    public void deleteComplaint(Long userId, Long complaintId) {
-        complaintRepository.deleteById(complaintId);
-        imageService.deleteImages(ImageType.COMPLAINT, complaintId);
-    }
-
-    // 유틸리티: 베이스 URL 생성 (ImageService와 동일)
-    private String getBaseUrl(HttpServletRequest request) {
-        String scheme = request.getScheme();
-        String serverName = request.getServerName();
-        int serverPort = request.getServerPort();
-        String contextPath = request.getContextPath();
-
-        StringBuilder baseUrl = new StringBuilder();
-        baseUrl.append(scheme).append("://").append(serverName);
-
-        // 기본 포트가 아닌 경우에만 포트 추가
-        if ((scheme.equals("http") && serverPort != 80) ||
-                (scheme.equals("https") && serverPort != 443)) {
-            baseUrl.append(":").append(serverPort);
-        }
-
-        baseUrl.append(contextPath);
-        return baseUrl.toString();
-    }
-
-    //필터 검색
-    @Transactional(readOnly = true)
-    public List<ResponseComplaintListDto> searchComplaints(Long userId, RequestComplaintSearchDto dto) {
-
-        Specification<Complaint> spec = Specification
-                .where(ComplaintSpecification.hasDormType(dto.getDormType()))
-                .and(ComplaintSpecification.hasOfficer(dto.getOfficer()))
-                .and(ComplaintSpecification.hasStatus(dto.getStatus()))
-                .and(ComplaintSpecification.hasKeyword(dto.getKeyword()))
-                .and(ComplaintSpecification.hasType(dto.getType()))
-                .and(ComplaintSpecification.hasBuilding(
-                        dto.getBuilding() != null && !dto.getBuilding().isBlank()
-                                ? DormBuilding.valueOf(dto.getBuilding())
-                                : null
-                ))
-                .and(ComplaintSpecification.hasFloor(dto.getFloor()))
-                .and(ComplaintSpecification.hasRoomNumber(dto.getRoomNumber()))
-                .and(ComplaintSpecification.hasBedNumber(dto.getBedNumber()));
-
-
-        // 사용자일 경우 본인 것만
-        if (userId != null) {
-            spec = spec.and((root, query, cb) -> cb.equal(root.get("user").get("id"), userId));
-        }
-
-        List<ResponseComplaintListDto> list = complaintRepository.findAll(spec).stream()
-                .map(c -> ResponseComplaintListDto.builder()
-                        .id(c.getId())
-                        .date(c.getCreatedDate() != null
-                                ? c.getCreatedDate().toLocalDate().toString()
-                                : null)
-                        .type(c.getType() != null ? c.getType().toValue() : null)
-                        .title(c.getTitle())
-                        .status(c.getStatus() != null ? c.getStatus().toValue() : null)
-                        .officer(c.getOfficer())
-                        .dormType(c.getDormType() != null ? c.getDormType().toValue() : null)
-                        .building(c.getBuilding() != null ? c.getBuilding().toValue() : null)
-                        .floor(c.getFloor())
-                        .roomNumber(c.getRoomNumber())
-                        .bedNumber(c.getBedNumber())
-                        .build())
-                .collect(Collectors.toList());
-        Collections.reverse(list);
-        return list;
-    }
-
-    // 민원 목록을 CSV로 변환 (전체 조회)
-    public byte[] exportComplaintsToCsv() {
-        List<Complaint> complaints = complaintRepository.findAllByOrderByCreatedDateDesc();
-        List<ResponseComplaintCsvDto> csvData = complaints.stream()
-                .map(this::convertToCsvDto)
-                .collect(Collectors.toList());
-        
-        return csvUtils.generateComplaintCsv(csvData);
-    }
-
-    // 민원 목록을 CSV로 변환 (필터링된 조회)
-    public byte[] exportComplaintsToCsv(RequestComplaintSearchDto searchDto) {
-        Specification<Complaint> spec = Specification
-                .where(ComplaintSpecification.hasDormType(searchDto.getDormType()))
-                .and(ComplaintSpecification.hasOfficer(searchDto.getOfficer()))
-                .and(ComplaintSpecification.hasStatus(searchDto.getStatus()))
-                .and(ComplaintSpecification.hasKeyword(searchDto.getKeyword()))
-                .and(ComplaintSpecification.hasType(searchDto.getType()))
-                .and(ComplaintSpecification.hasBuilding(
-                        searchDto.getBuilding() != null && !searchDto.getBuilding().isBlank()
-                                ? DormBuilding.valueOf(searchDto.getBuilding())
-                                : null
-                ))
-                .and(ComplaintSpecification.hasFloor(searchDto.getFloor()))
-                .and(ComplaintSpecification.hasRoomNumber(searchDto.getRoomNumber()))
-                .and(ComplaintSpecification.hasBedNumber(searchDto.getBedNumber()));
-
-        List<Complaint> complaints = complaintRepository.findAll(spec);
-        List<ResponseComplaintCsvDto> csvData = complaints.stream()
-                .map(this::convertToCsvDto)
-                .collect(Collectors.toList());
-        
-        return csvUtils.generateComplaintCsv(csvData);
-    }
-
     // Complaint 엔티티를 CSV DTO로 변환
     private ResponseComplaintCsvDto convertToCsvDto(Complaint complaint) {
         User user = complaint.getUser();
         ComplaintReply reply = complaint.getReply();
-        
+
         return ResponseComplaintCsvDto.builder()
                 .id(complaint.getId())
-                .date(complaint.getCreatedDate() != null 
-                    ? complaint.getCreatedDate().toLocalDate().format(DateTimeFormatter.ofPattern("yyyy.MM.dd"))
-                    : null)
+                .date(complaint.getCreatedDate() != null
+                        ? complaint.getCreatedDate().toLocalDate().format(DateTimeFormatter.ofPattern("yyyy.MM.dd"))
+                        : null)
                 .type(complaint.getType() != null ? complaint.getType().toValue() : null)
                 .title(complaint.getTitle())
                 .content(complaint.getContent())
@@ -497,12 +477,32 @@ public class ComplaintService {
                 .replyTitle(reply != null ? reply.getReplyTitle() : null)
                 .replyContent(reply != null ? reply.getReplyContent() : null)
                 .responderName(reply != null ? reply.getResponderName() : null)
-                .replyDate(reply != null && reply.getCreatedDate() != null 
-                    ? reply.getCreatedDate().toLocalDate().format(DateTimeFormatter.ofPattern("yyyy.MM.dd"))
-                    : null)
+                .replyDate(reply != null && reply.getCreatedDate() != null
+                        ? reply.getCreatedDate().toLocalDate().format(DateTimeFormatter.ofPattern("yyyy.MM.dd"))
+                        : null)
                 .isPrivacyAgreed(complaint.isPrivacyAgreed())
                 .build();
     }
 
-
+    private Specification<Complaint> buildSearchSpecification(RequestComplaintSearchDto dto) {
+        if (!dto.isDateRangeValid()) {
+            throw new CustomException(VALIDATION_FAILED);
+        }
+        return Specification
+                .where(ComplaintSpecification.hasDormType(dto.getDormType()))
+                .and(ComplaintSpecification.hasOfficer(dto.getOfficer()))
+                .and(ComplaintSpecification.hasStatus(dto.getStatus()))
+                .and(ComplaintSpecification.hasKeyword(dto.getKeyword()))
+                .and(ComplaintSpecification.hasType(dto.getType()))
+                .and(ComplaintSpecification.hasBuilding(
+                        dto.getBuilding() != null && !dto.getBuilding().isBlank()
+                                ? DormBuilding.valueOf(dto.getBuilding())
+                                : null
+                ))
+                .and(ComplaintSpecification.hasFloor(dto.getFloor()))
+                .and(ComplaintSpecification.hasRoomNumber(dto.getRoomNumber()))
+                .and(ComplaintSpecification.hasBedNumber(dto.getBedNumber()))
+                .and(ComplaintSpecification.createdOnOrAfter(dto.getStartDate()))
+                .and(ComplaintSpecification.createdOnOrBefore(dto.getEndDate()));
+    }
 }
