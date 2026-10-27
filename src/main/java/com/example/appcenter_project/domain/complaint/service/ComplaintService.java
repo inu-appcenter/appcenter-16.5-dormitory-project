@@ -345,23 +345,29 @@ public class ComplaintService {
 
     //필터 검색
     @Transactional(readOnly = true)
-    public List<ResponseComplaintListDto> searchComplaints(Long userId, RequestComplaintSearchDto dto) {
+    public ResponseComplaintCursorPageDto searchComplaints(Long userId, RequestComplaintSearchDto dto) {
 
         Specification<Complaint> spec = buildSearchSpecification(dto)
-                .and(ComplaintSpecification.beforeId(dto.getLastId()));
+                .and(ComplaintSpecification.beforeId(dto.getEffectiveLastId()));
 
         // 사용자일 경우 본인 것만
         if (userId != null) {
             spec = spec.and((root, query, cb) -> cb.equal(root.get("user").get("id"), userId));
         }
 
+        int pageSize = dto.getSize();
         Pageable pageable = PageRequest.of(
                 0,
-                dto.getSize(),
+                pageSize + 1,
                 Sort.by(Sort.Direction.DESC, "id")
         );
 
-        List<ResponseComplaintListDto> list = complaintRepository.findAll(spec, pageable).stream()
+        List<Complaint> rawList = complaintRepository.findAll(spec, pageable).getContent();
+        boolean hasNext = rawList.size() > pageSize;
+
+        List<Complaint> pageList = hasNext ? rawList.subList(0, pageSize) : rawList;
+
+        List<ResponseComplaintListDto> content = pageList.stream()
                 .map(c -> ResponseComplaintListDto.builder()
                         .id(c.getId())
                         .date(c.getCreatedDate() != null
@@ -376,10 +382,19 @@ public class ComplaintService {
                         .floor(c.getFloor())
                         .roomNumber(c.getRoomNumber())
                         .bedNumber(c.getBedNumber())
+                        .studentNumber(c.getUser() != null ? c.getUser().getStudentNumber() : null)
                         .build())
                 .collect(Collectors.toList());
 
-        return list;
+        Long nextCursor = (hasNext && !content.isEmpty())
+                ? content.get(content.size() - 1).getId()
+                : null;
+
+        return ResponseComplaintCursorPageDto.builder()
+                .content(content)
+                .hasNext(hasNext)
+                .nextCursor(nextCursor)
+                .build();
     }
 
     // 민원 목록을 CSV로 변환 (전체 조회)

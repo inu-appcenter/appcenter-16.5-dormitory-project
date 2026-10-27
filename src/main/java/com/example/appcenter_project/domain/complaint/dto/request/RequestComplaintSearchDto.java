@@ -38,9 +38,18 @@ public class RequestComplaintSearchDto {
     @Schema(description = "이전 응답의 마지막 민원 ID. 첫 요청 시 생략. (CSV에서는 미적용)")
     private Long lastId;
 
+    @Positive
+    @Schema(description = "이전 응답의 마지막 민원 ID (cursor). 첫 요청 시 생략 (lastId와 동의어). (CSV에서는 미적용)")
+    private Long cursor;
+
     @NotNull
     @Schema(description = "민원 조회 개수. 생략 시 20개 조회. (CSV에서는 미적용)", defaultValue = "20")
     private Integer size = 20;
+
+    @Schema(hidden = true)
+    public Long getEffectiveLastId() {
+        return this.lastId != null ? this.lastId : this.cursor;
+    }
 
     @AssertTrue(message = "시작일은 종료일 이후일 수 없으며 종료일은 다음 날로 변환 가능해야 합니다.")
     @Schema(hidden = true)
