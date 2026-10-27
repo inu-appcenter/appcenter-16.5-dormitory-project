@@ -54,7 +54,10 @@ public interface AdminComplaintApiSpecification {
 
     @Operation(
             summary = "민원 상세 조회 (관리자)",
-            description = "민원 ID로 상세 정보를 조회합니다. 답변이 존재하면 함께 반환됩니다.",
+            description = """
+                    민원 ID로 상세 정보를 조회합니다.
+                    등록된 답변이 있으면 함께 반환합니다.
+                    """,
             responses = {
                     @ApiResponse(
                             responseCode = "200",
@@ -75,7 +78,10 @@ public interface AdminComplaintApiSpecification {
 
     @Operation(
             summary = "민원 답변 등록",
-            description = "관리자가 민원에 대한 답변을 등록합니다. 등록 시 민원 상태는 자동으로 처리완료로 변경됩니다.",
+            description = """
+                    관리자가 민원에 대한 답변을 등록합니다.
+                    답변 등록 시 민원 상태가 자동으로 '처리완료'로 변경됩니다.
+                    """,
             responses = {
                     @ApiResponse(
                             responseCode = "200",

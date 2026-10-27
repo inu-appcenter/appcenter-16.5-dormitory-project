@@ -28,9 +28,24 @@ public interface ComplaintApiSpecification {
 
     @Operation(
             summary = "민원 등록",
-            description = "로그인한 사용자가 민원을 등록합니다. 상태는 기본 대기중으로 저장됩니다. 파일 첨부가 가능합니다. " +
-            "구체적 장소, 사건 발생 날짜, 사건 발생 시간은 필수 입력 항목입니다. " +
-            "type : 소음,흡연,음주,호실 변경,공용공간",
+            description = """
+                    로그인한 사용자가 민원을 등록합니다.
+
+                    - 등록 시 상태는 **대기중**으로 저장됩니다.
+                    - 파일 첨부가 가능합니다.
+
+                    **필수 입력 항목**
+                    - 구체적 장소
+                    - 사건 발생 날짜
+                    - 사건 발생 시간
+
+                    **민원 유형 (`type`)**
+                    - 소음
+                    - 흡연
+                    - 음주
+                    - 호실 변경
+                    - 공용공간
+                    """,
             responses = {
                     @ApiResponse(
                             responseCode = "200",
@@ -97,7 +112,12 @@ public interface ComplaintApiSpecification {
 
     @Operation(
             summary = "민원 상세 조회",
-            description = "민원 ID로 상세 정보를 조회합니다. 본인이 작성한 민원만 조회 가능하며, 답변이 존재하면 함께 반환됩니다.",
+            description = """
+                    민원 ID로 상세 정보를 조회합니다.
+
+                    - 본인이 작성한 민원만 조회할 수 있습니다.
+                    - 답변이 등록된 경우 답변 정보도 함께 반환합니다.
+                    """,
             responses = {
                     @ApiResponse(
                             responseCode = "200",
