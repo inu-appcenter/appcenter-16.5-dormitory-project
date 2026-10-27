@@ -7,6 +7,7 @@ import com.example.appcenter_project.common.image.service.ImageService;
 import com.example.appcenter_project.domain.complaint.dto.request.RequestComplaintDto;
 import com.example.appcenter_project.domain.complaint.dto.request.RequestComplaintSearchDto;
 import com.example.appcenter_project.domain.complaint.dto.response.ResponseComplaintDto;
+import com.example.appcenter_project.domain.complaint.dto.response.ResponseComplaintCursorPageDto;
 import com.example.appcenter_project.domain.complaint.dto.response.ResponseComplaintListDto;
 import com.example.appcenter_project.domain.complaint.entity.Complaint;
 import com.example.appcenter_project.domain.complaint.enums.ComplaintStatus;
@@ -284,27 +285,54 @@ class ComplaintServiceTest {
     }
 
     @Test
-    @DisplayName("민원 검색 - 정상 반환")
+    @DisplayName("민원 검색 - 다음 페이지 없음 (hasNext = false, nextCursor = null)")
     void searchComplaints_정상_반환() {
         Complaint first = buildMockComplaint();
         Complaint second = buildMockComplaint();
         when(first.getId()).thenReturn(2L);
-        Pageable pageable = PageRequest.of(0, 20, Sort.by(Sort.Direction.DESC, "id"));
+        Pageable pageable = PageRequest.of(0, 21, Sort.by(Sort.Direction.DESC, "id"));
         when(complaintRepository.findAll(any(Specification.class), eq(pageable)))
                 .thenReturn(new PageImpl<>(List.of(first, second), pageable, 2));
 
         RequestComplaintSearchDto searchDto = new RequestComplaintSearchDto();
 
-        List<ResponseComplaintListDto> result = complaintService.searchComplaints(null, searchDto);
+        ResponseComplaintCursorPageDto result = complaintService.searchComplaints(null, searchDto);
 
-        assertThat(result).extracting(ResponseComplaintListDto::getId).containsExactly(2L, 1L);
+        assertThat(result.getContent()).extracting(ResponseComplaintListDto::getId).containsExactly(2L, 1L);
+        assertThat(result.isHasNext()).isFalse();
+        assertThat(result.getNextCursor()).isNull();
         verify(complaintRepository).findAll(any(Specification.class), eq(pageable));
     }
 
     @Test
-    @DisplayName("사용자 민원 검색 - 커서 요청에도 첫 페이지와 요청한 크기를 사용하고 빈 결과 반환")
+    @DisplayName("민원 검색 - 다음 페이지 존재 (hasNext = true, nextCursor = 마지막 원소 ID)")
+    void searchComplaints_다음페이지_존재() {
+        Complaint first = buildMockComplaint();
+        Complaint second = buildMockComplaint();
+        Complaint third = buildMockComplaint();
+        when(first.getId()).thenReturn(3L);
+        when(second.getId()).thenReturn(2L);
+        when(third.getId()).thenReturn(1L);
+
+        Pageable pageable = PageRequest.of(0, 3, Sort.by(Sort.Direction.DESC, "id"));
+        when(complaintRepository.findAll(any(Specification.class), eq(pageable)))
+                .thenReturn(new PageImpl<>(List.of(first, second, third), pageable, 3));
+
+        RequestComplaintSearchDto searchDto = new RequestComplaintSearchDto();
+        searchDto.setSize(2);
+
+        ResponseComplaintCursorPageDto result = complaintService.searchComplaints(null, searchDto);
+
+        assertThat(result.getContent()).extracting(ResponseComplaintListDto::getId).containsExactly(3L, 2L);
+        assertThat(result.isHasNext()).isTrue();
+        assertThat(result.getNextCursor()).isEqualTo(2L);
+        verify(complaintRepository).findAll(any(Specification.class), eq(pageable));
+    }
+
+    @Test
+    @DisplayName("사용자 민원 검색 - 커서 요청에도 첫 페이지와 요청한 크기+1을 사용하고 빈 결과 반환")
     void searchComplaints_커서와조회개수_빈페이지() {
-        Pageable pageable = PageRequest.of(0, 10, Sort.by(Sort.Direction.DESC, "id"));
+        Pageable pageable = PageRequest.of(0, 11, Sort.by(Sort.Direction.DESC, "id"));
         when(complaintRepository.findAll(any(Specification.class), eq(pageable)))
                 .thenReturn(Page.empty(pageable));
 
@@ -312,11 +340,32 @@ class ComplaintServiceTest {
         searchDto.setSize(10);
         searchDto.setLastId(150L);
 
-        List<ResponseComplaintListDto> result = complaintService.searchComplaints(1L, searchDto);
+        ResponseComplaintCursorPageDto result = complaintService.searchComplaints(1L, searchDto);
 
-        assertThat(result).isEmpty();
+        assertThat(result.getContent()).isEmpty();
+        assertThat(result.isHasNext()).isFalse();
+        assertThat(result.getNextCursor()).isNull();
         verify(complaintRepository).findAll(any(Specification.class), eq(pageable));
     }
+
+    @Test
+    @DisplayName("민원 검색 - cursor 파라미터가 lastId와 동일하게 effectiveLastId로 정규화됨")
+    void searchComplaints_cursor_파라미터_정규화() {
+        Pageable pageable = PageRequest.of(0, 21, Sort.by(Sort.Direction.DESC, "id"));
+        when(complaintRepository.findAll(any(Specification.class), eq(pageable)))
+                .thenReturn(Page.empty(pageable));
+
+        RequestComplaintSearchDto searchDto = new RequestComplaintSearchDto();
+        searchDto.setCursor(99L);
+
+        ResponseComplaintCursorPageDto result = complaintService.searchComplaints(null, searchDto);
+
+        assertThat(searchDto.getEffectiveLastId()).isEqualTo(99L);
+        assertThat(result.getContent()).isEmpty();
+        verify(complaintRepository).findAll(any(Specification.class), eq(pageable));
+    }
+
+
 
     @Test
     @DisplayName("민원 CSV 내보내기 - 정상 반환")
