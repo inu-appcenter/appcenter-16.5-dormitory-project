@@ -1,8 +1,10 @@
 package com.example.appcenter_project.domain.complaint.controller;
 
 import com.example.appcenter_project.domain.complaint.dto.request.RequestComplaintDto;
+import com.example.appcenter_project.domain.complaint.dto.request.RequestComplaintSearchDto;
 import com.example.appcenter_project.domain.complaint.dto.response.ResponseComplaintDto;
 import com.example.appcenter_project.domain.complaint.dto.response.ResponseComplaintDetailDto;
+import com.example.appcenter_project.domain.complaint.dto.response.ResponseComplaintCursorPageDto;
 import com.example.appcenter_project.domain.complaint.dto.response.ResponseComplaintListDto;
 import com.example.appcenter_project.global.security.CustomUserDetails;
 import io.swagger.v3.oas.annotations.Operation;
@@ -14,6 +16,7 @@ import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
+import org.springdoc.core.annotations.ParameterObject;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -55,23 +58,25 @@ public interface ComplaintApiSpecification {
     );
 
     @Operation(
-            summary = "내 민원 목록 조회 (최신순)",
-            description = "로그인한 사용자가 등록한 민원을 최신순으로 조회합니다. 목록용 필드(날짜, 유형, 제목, 현황)만 반환합니다.",
+            summary = "내 민원 목록 조회 및 검색 (최신순)",
+            description = "로그인한 사용자가 등록한 민원을 최신순으로 조회 및 검색합니다. startDate/endDate는 등록일 기준 yyyy-MM-dd이며 종료일을 포함합니다. lastId/cursor는 이전 응답 마지막 ID, size는 생략 시 20입니다. 커서 페이징(content, hasNext, nextCursor) 객체로 반환합니다.",
             responses = {
                     @ApiResponse(
                             responseCode = "200",
                             description = "조회 성공",
                             content = @Content(
                                     mediaType = "application/json",
-                                    array = @ArraySchema(schema = @Schema(implementation = ResponseComplaintListDto.class))
+                                    schema = @Schema(implementation = ResponseComplaintCursorPageDto.class)
                             )
                     )
             }
     )
-    ResponseEntity<List<ResponseComplaintListDto>> getAllComplaints(
+    ResponseEntity<ResponseComplaintCursorPageDto> getAllComplaints(
             @AuthenticationPrincipal 
             @Parameter(description = "로그인 사용자", required = true)
-            CustomUserDetails userDetails
+            CustomUserDetails userDetails,
+            @ParameterObject
+            RequestComplaintSearchDto dto
     );
 
     @Operation(

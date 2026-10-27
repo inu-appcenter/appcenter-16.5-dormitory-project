@@ -4,6 +4,7 @@ import com.example.appcenter_project.domain.complaint.dto.request.RequestComplai
 import com.example.appcenter_project.domain.complaint.dto.request.RequestComplaintSearchDto;
 import com.example.appcenter_project.domain.complaint.dto.request.RequestComplaintStatusDto;
 import com.example.appcenter_project.domain.complaint.dto.response.ResponseComplaintDetailDto;
+import com.example.appcenter_project.domain.complaint.dto.response.ResponseComplaintCursorPageDto;
 import com.example.appcenter_project.domain.complaint.dto.response.ResponseComplaintListDto;
 import com.example.appcenter_project.domain.complaint.dto.response.ResponseComplaintReplyDto;
 import com.example.appcenter_project.global.security.CustomUserDetails;
@@ -30,19 +31,19 @@ public interface AdminComplaintApiSpecification {
 
     @Operation(
             summary = "민원 목록 조회 및 검색 (관리자)",
-            description = "검색 조건 생략 시 전체 범위에서 ID 내림차순으로 조회합니다. startDate/endDate는 등록일 기준 yyyy-MM-dd이며 종료일을 포함합니다. lastId는 이전 응답 마지막 ID, size는 생략 시 20입니다. 응답 개수가 size보다 작으면 마지막 페이지입니다.",
+            description = "검색 조건 생략 시 전체 범위에서 ID 내림차순으로 조회합니다. startDate/endDate는 등록일 기준 yyyy-MM-dd이며 종료일을 포함합니다. lastId/cursor는 이전 응답 마지막 ID, size는 생략 시 20입니다. 커서 페이징(content, hasNext, nextCursor) 객체로 반환합니다.",
             responses = {
                     @ApiResponse(
                             responseCode = "200",
                             description = "조회 성공",
                             content = @Content(
                                     mediaType = "application/json",
-                                    array = @ArraySchema(schema = @Schema(implementation = ResponseComplaintListDto.class))
+                                    schema = @Schema(implementation = ResponseComplaintCursorPageDto.class)
                             )
                     )
             }
     )
-    ResponseEntity<List<ResponseComplaintListDto>> getAllComplaints(@ParameterObject RequestComplaintSearchDto dto);
+    ResponseEntity<ResponseComplaintCursorPageDto> getAllComplaints(@ParameterObject RequestComplaintSearchDto dto);
 
     @Operation(
             summary = "민원 상세 조회 (관리자)",
