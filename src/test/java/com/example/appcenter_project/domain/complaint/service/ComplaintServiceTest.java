@@ -8,6 +8,7 @@ import com.example.appcenter_project.domain.complaint.dto.request.RequestComplai
 import com.example.appcenter_project.domain.complaint.dto.request.RequestComplaintSearchDto;
 import com.example.appcenter_project.domain.complaint.dto.response.ResponseComplaintDto;
 import com.example.appcenter_project.domain.complaint.dto.response.ResponseComplaintListDto;
+import com.example.appcenter_project.domain.complaint.dto.response.ResponseComplaintPageDto;
 import com.example.appcenter_project.domain.complaint.entity.Complaint;
 import com.example.appcenter_project.domain.complaint.enums.ComplaintStatus;
 import com.example.appcenter_project.domain.complaint.enums.ComplaintType;
@@ -170,49 +171,9 @@ class ComplaintServiceTest {
                 .hasFieldOrPropertyWithValue("errorCode", COMPLAINT_REQUIRED_FIELD_MISSING);
     }
 
-    @Test
-    @DisplayName("민원 전체 조회 - 정상 반환")
-    void getAllComplaints_정상_반환() {
-        Complaint mockComplaint = buildMockComplaint();
-        when(complaintRepository.findAllByOrderByCreatedDateDesc()).thenReturn(List.of(mockComplaint));
 
-        List<ResponseComplaintListDto> result = complaintService.getAllComplaints();
 
-        assertThat(result).hasSize(1);
-        assertThat(result.get(0).getTitle()).isEqualTo("소음 민원");
-    }
 
-    @Test
-    @DisplayName("민원 전체 조회 - 빈 목록이면 빈 리스트 반환")
-    void getAllComplaints_빈목록_빈리스트() {
-        when(complaintRepository.findAllByOrderByCreatedDateDesc()).thenReturn(List.of());
-
-        List<ResponseComplaintListDto> result = complaintService.getAllComplaints();
-
-        assertThat(result).isEmpty();
-    }
-
-    @Test
-    @DisplayName("사용자별 민원 조회 - 정상 반환")
-    void getAllComplaintsUserId_정상_반환() {
-        Complaint mockComplaint = buildMockComplaint();
-        when(complaintRepository.findAllByUserIdOrderByCreatedDateDesc(1L))
-                .thenReturn(List.of(mockComplaint));
-
-        List<ResponseComplaintListDto> result = complaintService.getAllComplaintsUserId(1L);
-
-        assertThat(result).hasSize(1);
-    }
-
-    @Test
-    @DisplayName("사용자별 민원 조회 - 없으면 빈 리스트")
-    void getAllComplaintsUserId_없으면_빈리스트() {
-        when(complaintRepository.findAllByUserIdOrderByCreatedDateDesc(99L)).thenReturn(List.of());
-
-        List<ResponseComplaintListDto> result = complaintService.getAllComplaintsUserId(99L);
-
-        assertThat(result).isEmpty();
-    }
 
     @Test
     @DisplayName("민원 상세 조회(유저) - 없으면 예외")
@@ -289,22 +250,24 @@ class ComplaintServiceTest {
         Complaint first = buildMockComplaint();
         Complaint second = buildMockComplaint();
         when(first.getId()).thenReturn(2L);
-        Pageable pageable = PageRequest.of(0, 20, Sort.by(Sort.Direction.DESC, "id"));
+        Pageable pageable = PageRequest.of(0, 21, Sort.by(Sort.Direction.DESC, "id"));
         when(complaintRepository.findAll(any(Specification.class), eq(pageable)))
                 .thenReturn(new PageImpl<>(List.of(first, second), pageable, 2));
 
         RequestComplaintSearchDto searchDto = new RequestComplaintSearchDto();
 
-        List<ResponseComplaintListDto> result = complaintService.searchComplaints(null, searchDto);
+        ResponseComplaintPageDto result = complaintService.searchComplaints(null, searchDto);
 
-        assertThat(result).extracting(ResponseComplaintListDto::getId).containsExactly(2L, 1L);
+        assertThat(result.getContent()).extracting(ResponseComplaintListDto::getId).containsExactly(2L, 1L);
+        assertThat(result.isHasNext()).isFalse();
+        assertThat(result.getNextCursor()).isNull();
         verify(complaintRepository).findAll(any(Specification.class), eq(pageable));
     }
 
     @Test
-    @DisplayName("사용자 민원 검색 - 커서 요청에도 첫 페이지와 요청한 크기를 사용하고 빈 결과 반환")
+    @DisplayName("사용자 민원 검색 - 요청 개수보다 한 개 더 조회하고 빈 결과는 마지막 페이지 반환")
     void searchComplaints_커서와조회개수_빈페이지() {
-        Pageable pageable = PageRequest.of(0, 10, Sort.by(Sort.Direction.DESC, "id"));
+        Pageable pageable = PageRequest.of(0, 11, Sort.by(Sort.Direction.DESC, "id"));
         when(complaintRepository.findAll(any(Specification.class), eq(pageable)))
                 .thenReturn(Page.empty(pageable));
 
@@ -312,10 +275,63 @@ class ComplaintServiceTest {
         searchDto.setSize(10);
         searchDto.setLastId(150L);
 
-        List<ResponseComplaintListDto> result = complaintService.searchComplaints(1L, searchDto);
+        ResponseComplaintPageDto result = complaintService.searchComplaints(1L, searchDto);
 
-        assertThat(result).isEmpty();
+        assertThat(result.getContent()).isEmpty();
+        assertThat(result.isHasNext()).isFalse();
+        assertThat(result.getNextCursor()).isNull();
         verify(complaintRepository).findAll(any(Specification.class), eq(pageable));
+    }
+
+    @Test
+    @DisplayName("민원 검색 - 한 개 더 조회되면 요청 개수만 반환하고 다음 커서 제공")
+    void searchComplaints_hasNext() {
+        Complaint first = buildMockComplaint();
+        Complaint second = buildMockComplaint();
+        Complaint extra = buildMockComplaint();
+        when(first.getId()).thenReturn(30L);
+        when(second.getId()).thenReturn(21L);
+        Pageable pageable = PageRequest.of(0, 3, Sort.by(Sort.Direction.DESC, "id"));
+        when(complaintRepository.findAll(any(Specification.class), eq(pageable)))
+                .thenReturn(new PageImpl<>(List.of(first, second, extra), pageable, 3));
+        RequestComplaintSearchDto dto = new RequestComplaintSearchDto();
+        dto.setSize(2);
+
+        ResponseComplaintPageDto result = complaintService.searchComplaints(null, dto);
+
+        assertThat(result.getContent()).extracting(ResponseComplaintListDto::getId).containsExactly(30L, 21L);
+        assertThat(result.isHasNext()).isTrue();
+        assertThat(result.getNextCursor()).isEqualTo(21L);
+    }
+
+    @Test
+    @DisplayName("민원 검색 - 요청 개수와 같아도 추가 데이터가 없으면 마지막 페이지")
+    void searchComplaints_exactSizeLastPage() {
+        Complaint complaint = buildMockComplaint();
+        Pageable pageable = PageRequest.of(0, 2, Sort.by(Sort.Direction.DESC, "id"));
+        when(complaintRepository.findAll(any(Specification.class), eq(pageable)))
+                .thenReturn(new PageImpl<>(List.of(complaint), pageable, 1));
+        RequestComplaintSearchDto dto = new RequestComplaintSearchDto();
+        dto.setSize(1);
+
+        ResponseComplaintPageDto result = complaintService.searchComplaints(null, dto);
+
+        assertThat(result.getContent()).hasSize(1);
+        assertThat(result.isHasNext()).isFalse();
+        assertThat(result.getNextCursor()).isNull();
+    }
+
+    @Test
+    @DisplayName("민원 검색 - 잘못된 조회 개수는 저장소 조회 전에 거부")
+    void searchComplaints_invalidSize() {
+        for (Integer size : new Integer[]{null, 0, -1, Integer.MAX_VALUE}) {
+            RequestComplaintSearchDto dto = new RequestComplaintSearchDto();
+            dto.setSize(size);
+
+            assertThatThrownBy(() -> complaintService.searchComplaints(null, dto))
+                    .isInstanceOf(CustomException.class);
+        }
+        verifyNoInteractions(complaintRepository);
     }
 
     @Test

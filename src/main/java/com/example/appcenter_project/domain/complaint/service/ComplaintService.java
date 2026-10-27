@@ -173,40 +173,40 @@ public class ComplaintService {
                 .build();
     }
 
-    // 민원 전체 조회 (최신순)
-    public List<ResponseComplaintListDto> getAllComplaints() {
-        return complaintRepository.findAllByOrderByCreatedDateDesc()
-                .stream()
-                .map(c -> ResponseComplaintListDto.builder()
-                        .id(c.getId())
-                        .date(c.getCreatedDate().toLocalDate()
-                                .format(DateTimeFormatter.ofPattern("yyyy.MM.dd")))
-                        .type(c.getType().toValue())
-                        .title(c.getTitle())
-                        .status(c.getStatus().toValue())
-                        .officer(c.getOfficer())
-                        .dormType(c.getDormType().toValue())
-                        .building(c.getBuilding() != null ? c.getBuilding().toValue() : null)
-                        .floor(c.getFloor())
-                        .roomNumber(c.getRoomNumber())
-                        .bedNumber(c.getBedNumber())
-                        .studentNumber(c.getUser().getStudentNumber())
-                        .build())
-                .collect(Collectors.toList());
-    }
+    //민원 조회 & 다중필터
+    @Transactional(readOnly = true)
+        public ResponseComplaintPageDto searchComplaints(Long userId, RequestComplaintSearchDto dto) {
 
-    // 민원 전체 조회 (최신순)
-    public List<ResponseComplaintListDto> getAllComplaintsUserId(Long userId) {
-        return complaintRepository.findAllByUserIdOrderByCreatedDateDesc(userId)
-                .stream()
+        if (dto.getSize() == null || dto.getSize() < 1 || dto.getSize() == Integer.MAX_VALUE) {
+            throw new CustomException(VALIDATION_FAILED);
+        }
+
+        Specification<Complaint> spec = buildSearchSpecification(dto)
+                .and(ComplaintSpecification.beforeId(dto.getLastId()));
+
+        // 사용자일 경우 본인 것만
+        if (userId != null) {
+            spec = spec.and((root, query, cb) -> cb.equal(root.get("user").get("id"), userId));
+        }
+
+        Pageable pageable = PageRequest.of(
+                0,
+                dto.getSize() + 1,
+                Sort.by(Sort.Direction.DESC, "id")
+        );
+
+        List<Complaint> complaints = complaintRepository.findAll(spec, pageable).getContent();
+        boolean hasNext = complaints.size() > dto.getSize();
+        List<ResponseComplaintListDto> list = complaints.stream()
+                .limit(dto.getSize())
                 .map(c -> ResponseComplaintListDto.builder()
                         .id(c.getId())
-                        .date(c.getCreatedDate()
-                                .toLocalDate()
-                                .format(DateTimeFormatter.ofPattern("yyyy.MM.dd")))
-                        .type(c.getType().toValue())
+                        .date(c.getCreatedDate() != null
+                                ? c.getCreatedDate().toLocalDate().toString()
+                                : null)
+                        .type(c.getType() != null ? c.getType().toValue() : null)
                         .title(c.getTitle())
-                        .status(c.getStatus().toValue())
+                        .status(c.getStatus() != null ? c.getStatus().toValue() : null)
                         .officer(c.getOfficer())
                         .dormType(c.getDormType() != null ? c.getDormType().toValue() : null)
                         .building(c.getBuilding() != null ? c.getBuilding().toValue() : null)
@@ -215,6 +215,12 @@ public class ComplaintService {
                         .bedNumber(c.getBedNumber())
                         .build())
                 .collect(Collectors.toList());
+
+        return ResponseComplaintPageDto.builder()
+                .content(list)
+                .hasNext(hasNext)
+                .nextCursor(hasNext ? list.get(list.size() - 1).getId() : null)
+                .build();
     }
 
     //상세조회
@@ -341,45 +347,6 @@ public class ComplaintService {
 
         baseUrl.append(contextPath);
         return baseUrl.toString();
-    }
-
-    //필터 검색
-    @Transactional(readOnly = true)
-    public List<ResponseComplaintListDto> searchComplaints(Long userId, RequestComplaintSearchDto dto) {
-
-        Specification<Complaint> spec = buildSearchSpecification(dto)
-                .and(ComplaintSpecification.beforeId(dto.getLastId()));
-
-        // 사용자일 경우 본인 것만
-        if (userId != null) {
-            spec = spec.and((root, query, cb) -> cb.equal(root.get("user").get("id"), userId));
-        }
-
-        Pageable pageable = PageRequest.of(
-                0,
-                dto.getSize(),
-                Sort.by(Sort.Direction.DESC, "id")
-        );
-
-        List<ResponseComplaintListDto> list = complaintRepository.findAll(spec, pageable).stream()
-                .map(c -> ResponseComplaintListDto.builder()
-                        .id(c.getId())
-                        .date(c.getCreatedDate() != null
-                                ? c.getCreatedDate().toLocalDate().toString()
-                                : null)
-                        .type(c.getType() != null ? c.getType().toValue() : null)
-                        .title(c.getTitle())
-                        .status(c.getStatus() != null ? c.getStatus().toValue() : null)
-                        .officer(c.getOfficer())
-                        .dormType(c.getDormType() != null ? c.getDormType().toValue() : null)
-                        .building(c.getBuilding() != null ? c.getBuilding().toValue() : null)
-                        .floor(c.getFloor())
-                        .roomNumber(c.getRoomNumber())
-                        .bedNumber(c.getBedNumber())
-                        .build())
-                .collect(Collectors.toList());
-
-        return list;
     }
 
     // 민원 목록을 CSV로 변환 (전체 조회)

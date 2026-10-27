@@ -4,7 +4,7 @@ import com.example.appcenter_project.domain.complaint.dto.request.RequestComplai
 import com.example.appcenter_project.domain.complaint.dto.request.RequestComplaintSearchDto;
 import com.example.appcenter_project.domain.complaint.dto.request.RequestComplaintStatusDto;
 import com.example.appcenter_project.domain.complaint.dto.response.ResponseComplaintDetailDto;
-import com.example.appcenter_project.domain.complaint.dto.response.ResponseComplaintListDto;
+import com.example.appcenter_project.domain.complaint.dto.response.ResponseComplaintPageDto;
 import com.example.appcenter_project.domain.complaint.dto.response.ResponseComplaintReplyDto;
 import com.example.appcenter_project.domain.complaint.service.AdminComplaintService;
 import com.example.appcenter_project.domain.complaint.service.ComplaintService;
@@ -39,7 +39,7 @@ public class AdminComplaintController implements AdminComplaintApiSpecification 
 
     // 민원 목록 조회 및 검색
     @GetMapping
-    public ResponseEntity<List<ResponseComplaintListDto>> getAllComplaints(@Valid @ParameterObject @ModelAttribute RequestComplaintSearchDto dto) {
+    public ResponseEntity<ResponseComplaintPageDto> getAllComplaints(@Valid @ParameterObject @ModelAttribute RequestComplaintSearchDto dto) {
         return ResponseEntity.ok(complaintService.searchComplaints(null, dto));
     }
 
