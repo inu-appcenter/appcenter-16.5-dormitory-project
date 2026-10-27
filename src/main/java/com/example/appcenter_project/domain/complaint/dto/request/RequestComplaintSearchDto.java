@@ -35,7 +35,7 @@ public class RequestComplaintSearchDto {
     private LocalDate endDate;
 
     @Positive
-    @Schema(description = "이전 응답의 마지막 민원 ID. 첫 요청 시 생략. (CSV에서는 미적용)")
+    @Schema(description = "이전 응답의 nextCursor. 첫 요청 시 생략. (CSV에서는 미적용)")
     private Long lastId;
 
     @NotNull
