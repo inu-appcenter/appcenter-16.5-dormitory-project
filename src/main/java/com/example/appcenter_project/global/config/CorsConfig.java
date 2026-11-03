@@ -35,7 +35,7 @@ public class CorsConfig {
         configuration.addAllowedOriginPattern("https://localhost:*");
         configuration.addAllowedOrigin(productionUrl);
         configuration.addAllowedOrigin(developmentUrl);
-        configuration.addAllowedOrigin(frontDevUrl);
+        configuration.addAllowedOriginPattern(frontDevUrl);
         configuration.addAllowedOrigin(frontMainUrl);
         configuration.addAllowedOrigin(aiUrl);
 
