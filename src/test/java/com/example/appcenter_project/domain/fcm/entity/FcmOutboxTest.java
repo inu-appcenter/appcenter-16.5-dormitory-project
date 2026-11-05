@@ -121,4 +121,72 @@ class FcmOutboxTest {
         // then
         assertThat(outbox.getRoutingId()).isNull();
     }
+
+    // BR-792 AC1 — userId 저장
+
+    @Test
+    @DisplayName("userId 저장 — BR-792 AC1: create(userId, ...) 호출 시 userId 보존")
+    void should_preserve_userId_when_create_with_userId() {
+        // given
+        Long userId = 67890L;
+
+        // when
+        FcmOutbox outbox = FcmOutbox.create(userId, "token", "제목", "내용",
+                FcmRoutingType.CHAT_OPEN, 42L, 12345L);
+
+        // then
+        assertThat(outbox.getUserId()).isEqualTo(userId);
+    }
+
+    @Test
+    @DisplayName("userId = null 허용 — BR-792 AC1: null userId로 create 시 예외 없이 생성")
+    void should_allow_null_userId_when_create_with_null_userId() {
+        // given / when
+        FcmOutbox outbox = FcmOutbox.create(null, "token", "제목", "내용",
+                FcmRoutingType.CHAT_OPEN, 42L, 12345L);
+
+        // then
+        assertThat(outbox.getUserId()).isNull();
+    }
+
+    @Test
+    @DisplayName("firebaseMessageId 초기값 null — BR-792 AC5: 신규 Outbox는 firebaseMessageId가 null")
+    void should_have_null_firebaseMessageId_when_newly_created() {
+        // given / when
+        FcmOutbox outbox = FcmOutbox.create(100L, "token", "제목", "내용",
+                FcmRoutingType.CHAT_OPEN, 42L, 12345L);
+
+        // then
+        assertThat(outbox.getFirebaseMessageId()).isNull();
+    }
+
+    @Test
+    @DisplayName("recordFirebaseMessageId 저장 — BR-792 AC5: 성공 응답 messageId가 outbox에 저장됨")
+    void should_store_firebaseMessageId_when_recordFirebaseMessageId_called() {
+        // given
+        FcmOutbox outbox = FcmOutbox.create(100L, "token", "제목", "내용",
+                FcmRoutingType.CHAT_OPEN, 42L, 12345L);
+        String firebaseMessageId = "projects/uni-dorm/messages/0:1234567890";
+
+        // when
+        outbox.recordFirebaseMessageId(firebaseMessageId);
+
+        // then
+        assertThat(outbox.getFirebaseMessageId()).isEqualTo(firebaseMessageId);
+    }
+
+    @Test
+    @DisplayName("userId 전파 — BR-792 AC1: createCancellation() 시 this.userId가 파생 outbox에 전파됨")
+    void should_propagate_userId_when_createCancellation_called() {
+        // given
+        Long userId = 67890L;
+        FcmOutbox original = FcmOutbox.create(userId, "token", "채팅방", "내용",
+                FcmRoutingType.CHAT_OPEN, 42L, 12345L);
+
+        // when
+        FcmOutbox cancellation = original.createCancellation();
+
+        // then
+        assertThat(cancellation.getUserId()).isEqualTo(userId);
+    }
 }

@@ -1,7 +1,6 @@
 package com.example.appcenter_project.domain.fcm.service;
 
 import com.example.appcenter_project.domain.fcm.entity.FcmOutbox;
-import com.example.appcenter_project.domain.fcm.entity.FcmToken;
 import com.example.appcenter_project.domain.fcm.enums.FcmAction;
 import com.example.appcenter_project.domain.fcm.enums.FcmRoutingType;
 import com.example.appcenter_project.domain.fcm.enums.OutboxStatus;
@@ -27,7 +26,6 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
-import java.util.stream.Collectors;
 
 /**
  * FCM 전송을 fcmExecutor 스레드 풀에서 비동기로 처리하는 컴포넌트.
@@ -57,55 +55,6 @@ public class FcmAsyncSender {
     private final MixpanelService mixpanelService;
 
     public record RetryKey(int retryCount, String errorCode) {
-    }
-
-    /**
-     * 토큰 목록(최대 500개)을 MulticastMessage로 묶어 HTTP 1회에 전송.
-     * FcmMessageService에서 500개 단위 청크로 분할 후 호출한다.
-     */
-    @Async("fcmExecutor")
-    @Transactional
-    public CompletableFuture<Void> sendBatch(List<String> tokens, String title, String body) {
-        Notification notification = Notification.builder()
-                .setTitle(title)
-                .setBody(body)
-                .build();
-
-        MulticastMessage message = MulticastMessage.builder()
-                .addAllTokens(tokens)
-                .setNotification(notification)
-                .build();
-
-        try {
-            BatchResponse batchResponse = firebaseMessaging.sendEachForMulticast(message);
-            log.info("FCM 배치 전송: 성공={}, 실패={}", batchResponse.getSuccessCount(), batchResponse.getFailureCount());
-
-            List<SendResponse> responses = batchResponse.getResponses();
-            List<String> failedTokens = new ArrayList<>();
-            int successCount = 0;
-
-            for (int i = 0; i < responses.size(); i++) {
-                if (responses.get(i).isSuccessful()) {
-                    successCount++;
-                } else {
-                    String failedToken = tokens.get(i);
-                    log.warn("FCM 전송 실패 (token: {}...): {}",
-                            failedToken.substring(0, Math.min(20, failedToken.length())),
-                            responses.get(i).getException().getMessage());
-                    failedTokens.add(failedToken);
-                }
-            }
-
-            if (!failedTokens.isEmpty()) {
-                fcmTokenRepository.deleteAllByTokenIn(failedTokens);
-            }
-            recordBatch(successCount, failedTokens.size());
-        } catch (FirebaseMessagingException e) {
-            log.error("FCM 배치 전송 오류: {}", e.getMessage());
-            recordFail();
-        }
-
-        return CompletableFuture.completedFuture(null);
     }
 
     /**
@@ -139,18 +88,23 @@ public class FcmAsyncSender {
 
     @Async("fcmExecutor")
     public CompletableFuture<int[]> sendOutboxBatch(List<FcmOutbox> batch, String title, String body) {
-        List<String> tokens = batch.stream().map(FcmOutbox::getToken).toList();
-
-        FcmOutbox rep = batch.get(0);
-
-        MulticastMessage.Builder builder = MulticastMessage.builder()
-                .addAllTokens(tokens);
-
-        configurePayload(builder, rep, title, body);
-        MulticastMessage message = builder.build();
+        boolean hasUserId = batch.stream().anyMatch(o -> o.getUserId() != null);
 
         try {
-            BatchResponse batchResponse = firebaseMessaging.sendEachForMulticast(message);
+            BatchResponse batchResponse;
+            if (hasUserId) {
+                List<Message> messages = batch.stream()
+                        .map(outbox -> buildMessage(outbox, title, body))
+                        .toList();
+                batchResponse = firebaseMessaging.sendEach(messages);
+            } else {
+                List<String> tokens = batch.stream().map(FcmOutbox::getToken).toList();
+                FcmOutbox rep = batch.get(0);
+                MulticastMessage.Builder builder = MulticastMessage.builder().addAllTokens(tokens);
+                configurePayload(builder, rep, title, body);
+                batchResponse = firebaseMessaging.sendEachForMulticast(builder.build());
+            }
+
             if (batchResponse == null) {
                 return CompletableFuture.completedFuture(new int[]{0, 0, 0});
             }
@@ -169,6 +123,10 @@ public class FcmAsyncSender {
 
                 if (response.isSuccessful()) {
                     sentIds.add(outbox.getId());
+                    if (response.getMessageId() != null) {
+                        outbox.recordFirebaseMessageId(response.getMessageId());
+                        fcmOutboxRepository.updateFirebaseMessageId(outbox.getId(), response.getMessageId());
+                    }
                 } else {
                     FirebaseMessagingException e = response.getException();
                     String errorCode = e.getMessagingErrorCode() != null
@@ -199,17 +157,9 @@ public class FcmAsyncSender {
             if (!sentIds.isEmpty()) {
                 fcmOutboxRepository.bulkUpdateStatus(sentIds, OutboxStatus.SENT);
 
-                List<String> sentTokens = batch.stream()
-                        .filter(o -> sentIds.contains(o.getId()))
-                        .map(FcmOutbox::getToken)
-                        .toList();
-                List<FcmToken> fcmTokens = fcmTokenRepository.findAllByTokenIn(sentTokens);
-                Map<String, Long> tokenToUserId = fcmTokens.stream()
-                        .filter(t -> t.getUser() != null)
-                        .collect(Collectors.toMap(FcmToken::getToken, t -> t.getUser().getId(), (a, b) -> a));
                 for (FcmOutbox outbox : batch) {
                     if (sentIds.contains(outbox.getId())) {
-                        Long ownerId = tokenToUserId.get(outbox.getToken());
+                        Long ownerId = outbox.getUserId();
                         if (ownerId != null) {
                             try {
                                 JSONObject props = new JSONObject();
@@ -237,7 +187,7 @@ public class FcmAsyncSender {
             }
 
             int failCount = responses.size() - sentIds.size();
-            recordOutboxStats(sentIds.size(), failCount, deadCount);
+            recordOutboxStats(batchResponse.getSuccessCount(), batchResponse.getFailureCount(), deadCount);
             log.info("FCM Outbox 배치 전송: 성공={}, 실패={} ({}건 중)", sentIds.size(), failCount, batch.size());
             return CompletableFuture.completedFuture(new int[]{sentIds.size(), failCount, deadCount});
 
@@ -261,6 +211,93 @@ public class FcmAsyncSender {
             });
             recordOutboxStats(0, batch.size(), deadCount);
             return CompletableFuture.completedFuture(new int[]{0, batch.size(), deadCount});
+        }
+    }
+
+    private Message buildMessage(FcmOutbox outbox, String title, String body) {
+        Message.Builder builder = Message.builder().setToken(outbox.getToken());
+        configureMessagePayload(builder, outbox, title, body);
+
+        String label = buildAnalyticsLabel(outbox);
+        if (label != null) {
+            builder.setFcmOptions(FcmOptions.builder().setAnalyticsLabel(label).build());
+        }
+
+        FcmRoutingType routing = outbox.getRoutingType();
+        if (routing != null) {
+            builder.setAndroidConfig(AndroidConfig.builder()
+                    .setNotification(AndroidNotification.builder()
+                            .setSound("default")
+                            .setTag(routing.threadId(outbox.getRoutingId()))
+                            .build())
+                    .build());
+            builder.putData("com.google.firebase.messaging.delivery_metrics_exported", "true");
+        }
+
+        return builder.build();
+    }
+
+    static String buildAnalyticsLabel(FcmOutbox outbox) {
+        if (outbox.getRoutingType() == null) {
+            return null;
+        }
+
+        String prefix = outbox.getRoutingType().analyticsLabelPrefix();
+        String userSuffix = outbox.getUserId() != null ? "_u_" + outbox.getUserId() : "_u_unknown";
+
+        String label;
+        if (outbox.getMessageId() != null) {
+            String action = outbox.getAction() != null
+                    ? outbox.getAction().name().toLowerCase()
+                    : "create";
+            label = prefix + "_" + action + "_msg_" + outbox.getMessageId() + userSuffix;
+        } else if (outbox.getRoutingId() != null) {
+            label = prefix + "_create_bundle_" + outbox.getRoutingId() + userSuffix;
+        } else {
+            return null;
+        }
+
+        if (label.length() > 50) {
+            log.warn("FCM analytics_label 길이 초과 ({}자), 라벨 생략: {}", label.length(), label);
+            return null;
+        }
+        return label;
+    }
+
+    private void configureMessagePayload(Message.Builder builder, FcmOutbox outbox, String title, String body) {
+        FcmAction action = outbox.getAction();
+        FcmRoutingType routing = outbox.getRoutingType();
+        Long roomId = outbox.getRoutingId();
+        Long messageId = outbox.getMessageId();
+
+        if (action != FcmAction.CREATE && (routing == null || roomId == null || messageId == null)) {
+            throw new CustomException(ErrorCode.FCM_INVALID_PAYLOAD);
+        }
+
+        builder.putData("action", action.name());
+        if (routing != null && roomId != null) {
+            builder.putData("type", routing.dataType())
+                    .putData("path", routing.path(roomId))
+                    .putData(routing.dataKey(), String.valueOf(roomId));
+        }
+        if (messageId != null) {
+            builder.putData("messageId", String.valueOf(messageId));
+        }
+
+        if (action == FcmAction.DELETE) {
+            builder.setApnsConfig(ApnsConfig.builder()
+                    .putHeader("apns-push-type", "background")
+                    .putHeader("apns-priority", "5")
+                    .setAps(Aps.builder().setContentAvailable(true).build()).build());
+            return;
+        }
+
+        builder.setNotification(Notification.builder().setTitle(title).setBody(body).build());
+
+        if (routing != null && roomId != null) {
+            String groupKey = routing.threadId(roomId);
+            builder.setApnsConfig(ApnsConfig.builder()
+                    .setAps(Aps.builder().setSound("default").setThreadId(groupKey).build()).build());
         }
     }
 
@@ -303,20 +340,6 @@ public class FcmAsyncSender {
                             .setAps(Aps.builder().setSound("default").setThreadId(groupKey).build()).build())
                     .setAndroidConfig(AndroidConfig.builder().setNotification(AndroidNotification.builder()
                             .setSound("default").setTag(groupKey).build()).build());
-        }
-    }
-
-    private void recordBatch(int successCount, int failCount) {
-        String today = LocalDate.now().toString();
-        if (successCount > 0) {
-            String key = FCM_SUCCESS_KEY_PREFIX + today;
-            redisTemplate.opsForValue().increment(key, successCount);
-            redisTemplate.expire(key, Duration.ofHours(24));
-        }
-        if (failCount > 0) {
-            String key = FCM_FAIL_KEY_PREFIX + today;
-            redisTemplate.opsForValue().increment(key, failCount);
-            redisTemplate.expire(key, Duration.ofHours(24));
         }
     }
 

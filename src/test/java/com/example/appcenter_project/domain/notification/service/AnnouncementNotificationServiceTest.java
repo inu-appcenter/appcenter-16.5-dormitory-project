@@ -62,7 +62,7 @@ class AnnouncementNotificationServiceTest {
         given(userRepository.findByReceiveNotificationTypesContainsAndRoleNotIn(any(), any()))
                 .willReturn(List.of(user));
         given(notificationRepository.save(any())).willReturn(notification);
-        given(fcmTokenRepository.findAllByUserIn(anyList())).willReturn(List.of(fcmToken));
+        given(fcmTokenRepository.findAllByUserInWithUser(anyList())).willReturn(List.of(fcmToken));
 
         ArgumentCaptor<List<FcmOutbox>> captor = ArgumentCaptor.forClass(List.class);
 
@@ -92,7 +92,7 @@ class AnnouncementNotificationServiceTest {
         given(userRepository.findByReceiveNotificationTypesContainsAndRoleNotIn(any(), any()))
                 .willReturn(List.of(user));
         given(notificationRepository.save(any())).willReturn(notification);
-        given(fcmTokenRepository.findAllByUserIn(anyList())).willReturn(List.of(fcmToken));
+        given(fcmTokenRepository.findAllByUserInWithUser(anyList())).willReturn(List.of(fcmToken));
 
         ArgumentCaptor<List<FcmOutbox>> captor = ArgumentCaptor.forClass(List.class);
 
@@ -103,5 +103,39 @@ class AnnouncementNotificationServiceTest {
         then(fcmOutboxRepository).should().saveAll(captor.capture());
         List<FcmOutbox> saved = captor.getValue();
         assertThat(saved).allMatch(o -> o.getRoutingId().equals(5678L));
+    }
+
+    // ──────────────────────────────────────────────
+    // BR-792 AC8 — sendDormitoryNotifications 호출 시 FcmOutbox.create()에 userId가 전달되는지
+    // ──────────────────────────────────────────────
+
+    @Test
+    @DisplayName("FcmOutbox에 userId 전달 — BR-792 AC8: sendDormitoryNotifications 호출 시 userId가 null이 아님")
+    void should_pass_userId_to_fcm_outbox_when_sendDormitoryNotifications_called() {
+        // given
+        Announcement announcement = mock(Announcement.class);
+        given(announcement.getId()).willReturn(5678L);
+        given(announcement.getTitle()).willReturn("공지 제목");
+
+        User user = User.createForTest(1L, "user-1");
+        FcmToken fcmToken = FcmToken.builder().user(user).token("fcm-token-001").build();
+        Notification notification = mock(Notification.class);
+        given(notification.getTitle()).willReturn("새로운 공지사항이 올라왔어요!");
+        given(notification.getBody()).willReturn("공지 제목");
+
+        given(userRepository.findByReceiveNotificationTypesContainsAndRoleNotIn(any(), any()))
+                .willReturn(List.of(user));
+        given(notificationRepository.save(any())).willReturn(notification);
+        given(fcmTokenRepository.findAllByUserInWithUser(anyList())).willReturn(List.of(fcmToken));
+
+        ArgumentCaptor<List<FcmOutbox>> captor = ArgumentCaptor.forClass(List.class);
+
+        // when
+        announcementNotificationService.sendDormitoryNotifications(announcement);
+
+        // then
+        then(fcmOutboxRepository).should().saveAll(captor.capture());
+        List<FcmOutbox> saved = captor.getValue();
+        assertThat(saved).allMatch(o -> o.getUserId() != null);
     }
 }

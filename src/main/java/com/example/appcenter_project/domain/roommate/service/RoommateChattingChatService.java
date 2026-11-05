@@ -166,7 +166,7 @@ public class RoommateChattingChatService {
         Notification chatNotification = notificationService.createChatNotification(sender.getName(), chatRoomId, content);
         List<FcmToken> tokens = fcmTokenRepository.findAllByUser(receiver);
         List<FcmOutbox> outboxes = tokens.stream()
-                .map(token -> FcmOutbox.create(token.getToken(), chatNotification.getTitle(), chatNotification.getBody(),
+                .map(token -> FcmOutbox.create(receiver.getId(), token.getToken(), chatNotification.getTitle(), chatNotification.getBody(),
                         FcmRoutingType.CHAT_ROOMMATE, chatRoomId, messageId))
                 .toList();
         if (!outboxes.isEmpty()) {
