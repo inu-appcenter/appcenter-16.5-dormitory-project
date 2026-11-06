@@ -4,8 +4,12 @@ import com.example.appcenter_project.domain.fcm.entity.FcmOutbox;
 import com.example.appcenter_project.domain.fcm.fixture.FcmOutboxFixture;
 import com.example.appcenter_project.domain.fcm.repository.FcmOutboxRepository;
 import com.example.appcenter_project.domain.user.repository.FcmTokenRepository;
+import com.google.firebase.messaging.BatchResponse;
 import com.google.firebase.messaging.FirebaseMessaging;
+import com.google.firebase.messaging.Message;
 import com.google.firebase.messaging.MulticastMessage;
+import com.google.firebase.messaging.SendResponse;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -14,11 +18,16 @@ import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.data.redis.core.RedisTemplate;
+import org.springframework.data.redis.core.ValueOperations;
 
+import java.util.ArrayList;
 import java.util.List;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.BDDMockito.given;
+import static org.mockito.BDDMockito.then;
+import static org.mockito.Mockito.lenient;
+import static org.mockito.Mockito.mock;
 
 @ExtendWith(MockitoExtension.class)
 class FcmAsyncSenderTest {
@@ -37,6 +46,12 @@ class FcmAsyncSenderTest {
 
     @InjectMocks
     FcmAsyncSender fcmAsyncSender;
+
+    @BeforeEach
+    void stubRedis() {
+        ValueOperations<String, Object> valueOps = mock(ValueOperations.class);
+        lenient().when(redisTemplate.opsForValue()).thenReturn(valueOps);
+    }
 
     @Test
     @DisplayName("data.path = /chat/open/1234 포함 — AC-1: CHAT_OPEN FCM data.path 필드")
@@ -322,5 +337,142 @@ class FcmAsyncSenderTest {
                         "type", "CHAT_OPEN",
                         "path", "/chat/open/10",
                         "chatRoomId", "10"));
+    }
+
+    // BR-792 AC2 — 즉시 알림 analytics_label 포맷 (buildAnalyticsLabel 단독 단위 테스트)
+
+    @Test
+    @DisplayName("analytics_label = openchat_create_msg_12345_u_67890 — BR-792 AC2: 즉시 알림 라벨 포맷")
+    void should_set_analyticsLabel_immediate_format_when_userId_and_messageId_present() {
+        // given
+        FcmOutbox outbox = FcmOutboxFixture.createWithUserIdAndChatOpenImmediate(67890L, 42L, 12345L);
+
+        // when
+        String label = FcmAsyncSender.buildAnalyticsLabel(outbox);
+
+        // then
+        assertThat(label).isEqualTo("openchat_create_msg_12345_u_67890");
+    }
+
+    // BR-792 AC3 — 묶음 알림 analytics_label 포맷
+
+    @Test
+    @DisplayName("analytics_label = openchat_create_bundle_42_u_67890 — BR-792 AC3: 묶음 알림 라벨 포맷")
+    void should_set_analyticsLabel_bundle_format_when_messageId_is_null() {
+        // given
+        FcmOutbox outbox = FcmOutboxFixture.createWithUserIdAndChatOpenBundle(67890L, 42L);
+
+        // when
+        String label = FcmAsyncSender.buildAnalyticsLabel(outbox);
+
+        // then
+        assertThat(label).isEqualTo("openchat_create_bundle_42_u_67890");
+    }
+
+    // BR-792 AC4 — userId null 처리
+
+    @Test
+    @DisplayName("analytics_label에 _u_unknown 포함 — BR-792 AC4: userId null이면 unknown으로 대체")
+    void should_use_unknown_in_analyticsLabel_when_userId_is_null() {
+        // given
+        FcmOutbox outbox = FcmOutboxFixture.createWithNullUserIdAndChatOpenImmediate(42L, 12345L);
+
+        // when
+        String label = FcmAsyncSender.buildAnalyticsLabel(outbox);
+
+        // then
+        assertThat(label).isEqualTo("openchat_create_msg_12345_u_unknown");
+    }
+
+    // BR-792 AC6 — Android delivery receipt 활성화
+
+    @Test
+    @DisplayName("delivery_metrics_exported data=true 포함 — BR-792 AC6: Android delivery receipt 활성화")
+    @SuppressWarnings("unchecked")
+    void should_include_delivery_metrics_exported_data_when_outbox_has_routing() throws Exception {
+        // given
+        List<FcmOutbox> batch = FcmOutboxFixture.createChatOpenOutboxBatchWithUserId(42L, 1);
+        ArgumentCaptor<List<Message>> captor = ArgumentCaptor.forClass(List.class);
+        BatchResponse batchResponse = mockBatchResponse(1, true, null);
+        given(firebaseMessaging.sendEach(captor.capture())).willReturn(batchResponse);
+
+        // when
+        fcmAsyncSender.sendOutboxBatch(batch, "채팅 제목", "채팅 내용").join();
+
+        // then
+        Message message = captor.getValue().get(0);
+        java.lang.reflect.Field dataField = Message.class.getDeclaredField("data");
+        dataField.setAccessible(true);
+        java.util.Map<String, String> data = (java.util.Map<String, String>) dataField.get(message);
+        assertThat(data)
+                .containsEntry("com.google.firebase.messaging.delivery_metrics_exported", "true");
+    }
+
+    // BR-792 AC7 — sendEach 전환
+
+    @Test
+    @DisplayName("sendEach(List<Message>) 호출 — BR-792 AC7: 토큰별 개별 Message로 sendEach 사용")
+    void should_call_sendEach_with_individual_messages_when_multiple_outboxes() throws Exception {
+        // given
+        List<FcmOutbox> batch = FcmOutboxFixture.createChatOpenOutboxBatchWithUserId(42L, 2);
+        ArgumentCaptor<List<Message>> captor = ArgumentCaptor.forClass(List.class);
+        BatchResponse batchResponse = mockBatchResponse(2, true, null);
+        given(firebaseMessaging.sendEach(captor.capture())).willReturn(batchResponse);
+
+        // when
+        fcmAsyncSender.sendOutboxBatch(batch, "채팅 제목", "채팅 내용").join();
+
+        // then
+        assertThat(captor.getValue()).hasSize(2);
+    }
+
+    // BR-792 AC5 — Firebase messageId 저장
+
+    @Test
+    @DisplayName("FcmOutbox.firebaseMessageId 저장 — BR-792 AC5: 성공 응답의 messageId가 outbox에 기록됨")
+    void should_record_firebaseMessageId_in_outbox_when_send_succeeds() throws Exception {
+        // given
+        FcmOutbox outbox = FcmOutboxFixture.createWithUserIdAndChatOpenImmediate(100L, 42L, 12345L);
+        String returnedMessageId = "projects/uni-dorm/messages/0:1234567890";
+        ArgumentCaptor<List<Message>> captor = ArgumentCaptor.forClass(List.class);
+        BatchResponse batchResponse = mockBatchResponse(1, true, returnedMessageId);
+        given(firebaseMessaging.sendEach(captor.capture())).willReturn(batchResponse);
+
+        // when
+        fcmAsyncSender.sendOutboxBatch(List.of(outbox), "채팅 제목", "채팅 내용").join();
+
+        // then
+        assertThat(outbox.getFirebaseMessageId()).isEqualTo(returnedMessageId);
+        then(fcmOutboxRepository).should().updateFirebaseMessageId(outbox.getId(), returnedMessageId);
+    }
+
+    // BR-792 AC9 — 기존 레코드 호환 (userId null outbox 처리 시 예외 없음)
+
+    @Test
+    @DisplayName("예외 없이 _u_unknown 라벨로 처리 — BR-792 AC9: userId null인 기존 레코드 호환")
+    void should_process_legacy_outbox_without_exception_when_userId_is_null() {
+        // given
+        FcmOutbox outbox = FcmOutboxFixture.createWithNullUserIdAndChatOpenImmediate(42L, 12345L);
+
+        // when
+        String label = FcmAsyncSender.buildAnalyticsLabel(outbox);
+
+        // then
+        assertThat(label).contains("_u_unknown");
+    }
+
+    private BatchResponse mockBatchResponse(int count, boolean success, String messageId) {
+        BatchResponse batchResponse = mock(BatchResponse.class);
+        List<SendResponse> responses = new ArrayList<>();
+        for (int i = 0; i < count; i++) {
+            SendResponse sendResponse = mock(SendResponse.class);
+            given(sendResponse.isSuccessful()).willReturn(success);
+            given(sendResponse.getMessageId()).willReturn(messageId);
+            responses.add(sendResponse);
+        }
+        given(batchResponse.getResponses()).willReturn(responses);
+        given(batchResponse.getSuccessCount()).willReturn(success ? count : 0);
+        given(batchResponse.getFailureCount()).willReturn(success ? 0 : count);
+        return batchResponse;
     }
 }
