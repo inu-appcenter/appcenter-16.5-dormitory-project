@@ -5,6 +5,7 @@ import com.example.appcenter_project.domain.roommate.dto.response.ResponseRoomma
 import com.example.appcenter_project.global.security.CustomUserDetails;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
+import io.swagger.v3.oas.annotations.media.ArraySchema;
 import io.swagger.v3.oas.annotations.media.Content;
 import io.swagger.v3.oas.annotations.media.Schema;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
@@ -13,6 +14,7 @@ import jakarta.servlet.http.HttpServletRequest;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.multipart.MultipartFile;
 
 import java.util.List;
 
@@ -57,6 +59,34 @@ public interface RoommateChatApiSpecification  {
             @Parameter(hidden = true) CustomUserDetails userDetails,
             HttpServletRequest request,
             @Parameter(description = "조회할 채팅방 ID", example = "1") @PathVariable Long roomId
+    );
+
+    @Operation(
+            summary = "채팅 이미지 전송",
+            description = """
+                    - `multipart/form-data`의 `images`에 이미지를 담아 전송합니다.
+                    - 이미지 1장당 메시지 1개가 생성되며, 전송 순서대로 `/sub/roommate/chat/{roomId}`에 생성 이벤트가 전송됩니다.
+                    - 파일당 최대 10MB, 허용 형식: jpg, jpeg, png, gif, webp
+                    - 이미지 메시지의 `content`는 `[이미지]`이며, 이미지 URL은 `imageUrls`로 반환됩니다. 채팅 내역 조회에서도 같습니다.
+                    - 삭제된 이미지 메시지는 `imageUrls`가 빈 배열입니다.
+                    """,
+            responses = {
+                    @ApiResponse(responseCode = "201", description = "이미지 전송 성공",
+                            content = @Content(mediaType = "application/json",
+                                    array = @ArraySchema(schema = @Schema(implementation = ResponseRoommateChatDto.class)))),
+                    @ApiResponse(responseCode = "400", description = "이미지 없음·개수 초과·형식 오류 (ROOMMATE_CHAT_IMAGE_EMPTY, ROOMMATE_CHAT_IMAGE_COUNT_EXCEEDED, IMAGE_INVALID_FORMAT)",
+                            content = @Content()),
+                    @ApiResponse(responseCode = "403", description = "채팅방 참여자가 아님 (ROOMMATE_CHAT_PARTICIPANT_FORBIDDEN)",
+                            content = @Content()),
+                    @ApiResponse(responseCode = "404", description = "유저 또는 채팅방 없음 (USER_NOT_FOUND, ROOMMATE_CHAT_ROOM_NOT_FOUND)",
+                            content = @Content())
+            }
+    )
+    ResponseEntity<List<ResponseRoommateChatDto>> sendImageChats(
+            @Parameter(hidden = true) CustomUserDetails userDetails,
+            @Parameter(description = "채팅방 ID", example = "1") @PathVariable Long roomId,
+            @Parameter(description = "전송할 이미지 (1~5장)") List<MultipartFile> images,
+            HttpServletRequest request
     );
 
     @Operation(

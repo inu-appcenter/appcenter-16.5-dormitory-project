@@ -9,15 +9,18 @@ import jakarta.servlet.http.HttpServletRequest;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import jakarta.validation.Valid;
+import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.messaging.handler.annotation.MessageMapping;
 import org.springframework.messaging.simp.SimpMessageHeaderAccessor;
+import org.springframework.web.multipart.MultipartFile;
 
 import java.util.List;
 
 import static org.springframework.http.HttpStatus.OK;
+import static org.springframework.http.HttpStatus.CREATED;
 
 @Slf4j
 @RestController
@@ -62,6 +65,19 @@ public class RoommateChattingChatController implements RoommateChatApiSpecificat
         Long userId = userDetails.getId();
         chatService.markAsRead(roomId, userId);
         return ResponseEntity.ok().build();
+    }
+
+    // 이미지 전송
+    @TrackApi
+    @PostMapping(value = "/{roomId}/images", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+    public ResponseEntity<List<ResponseRoommateChatDto>> sendImageChats(
+            @AuthenticationPrincipal CustomUserDetails userDetails,
+            @PathVariable Long roomId,
+            @RequestPart(value = "images", required = false) List<MultipartFile> images,
+            HttpServletRequest request
+    ) {
+        return ResponseEntity.status(CREATED)
+                .body(chatService.sendImageChats(userDetails.getId(), roomId, images, request));
     }
 
     @GetMapping("/{roomId}/unread-count")
