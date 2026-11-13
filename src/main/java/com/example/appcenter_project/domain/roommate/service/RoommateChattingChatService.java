@@ -35,6 +35,12 @@ import org.json.JSONObject;
 import org.springframework.messaging.simp.SimpMessagingTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import com.example.appcenter_project.common.image.entity.Image;
+import com.example.appcenter_project.common.image.repository.ImageRepository;
+import org.springframework.web.multipart.MultipartFile;
+import java.nio.file.Paths;
+import java.util.Set;
+
 
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -60,7 +66,13 @@ public class RoommateChattingChatService {
     private final FcmOutboxRepository fcmOutboxRepository;
     private final FcmTokenRepository fcmTokenRepository;
     private final ImageService imageService;
+    private final ImageRepository imageRepository;
     private final MixpanelService mixpanelService;
+
+    private static final Set<String> ALLOWED_IMAGE_EXTENSIONS = Set.of(".jpg", ".jpeg", ".png", ".gif", ".webp");
+    private static final Set<String> ALLOWED_MIME_TYPES = Set.of("image/jpeg", "image/png", "image/gif", "image/webp");
+    private static final int MAX_IMAGE_COUNT = 5;
+    private static final long MAX_IMAGE_SIZE_BYTES = 10L * 1024 * 1024;
 
     public ResponseRoommateChatDto sendChat(Long userId, RequestRoommateChatDto requestRoommateChatDto) {
         log.info("💬 [채팅 전송 시작] userId: {}, roomId: {}, content: {}",
@@ -75,25 +87,14 @@ public class RoommateChattingChatService {
                 .orElseThrow(() -> new CustomException(ROOMMATE_CHAT_ROOM_NOT_FOUND));
 
         // 3. 보낸 사람 → 수신자 확인 및 보안 검증
-        User receiver;
-        if (room.getGuest().getId().equals(userId)) {
-            receiver = room.getHost(); // 내가 요청자면 상대는 게시글 작성자
-        } else if (room.getHost().getId().equals(userId)) {
-            receiver = room.getGuest(); // 내가 작성자면 상대는 요청자
-        } else {
-            throw new CustomException(ROOMMATE_CHAT_PARTICIPANT_FORBIDDEN); // 해당 채팅방 소속이 아님
-        }
+        User receiver = resolveReceiver(room, userId);
 
         // 수신자가 방을 나간 상태면 메시지 수신 시 자동 재진입 (채팅 목록에 다시 표시)
-        if (room.getHost().getId().equals(receiver.getId()) && room.isHostLeft()) {
-            room.rejoinAsHost();
-        } else if (room.getGuest().getId().equals(receiver.getId()) && room.isGuestLeft()) {
-            room.rejoinAsGuest();
-        }
+        rejoinIfLeft(room, receiver);
 
         log.info("👥 [채팅방 참여자] 발신자: {} ({}), 수신자: {} ({})",
-                sender.getId(), sender.getStudentNumber(),
-                receiver.getId(), receiver.getStudentNumber());
+            sender.getId(), sender.getStudentNumber(),
+            receiver.getId(), receiver.getStudentNumber());
 
         // 4. 수신자가 현재 WebSocket 방에 접속해 있는지 확인
         boolean isReceiverOnline = isUserOnlineInRoom(requestRoommateChatDto.getRoommateChattingRoomId(), receiver.getId());
@@ -146,14 +147,7 @@ public class RoommateChattingChatService {
         }
 
         if (!isReceiverOnline) {
-            boolean isReceiverHost = room.getHost().getId().equals(receiver.getId());
-            ChatNotificationMode mode = isReceiverHost
-                    ? room.getHostNotificationMode()
-                    : room.getGuestNotificationMode();
-            if (mode == null) {
-                mode = ChatNotificationMode.EVERY;
-            }
-            sendChatNotification(sender, receiver, room.getId(), chat.getContent(), mode, savedChat.getId());
+            notifyOfflineReceiver(room, sender, receiver, chat.getContent(), savedChat.getId());
         }
 
         return responseDto;
@@ -172,6 +166,80 @@ public class RoommateChattingChatService {
         if (!outboxes.isEmpty()) {
             fcmOutboxRepository.saveAll(outboxes);
         }
+    }
+
+    private User resolveReceiver(RoommateChattingRoom room, Long userId) {
+        if (room.getGuest().getId().equals(userId)) {
+            return room.getHost(); // 내가 요청자면 상대는 게시글 작성자
+        }
+        if (room.getHost().getId().equals(userId)) {
+            return room.getGuest(); // 내가 작성자면 상대는 요청자
+        }
+        throw new CustomException(ROOMMATE_CHAT_PARTICIPANT_FORBIDDEN); // 해당 채팅방 소속이 아님
+    }
+
+    private void rejoinIfLeft(RoommateChattingRoom room, User receiver) {
+        if (room.getHost().getId().equals(receiver.getId()) && room.isHostLeft()) {
+            room.rejoinAsHost();
+        } else if (room.getGuest().getId().equals(receiver.getId()) && room.isGuestLeft()) {
+            room.rejoinAsGuest();
+        }
+    }
+
+    private void notifyOfflineReceiver(RoommateChattingRoom room, User sender, User receiver, String content, Long messageId) {
+        boolean isReceiverHost = room.getHost().getId().equals(receiver.getId());
+        ChatNotificationMode mode = isReceiverHost
+                ? room.getHostNotificationMode()
+                : room.getGuestNotificationMode();
+        if (mode == null) {
+            mode = ChatNotificationMode.EVERY;
+        }
+        sendChatNotification(sender, receiver, room.getId(), content, mode, messageId);
+    }
+
+    private void validateImageFiles(List<MultipartFile> images) {
+        if (images == null || images.isEmpty()) {
+            throw new CustomException(ROOMMATE_CHAT_IMAGE_EMPTY);
+        }
+        if (images.size() > MAX_IMAGE_COUNT) {
+            throw new CustomException(ROOMMATE_CHAT_IMAGE_COUNT_EXCEEDED);
+        }
+        for (MultipartFile image : images) {
+            if (image.getSize() > MAX_IMAGE_SIZE_BYTES) {
+                throw new CustomException(IMAGE_INVALID_FORMAT);
+            }
+            String originalFilename = image.getOriginalFilename();
+            if (originalFilename == null || originalFilename.isBlank()) {
+                throw new CustomException(IMAGE_INVALID_FORMAT);
+            }
+            String safeName = Paths.get(originalFilename).getFileName().toString();
+            int dotIndex = safeName.lastIndexOf('.');
+            if (dotIndex < 0) {
+                throw new CustomException(IMAGE_INVALID_FORMAT);
+            }
+            if (!ALLOWED_IMAGE_EXTENSIONS.contains(safeName.substring(dotIndex).toLowerCase())) {
+                throw new CustomException(IMAGE_INVALID_FORMAT);
+            }
+            String contentType = image.getContentType();
+            if (contentType == null || !ALLOWED_MIME_TYPES.contains(contentType.toLowerCase())) {
+                throw new CustomException(IMAGE_INVALID_FORMAT);
+            }
+        }
+    }
+
+    private Map<Long, List<String>> findImageUrlsByChatId(List<RoommateChattingChat> chats, HttpServletRequest request) {
+        List<Long> imageChatIds = chats.stream()
+                .filter(chat -> chat.isImage() && !chat.isDeleted())
+                .map(RoommateChattingChat::getId)
+                .toList();
+        if (imageChatIds.isEmpty()) {
+            return Map.of();
+        }
+        return imageRepository.findByImageTypeAndEntityIdIn(ImageType.ROOMMATE_CHAT_MESSAGE, imageChatIds).stream()
+                .collect(Collectors.groupingBy(
+                        Image::getEntityId,
+                        Collectors.mapping(img -> imageService.getImageUrl(ImageType.ROOMMATE_CHAT_MESSAGE, img, request), Collectors.toList())
+                ));
     }
 
     public void markAsRead(Long roomId, Long userId) {
@@ -446,13 +514,15 @@ public class RoommateChattingChatService {
         }
 
         Map<Long, ReplySourceDto> replySources = buildReplySources(chatList);
+        Map<Long, List<String>> imageUrlsByChatId = findImageUrlsByChatId(chatList, request);
 
         return chatList.stream()
                 .map(chat -> {
                     String imageUrl = chat.getMember() != null
                             ? imageService.findImage(ImageType.USER, chat.getMember().getId(), request).getImageUrl()
                             : null;
-                    return ResponseRoommateChatDto.entityToDto(chat, imageUrl, replySources.get(chat.getId()));
+                    return ResponseRoommateChatDto.entityToDto(chat, imageUrl, replySources.get(chat.getId()),
+                            imageUrlsByChatId.getOrDefault(chat.getId(), List.of()));
                 })
                 .toList();
     }
@@ -485,5 +555,42 @@ public class RoommateChattingChatService {
 
         ResponseRoommateChatDeleteEventDto deleteEventDto = new ResponseRoommateChatDeleteEventDto(roommateChatMessage.getId(), roommateChatRoom.getId());
         messagingTemplate.convertAndSend(ROOMMATE_CHAT_TOPIC_PREFIX + roomId, deleteEventDto);
+    }
+
+    public List<ResponseRoommateChatDto> sendImageChats(Long userId, Long roomId, List<MultipartFile> images, HttpServletRequest request) {
+        User sender = userRepository.findById(userId)
+                .orElseThrow(() -> new CustomException(USER_NOT_FOUND));
+        RoommateChattingRoom room = chatRoomRepository.findById(roomId)
+                .orElseThrow(() -> new CustomException(ROOMMATE_CHAT_ROOM_NOT_FOUND));
+        User receiver = resolveReceiver(room, userId);
+
+        validateImageFiles(images);
+
+        rejoinIfLeft(room, receiver);
+        boolean isReceiverOnline = isUserOnlineInRoom(roomId, receiver.getId());
+
+        List<ResponseRoommateChatDto> results = new ArrayList<>();
+        for (MultipartFile image : images) {
+            RoommateChattingChat savedChat = chatRepository.save(
+                    RoommateChattingChat.createImageMessage(room, sender, isReceiverOnline));
+            imageService.saveImage(ImageType.ROOMMATE_CHAT_MESSAGE, savedChat.getId(), image);
+            List<String> imageUrls = imageService.findStaticImageUrls(ImageType.ROOMMATE_CHAT_MESSAGE, savedChat.getId(), request);
+
+            messagingTemplate.convertAndSend(ROOMMATE_CHAT_TOPIC_PREFIX + roomId,
+                    ResponseRoommateChatCreateEventDto.from(savedChat, null, null, imageUrls));
+            if (isReceiverOnline) {
+                messagingTemplate.convertAndSend(ROOMMATE_CHAT_TOPIC_PREFIX + roomId,
+                        new ResponseRoommateChatReadEventDto(roomId, receiver.getId(), List.of(savedChat.getId())));
+            }
+            results.add(ResponseRoommateChatDto.entityToDto(savedChat, null, null, imageUrls));
+        }
+
+        // 여러 장을 보내도 알림은 마지막 메시지 기준 1회
+        if (!isReceiverOnline) {
+            notifyOfflineReceiver(room, sender, receiver, RoommateChattingChat.IMAGE_MESSAGE_CONTENT,
+                    results.get(results.size() - 1).getRoommateChatId());
+        }
+
+        return results;
     }
 }

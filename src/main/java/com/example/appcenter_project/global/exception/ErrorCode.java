@@ -109,6 +109,8 @@ public enum ErrorCode {
     ROOMMATE_CHAT_REPLY_TARGET_NOT_IN_SAME_ROOM(BAD_REQUEST, 10011, "[RoommateChat] 원본 메시지가 다른 채팅방 소속입니다."),
     ROOMMATE_CHAT_NESTED_REPLY_NOT_ALLOWED(BAD_REQUEST, 10012, "[RoommateChat] 답장에 대한 답장은 불가합니다."),
     ROOMMATE_CHAT_MESSAGE_NOT_OWNED_BY_USER(FORBIDDEN, 10013, "[RoommateChat] 메시지 발신자가 아닙니다."),
+    ROOMMATE_CHAT_IMAGE_EMPTY(BAD_REQUEST, 10014, "[RoommateChat] 전송할 이미지가 없습니다."),
+    ROOMMATE_CHAT_IMAGE_COUNT_EXCEEDED(BAD_REQUEST, 10015, "[RoommateChat] 이미지는 최대 5장까지 전송 가능합니다."),
 
     // REPORT
     REPORT_NOT_REGISTERED(NOT_FOUND, 11001, "[Report] 해당 신고 정보를 찾을 수 없습니다"),
