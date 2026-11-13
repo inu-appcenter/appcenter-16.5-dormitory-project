@@ -51,6 +51,8 @@ public class RoommateChattingChat extends BaseTimeEntity {
 
     private Long replyToRoomId;
 
+    public static final String IMAGE_MESSAGE_CONTENT = "[이미지]";
+
     @Builder
     public RoommateChattingChat(RoommateChattingRoom roommateChattingRoom, User member, String content, boolean readByReceiver) {
         this.roommateChattingRoom = roommateChattingRoom;
@@ -101,6 +103,16 @@ public class RoommateChattingChat extends BaseTimeEntity {
         return chat;
     }
 
+    public static RoommateChattingChat createImageMessage(RoommateChattingRoom room, User sender, boolean readByReceiver) {
+        RoommateChattingChat chat = new RoommateChattingChat();
+        chat.roommateChattingRoom = room;
+        chat.member = sender;
+        chat.content = IMAGE_MESSAGE_CONTENT;
+        chat.messageType = RoommateChattingMessageType.IMAGE;
+        chat.readByReceiver = readByReceiver;
+        return chat;
+    }
+
     public static RoommateChattingChat createForTest(Long id, Long roomId, Long senderId, String content,
                                                      boolean isSystem, boolean isDeleted, Long replyToMessageId) {
         RoommateChattingChat chat = new RoommateChattingChat();
@@ -118,6 +130,10 @@ public class RoommateChattingChat extends BaseTimeEntity {
 
     public void markAsRead() {
         this.readByReceiver = true;
+    }
+
+    public boolean isImage() {
+        return this.messageType == RoommateChattingMessageType.IMAGE;
     }
 
     public boolean isDeleted() {

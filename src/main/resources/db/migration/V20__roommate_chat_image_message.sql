@@ -1,0 +1,1 @@
+ALTER TABLE roommate_chatting_chat MODIFY COLUMN message_type VARCHAR(30) NULL;
