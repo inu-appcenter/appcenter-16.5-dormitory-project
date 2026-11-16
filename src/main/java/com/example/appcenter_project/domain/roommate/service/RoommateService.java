@@ -116,7 +116,6 @@ public class RoommateService {
             props.put("year", year);
             props.put("semester", semester.name());
             mixpanelService.trackEvent(user.getId().toString(), "roommate_post_create_completed", props);
-            mixpanelService.trackEvent(user.getId().toString(), "roommate_post_published", props);
         } catch (Exception e) {
             log.warn("Mixpanel 모집글 생성 이벤트 추적 실패 - userId: {}", user.getId());
         }
