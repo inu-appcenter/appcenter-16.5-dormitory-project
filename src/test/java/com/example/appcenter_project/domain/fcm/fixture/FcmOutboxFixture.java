@@ -67,4 +67,27 @@ public class FcmOutboxFixture {
                 .mapToObj(i -> FcmOutbox.create("token-" + i, "제목", "내용"))
                 .toList();
     }
+
+    // BR-792: userId 포함 헬퍼
+    public static FcmOutbox createWithUserIdAndChatOpenImmediate(Long userId, Long routingId, Long messageId) {
+        return FcmOutbox.create(userId, "token-chat-open", "채팅 제목", "채팅 내용",
+                FcmRoutingType.CHAT_OPEN, routingId, messageId);
+    }
+
+    public static FcmOutbox createWithUserIdAndChatOpenBundle(Long userId, Long routingId) {
+        return FcmOutbox.create(userId, "token-chat-open", "채팅 제목", "새 메시지 3개",
+                FcmRoutingType.CHAT_OPEN, routingId, null);
+    }
+
+    public static FcmOutbox createWithNullUserIdAndChatOpenImmediate(Long routingId, Long messageId) {
+        return FcmOutbox.create(null, "token-chat-open", "채팅 제목", "채팅 내용",
+                FcmRoutingType.CHAT_OPEN, routingId, messageId);
+    }
+
+    public static List<FcmOutbox> createChatOpenOutboxBatchWithUserId(Long routingId, int count) {
+        return IntStream.range(0, count)
+                .mapToObj(i -> FcmOutbox.create((long) (i + 100), "token-" + i, "채팅 제목", "채팅 내용",
+                        FcmRoutingType.CHAT_OPEN, routingId))
+                .toList();
+    }
 }

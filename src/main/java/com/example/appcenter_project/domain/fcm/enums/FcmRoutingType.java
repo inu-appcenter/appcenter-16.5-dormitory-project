@@ -35,4 +35,17 @@ public enum FcmRoutingType {
     public String dataType() {
         return this.name();
     }
+
+    public String analyticsLabelPrefix() {
+        return switch (this) {
+            case CHAT_OPEN -> "openchat";
+            case CHAT_PERSONAL -> "personalchat";
+            case CHAT -> "chat";
+            case CHAT_ROOMMATE -> "roommatechat";
+            case ANNOUNCEMENT -> "announcement";
+            case NOTICE -> "notice";
+            case COMPLAINT -> "complaint";
+            case ROOMMATE_POST -> "roommatepost";
+        };
+    }
 }

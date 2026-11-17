@@ -76,7 +76,7 @@ public class OpenChatNotificationService {
                     OpenChatRoomType roomType = roomTypeMap.getOrDefault(info.roomId(), OpenChatRoomType.OPEN);
                     FcmRoutingType routingType = (roomType == OpenChatRoomType.PERSONAL)
                             ? FcmRoutingType.CHAT_PERSONAL : FcmRoutingType.CHAT_OPEN;
-                    return FcmOutbox.create(token, roomName, body, routingType, info.roomId(), null);
+                    return FcmOutbox.create(info.userId(), token, roomName, body, routingType, info.roomId(), null);
                 })
                 .toList();
 
@@ -139,7 +139,7 @@ public class OpenChatNotificationService {
 
         List<FcmOutbox> outboxes = targetUserIds.stream()
                 .filter(tokenMap::containsKey)
-                .map(userId -> FcmOutbox.create(tokenMap.get(userId), title, body, routingType, roomId, messageId))
+                .map(userId -> FcmOutbox.create(userId, tokenMap.get(userId), title, body, routingType, roomId, messageId))
                 .toList();
 
         if (!outboxes.isEmpty()) {

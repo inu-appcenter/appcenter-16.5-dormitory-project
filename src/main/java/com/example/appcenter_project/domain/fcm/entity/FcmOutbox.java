@@ -62,21 +62,46 @@ public class FcmOutbox extends BaseTimeEntity {
     @Enumerated(EnumType.STRING)
     private FcmAction action;
 
+    @Column(name = "user_id")
+    private Long userId;
+
+    @Column(name = "firebase_message_id", length = 255)
+    private String firebaseMessageId;
 
     private static final int TTL_HOURS = 24;
 
     public static FcmOutbox create(String token, String title, String body) {
-        return create(token, title, body, null, null, null);
+        return createInternal(null, token, title, body, null, null, null);
     }
 
     public static FcmOutbox create(String token, String title, String body,
                                   FcmRoutingType routingType, Long routingId) {
-        return create(token, title, body, routingType, routingId, null);
+        return createInternal(null, token, title, body, routingType, routingId, null);
     }
 
     public static FcmOutbox create(String token, String title, String body,
                                    FcmRoutingType routingType, Long routingId, Long messageId) {
+        return createInternal(null, token, title, body, routingType, routingId, messageId);
+    }
+
+    public static FcmOutbox create(Long userId, String token, String title, String body) {
+        return createInternal(userId, token, title, body, null, null, null);
+    }
+
+    public static FcmOutbox create(Long userId, String token, String title, String body,
+                                   FcmRoutingType routingType, Long routingId) {
+        return createInternal(userId, token, title, body, routingType, routingId, null);
+    }
+
+    public static FcmOutbox create(Long userId, String token, String title, String body,
+                                   FcmRoutingType routingType, Long routingId, Long messageId) {
+        return createInternal(userId, token, title, body, routingType, routingId, messageId);
+    }
+
+    private static FcmOutbox createInternal(Long userId, String token, String title, String body,
+                                            FcmRoutingType routingType, Long routingId, Long messageId) {
         FcmOutbox outbox = new FcmOutbox();
+        outbox.userId = userId;
         outbox.token = token;
         outbox.title = title;
         outbox.body = body;
@@ -97,15 +122,19 @@ public class FcmOutbox extends BaseTimeEntity {
     }
 
     public FcmOutbox createCancellation() {
-        FcmOutbox cancel = create(token, "", "", routingType, routingId, messageId);
+        FcmOutbox cancel = createInternal(this.userId, token, "", "", routingType, routingId, messageId);
         cancel.action = FcmAction.DELETE;
         return cancel;
     }
 
     public FcmOutbox createUpdate(String title, String body) {
-        FcmOutbox update = create(token, title, body, routingType, routingId, messageId);
+        FcmOutbox update = createInternal(this.userId, token, title, body, routingType, routingId, messageId);
         update.action = FcmAction.UPDATE;
         return update;
+    }
+
+    public void recordFirebaseMessageId(String firebaseMessageId) {
+        this.firebaseMessageId = firebaseMessageId;
     }
 
     public void markSent() {

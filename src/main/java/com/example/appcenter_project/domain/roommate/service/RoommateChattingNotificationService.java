@@ -100,7 +100,7 @@ public class RoommateChattingNotificationService {
                 .map(info -> {
                     FcmToken token = tokenMap.get(info.userId());
                     String body = "새 메시지 " + info.unreadCount() + "개";
-                    return FcmOutbox.create(token.getToken(), "룸메이트 채팅", body,
+                    return FcmOutbox.create(info.userId(), token.getToken(), "룸메이트 채팅", body,
                             FcmRoutingType.CHAT_ROOMMATE, info.roomId());
                 })
                 .collect(Collectors.toList());

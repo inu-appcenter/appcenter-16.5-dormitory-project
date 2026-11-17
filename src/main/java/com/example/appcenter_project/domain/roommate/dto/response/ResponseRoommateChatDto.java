@@ -5,6 +5,8 @@ import com.example.appcenter_project.shared.dto.ReplySourceDto;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import lombok.*;
 
+import java.util.List;
+
 @Getter
 @NoArgsConstructor
 @AllArgsConstructor(access = AccessLevel.PROTECTED)
@@ -24,12 +26,19 @@ public class ResponseRoommateChatDto {
     @JsonProperty("isDeleted")
     private boolean isDeleted;
     private ReplySourceDto replySource;
+    @Builder.Default
+    private List<String> imageUrls = List.of();
 
     public static ResponseRoommateChatDto entityToDto(RoommateChattingChat chat, String userImageUrl) {
         return entityToDto(chat, userImageUrl, null);
     }
 
     public static ResponseRoommateChatDto entityToDto(RoommateChattingChat chat, String userImageUrl, ReplySourceDto replySource) {
+        return entityToDto(chat, userImageUrl, replySource, List.of());
+    }
+
+    public static ResponseRoommateChatDto entityToDto(RoommateChattingChat chat, String userImageUrl,
+                                                      ReplySourceDto replySource, List<String> imageUrls) {
         return ResponseRoommateChatDto.builder()
                 .roommateChattingRoomId(chat.getRoommateChattingRoom().getId())
                 .roommateChatId(chat.getId())
@@ -42,6 +51,7 @@ public class ResponseRoommateChatDto {
                 .disclosureRequestId(chat.getDisclosureRequestId())
                 .isDeleted(chat.isDeleted())
                 .replySource(replySource)
+                .imageUrls(chat.isDeleted() ? List.of() : imageUrls)
                 .build();
     }
 

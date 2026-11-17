@@ -13,6 +13,7 @@ import com.example.appcenter_project.domain.user.repository.FcmTokenRepository;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.ArgumentCaptor;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
@@ -283,5 +284,33 @@ class OpenChatNotificationModeServiceTest {
         // then(fcmOutboxRepository).should(never()).saveAll(any());
 
         assertThat(true).isTrue();
+    }
+
+    // ──────────────────────────────────────────────
+    // BR-792 AC8 — sendImmediateNotifications에서 FcmOutbox.create()에 userId가 전달되는지
+    // ──────────────────────────────────────────────
+
+    @Test
+    @DisplayName("FcmOutbox에 userId 전달 — BR-792 AC8: sendHourlyUnreadNotifications 호출 시 userId가 null이 아님")
+    void should_pass_userId_to_fcm_outbox_when_sendHourlyUnreadNotifications_called() {
+        // given
+        User userA = ChatNotificationModeFixture.createUser(USER_A);
+        FcmToken token = ChatNotificationModeFixture.createFcmToken(userA, "token-A");
+        OpenChatRoom room = ChatNotificationModeFixture.createRoom(ROOM_ID, "스터디방");
+        UnreadNotificationInfo unreadInfo = new UnreadNotificationInfo(USER_A, ROOM_ID, 3L);
+
+        given(participantRepository.findUnreadCountsForNotification()).willReturn(List.of(unreadInfo));
+        given(openChatRoomRepository.findAllById(any())).willReturn(List.of(room));
+        given(fcmTokenRepository.findAllByUserIdIn(anyList())).willReturn(List.of(token));
+
+        ArgumentCaptor<List<FcmOutbox>> captor = ArgumentCaptor.forClass(List.class);
+
+        // when
+        openChatNotificationService.sendHourlyUnreadNotifications();
+
+        // then
+        then(fcmOutboxRepository).should().saveAll(captor.capture());
+        List<FcmOutbox> saved = captor.getValue();
+        assertThat(saved).allMatch(o -> o.getUserId() != null);
     }
 }

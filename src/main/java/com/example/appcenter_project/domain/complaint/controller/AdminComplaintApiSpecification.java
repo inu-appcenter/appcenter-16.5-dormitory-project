@@ -4,17 +4,17 @@ import com.example.appcenter_project.domain.complaint.dto.request.RequestComplai
 import com.example.appcenter_project.domain.complaint.dto.request.RequestComplaintSearchDto;
 import com.example.appcenter_project.domain.complaint.dto.request.RequestComplaintStatusDto;
 import com.example.appcenter_project.domain.complaint.dto.response.ResponseComplaintDetailDto;
-import com.example.appcenter_project.domain.complaint.dto.response.ResponseComplaintListDto;
+import com.example.appcenter_project.domain.complaint.dto.response.ResponseComplaintPageDto;
 import com.example.appcenter_project.domain.complaint.dto.response.ResponseComplaintReplyDto;
 import com.example.appcenter_project.global.security.CustomUserDetails;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
-import io.swagger.v3.oas.annotations.media.ArraySchema;
 import io.swagger.v3.oas.annotations.media.Content;
 import io.swagger.v3.oas.annotations.media.Schema;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.servlet.http.HttpServletRequest;
+import org.springdoc.core.annotations.ParameterObject;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -28,24 +28,36 @@ import java.util.List;
 public interface AdminComplaintApiSpecification {
 
     @Operation(
-            summary = "민원 전체 조회 (관리자)",
-            description = "등록된 모든 민원을 최신순으로 조회합니다. 목록용 필드(날짜, 유형, 제목, 현황)만 반환합니다.",
+            summary = "민원 목록 조회 및 검색 (관리자)",
+            description = """
+                    검색 조건을 생략하면 전체 민원을 ID 내림차순으로 조회합니다.
+
+                    - startDate / endDate: 등록일 기준 조회 기간 (yyyy-MM-dd, 종료일 포함)
+                    - lastId: 이전 응답의 nextCursor 값
+                    - size: 조회할 개수 (기본값: 20)
+
+                    조회 결과는 content에 반환됩니다.
+                    hasNext가 false이면 마지막 페이지이며, nextCursor는 null입니다.
+                    """,
             responses = {
                     @ApiResponse(
                             responseCode = "200",
                             description = "조회 성공",
                             content = @Content(
                                     mediaType = "application/json",
-                                    array = @ArraySchema(schema = @Schema(implementation = ResponseComplaintListDto.class))
+                                    schema = @Schema(implementation = ResponseComplaintPageDto.class)
                             )
                     )
             }
     )
-    ResponseEntity<List<ResponseComplaintListDto>> getAllComplaints();
+    ResponseEntity<ResponseComplaintPageDto> getAllComplaints(@ParameterObject RequestComplaintSearchDto dto);
 
     @Operation(
             summary = "민원 상세 조회 (관리자)",
-            description = "민원 ID로 상세 정보를 조회합니다. 답변이 존재하면 함께 반환됩니다.",
+            description = """
+                    민원 ID로 상세 정보를 조회합니다.
+                    등록된 답변이 있으면 함께 반환합니다.
+                    """,
             responses = {
                     @ApiResponse(
                             responseCode = "200",
@@ -59,14 +71,17 @@ public interface AdminComplaintApiSpecification {
             @PathVariable
             @Parameter(description = "민원 ID", required = true, example = "1")
             Long complaintId,
-            
+
             @Parameter(description = "HTTP 요청 정보", hidden = true)
             HttpServletRequest request
     );
 
     @Operation(
             summary = "민원 답변 등록",
-            description = "관리자가 민원에 대한 답변을 등록합니다. 등록 시 민원 상태는 자동으로 처리완료로 변경됩니다.",
+            description = """
+                    관리자가 민원에 대한 답변을 등록합니다.
+                    답변 등록 시 민원 상태가 자동으로 '처리완료'로 변경됩니다.
+                    """,
             responses = {
                     @ApiResponse(
                             responseCode = "200",
@@ -90,7 +105,7 @@ public interface AdminComplaintApiSpecification {
             @RequestPart
             @Parameter(description = "답변 등록 정보", required = true)
             RequestComplaintReplyDto dto,
-            
+
             @RequestPart(value = "files", required = false)
             @Parameter(description = "첨부 파일 목록 (선택사항)")
             List<MultipartFile> files
@@ -137,7 +152,7 @@ public interface AdminComplaintApiSpecification {
             @RequestPart
             @Parameter(description = "답변 수정 정보", required = true)
             RequestComplaintReplyDto dto,
-            
+
             @RequestPart(value = "files", required = false)
             @Parameter(description = "첨부 파일 목록 (선택사항)")
             List<MultipartFile> files
@@ -171,7 +186,7 @@ public interface AdminComplaintApiSpecification {
             @PathVariable
             @Parameter(description = "민원 ID", required = true, example = "1")
             Long complaintId,
-            
+
             @PathVariable
             @Parameter(description = "담당자명", required = true, example = "김관리")
             String officer

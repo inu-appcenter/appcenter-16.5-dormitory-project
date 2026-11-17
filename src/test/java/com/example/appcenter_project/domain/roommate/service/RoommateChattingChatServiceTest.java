@@ -5,6 +5,7 @@ import com.example.appcenter_project.common.DeletedMessageState;
 import com.example.appcenter_project.common.image.dto.ImageLinkDto;
 import com.example.appcenter_project.common.image.enums.ImageType;
 import com.example.appcenter_project.common.image.service.ImageService;
+import com.example.appcenter_project.domain.fcm.entity.FcmOutbox;
 import com.example.appcenter_project.domain.fcm.entity.FcmToken;
 import com.example.appcenter_project.domain.fcm.repository.FcmOutboxRepository;
 import com.example.appcenter_project.domain.notification.entity.Notification;
@@ -29,6 +30,7 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.CsvSource;
 import org.junit.jupiter.params.provider.MethodSource;
+import org.mockito.ArgumentCaptor;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
@@ -459,5 +461,56 @@ class RoommateChattingChatServiceTest {
         assertThat(result).anyMatch(ResponseRoommateChatDto::isSystem);
     }
 
+    // ──────────────────────────────────────────────
+    // BR-792 AC8 — sendChat 호출 시 FcmOutbox.create()에 receiver.getId()가 전달되는지
+    // ──────────────────────────────────────────────
 
+    @Test
+    @DisplayName("FcmOutbox에 receiverId(userId) 전달 — BR-792 AC8: sendChat 호출 시 userId가 null이 아님")
+    void should_pass_receiver_userId_to_fcm_outbox_when_sendChat_called() {
+        // given
+        User guest = buildMockUser(2L);
+        User host = buildMockUser(1L);
+        when(userRepository.findById(2L)).thenReturn(Optional.of(guest));
+
+        RoommateChattingRoom room = mock(RoommateChattingRoom.class);
+        when(room.getId()).thenReturn(100L);
+        when(room.getGuest()).thenReturn(guest);
+        when(room.getHost()).thenReturn(host);
+        when(chatRoomRepository.findById(100L)).thenReturn(Optional.of(room));
+
+        RoommateChattingChat savedChat = mock(RoommateChattingChat.class);
+        when(savedChat.getDeletedState()).thenReturn(new DeletedMessageState());
+        when(savedChat.getId()).thenReturn(1L);
+        when(savedChat.getMember()).thenReturn(guest);
+        when(savedChat.getContent()).thenReturn("안녕하세요!");
+        when(savedChat.isReadByReceiver()).thenReturn(false);
+        when(savedChat.getCreatedDate()).thenReturn(LocalDateTime.now());
+        when(savedChat.getRoommateChattingRoom()).thenReturn(room);
+        when(chatRepository.save(any(RoommateChattingChat.class))).thenReturn(savedChat);
+
+        Notification mockNotification = mock(Notification.class);
+        when(mockNotification.getTitle()).thenReturn("채팅 알림");
+        when(mockNotification.getBody()).thenReturn("안녕하세요!");
+        when(notificationService.createChatNotification(anyString(), anyLong(), anyString()))
+                .thenReturn(mockNotification);
+
+        FcmToken mockToken = mock(FcmToken.class);
+        when(mockToken.getToken()).thenReturn("test-token");
+        when(fcmTokenRepository.findAllByUser(host)).thenReturn(List.of(mockToken));
+
+        RequestRoommateChatDto dto = mock(RequestRoommateChatDto.class);
+        when(dto.getRoommateChattingRoomId()).thenReturn(100L);
+        when(dto.getContent()).thenReturn("안녕하세요!");
+
+        ArgumentCaptor<List<FcmOutbox>> captor = ArgumentCaptor.forClass(List.class);
+
+        // when
+        roommateChattingChatService.sendChat(2L, dto);
+
+        // then
+        verify(fcmOutboxRepository).saveAll(captor.capture());
+        List<FcmOutbox> saved = captor.getValue();
+        assertThat(saved).allMatch(o -> o.getUserId() != null);
+    }
 }

@@ -8,6 +8,7 @@ import lombok.Builder;
 import lombok.Getter;
 
 import java.time.LocalDateTime;
+import java.util.List;
 
 @Getter
 @Builder
@@ -36,11 +37,19 @@ public class ResponseRoommateChatCreateEventDto {
 
     private ReplySourceDto replySource;
 
+    @Builder.Default
+    private List<String> imageUrls = List.of();
+
     public static ResponseRoommateChatCreateEventDto from(RoommateChattingChat chat, String userImageUrl) {
         return from(chat, userImageUrl, null);
     }
 
     public static ResponseRoommateChatCreateEventDto from(RoommateChattingChat chat, String userImageUrl, ReplySourceDto replySource) {
+        return from(chat, userImageUrl, replySource, List.of());
+    }
+
+    public static ResponseRoommateChatCreateEventDto from(RoommateChattingChat chat, String userImageUrl,
+                                                          ReplySourceDto replySource, List<String> imageUrls) {
         return ResponseRoommateChatCreateEventDto.builder()
                 .roommateChatId(chat.getId())
                 .userId(chat.getMember() != null ? chat.getMember().getId() : null)
@@ -51,6 +60,7 @@ public class ResponseRoommateChatCreateEventDto {
                 .isRead(chat.isReadByReceiver())
                 .isSystem(chat.isSystem())
                 .replySource(replySource)
+                .imageUrls(imageUrls)
                 .build();
     }
 

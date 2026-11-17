@@ -17,7 +17,9 @@ import com.example.appcenter_project.domain.tip.repository.TipRepository;
 import com.example.appcenter_project.domain.user.repository.UserRepository;
 import com.example.appcenter_project.global.security.CustomUserDetails;
 import com.example.appcenter_project.common.image.service.ImageService;
+import com.example.appcenter_project.global.mixpanel.MixpanelService;
 import jakarta.servlet.http.HttpServletRequest;
+import org.json.JSONObject;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -40,6 +42,7 @@ public class TipService {
     private final TipCommentRepository tipCommentRepository;
     private final TipLikeRepository tipLikeRepository;
     private final ImageService imageService;
+    private final MixpanelService mixpanelService;
 
     private static final int DAILY_RANDOM_TIP_COUNT = 3;
 
@@ -47,8 +50,22 @@ public class TipService {
 
     public void saveTip(Long userId, RequestTipDto requestDto, List<MultipartFile> images) {
         User user = userRepository.findById(userId).orElseThrow(() -> new CustomException(USER_NOT_FOUND));
+        try {
+            JSONObject props = new JSONObject();
+            props.put("board_type", "꿀팁");
+            mixpanelService.trackEvent(user.getId().toString(), "게시글 작성 시작", props);
+        } catch (Exception e) {
+            log.warn("Mixpanel 게시글 작성 시작 이벤트 추적 실패 - userId: {}", userId);
+        }
         Tip tip = createTip(requestDto, user);
         saveTipImages(images, tip);
+        try {
+            JSONObject props = new JSONObject();
+            props.put("board_type", "꿀팁");
+            mixpanelService.trackEvent(user.getId().toString(), "게시글 작성 완료", props);
+        } catch (Exception e) {
+            log.warn("Mixpanel 게시글 작성 완료 이벤트 추적 실패 - userId: {}", userId);
+        }
     }
 
     public ResponseTipDetailDto findTip(CustomUserDetails currentUser, Long tipId, HttpServletRequest request) {

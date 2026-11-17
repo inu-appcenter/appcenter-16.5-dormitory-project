@@ -3,10 +3,11 @@ package com.example.appcenter_project.domain.complaint.repository;
 import com.example.appcenter_project.domain.complaint.entity.Complaint;
 import com.example.appcenter_project.domain.complaint.enums.ComplaintStatus;
 import com.example.appcenter_project.domain.complaint.enums.ComplaintType;
+import com.example.appcenter_project.domain.complaint.enums.DormBuilding;
 import com.example.appcenter_project.domain.user.enums.DormType;
 import org.springframework.data.jpa.domain.Specification;
-import com.example.appcenter_project.domain.complaint.enums.DormBuilding;
 
+import java.time.LocalDate;
 
 public class ComplaintSpecification {
 
@@ -58,5 +59,19 @@ public class ComplaintSpecification {
     public static Specification<Complaint> hasBedNumber(String bedNumber) {
         return (root, query, cb) ->
                 (bedNumber == null || bedNumber.isBlank()) ? null : cb.equal(root.get("bedNumber"), bedNumber);
+    }
+
+    public static Specification<Complaint> createdOnOrAfter(LocalDate startDate) {
+        return (root, query, cb) -> startDate == null ? null
+                : cb.greaterThanOrEqualTo(root.get("createdDate"), startDate.atStartOfDay());
+    }
+
+    public static Specification<Complaint> createdOnOrBefore(LocalDate endDate) {
+        return (root, query, cb) -> endDate == null ? null
+                : cb.lessThan(root.get("createdDate"), endDate.plusDays(1).atStartOfDay());
+    }
+
+    public static Specification<Complaint> beforeId(Long lastId) {
+        return (root, query, cb) -> lastId == null ? null : cb.lessThan(root.get("id"), lastId);
     }
 }

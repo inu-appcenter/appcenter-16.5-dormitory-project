@@ -67,17 +67,18 @@ public class FcmMessageService {
                     .build();
         }
 
-        List<String> tokens = fcmTokenRepository.findAll().stream()
-                .map(FcmToken::getToken)
-                .filter(Objects::nonNull)
+        List<FcmToken> fcmTokens = fcmTokenRepository.findAll().stream()
+                .filter(t -> t.getToken() != null)
                 .toList();
 
-        List<FcmOutbox> outboxes = tokens.stream()
-                .map(token -> FcmOutbox.create(token, title, body))
+        List<FcmOutbox> outboxes = fcmTokens.stream()
+                .map(t -> FcmOutbox.create(
+                        t.getUser() != null ? t.getUser().getId() : null,
+                        t.getToken(), title, body))
                 .toList();
         fcmOutboxRepository.saveAll(outboxes);
 
-        log.info("전체 FCM Outbox 적재 완료: {}개 토큰", tokens.size());
+        log.info("전체 FCM Outbox 적재 완료: {}개 토큰", fcmTokens.size());
         return ResponseFcmMessageDto.builder()
                 .messageId("ALL_USERS")
                 .status("QUEUED")
@@ -190,7 +191,7 @@ public class FcmMessageService {
     private void enqueueOutbox(User user, String title, String body) {
         List<FcmToken> tokens = fcmTokenRepository.findAllByUser(user);
         for (FcmToken token : tokens) {
-            fcmOutboxRepository.save(FcmOutbox.create(token.getToken(), title, body));
+            fcmOutboxRepository.save(FcmOutbox.create(user.getId(), token.getToken(), title, body));
         }
     }
 

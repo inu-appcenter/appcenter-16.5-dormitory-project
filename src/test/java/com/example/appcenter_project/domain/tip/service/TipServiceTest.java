@@ -2,6 +2,7 @@ package com.example.appcenter_project.domain.tip.service;
 
 import com.example.appcenter_project.common.image.enums.ImageType;
 import com.example.appcenter_project.common.image.service.ImageService;
+import com.example.appcenter_project.global.mixpanel.MixpanelService;
 import com.example.appcenter_project.domain.tip.dto.request.RequestTipDto;
 import com.example.appcenter_project.domain.tip.dto.response.ResponseTipDto;
 import com.example.appcenter_project.domain.tip.entity.Tip;
@@ -42,6 +43,7 @@ class TipServiceTest {
     @Mock private TipCommentRepository tipCommentRepository;
     @Mock private TipLikeRepository tipLikeRepository;
     @Mock private ImageService imageService;
+    @Mock private MixpanelService mixpanelService;
 
     @InjectMocks
     private TipService tipService;
@@ -85,6 +87,30 @@ class TipServiceTest {
 
         verify(tipRepository).save(any(Tip.class));
         verifyNoInteractions(imageService);
+    }
+
+    @Test
+    @DisplayName("팁 저장 - 신규 저장 성공 시 완료 이벤트 발송")
+    void saveTip_신규저장_완료이벤트_발송() {
+        User mockUser = mock(User.class);
+        when(mockUser.getId()).thenReturn(1L);
+        RequestTipDto requestDto = mock(RequestTipDto.class);
+        when(userRepository.findById(1L)).thenReturn(Optional.of(mockUser));
+
+        tipService.saveTip(1L, requestDto, null);
+
+        verify(mixpanelService).trackEvent(eq("1"), eq("게시글 작성 완료"), any());
+    }
+
+    @Test
+    @DisplayName("팁 저장 - 유저 없으면 완료 이벤트 미발송")
+    void saveTip_유저없으면_완료이벤트_미발송() {
+        when(userRepository.findById(99L)).thenReturn(Optional.empty());
+
+        assertThatThrownBy(() -> tipService.saveTip(99L, mock(RequestTipDto.class), null))
+                .isInstanceOf(CustomException.class);
+
+        verify(mixpanelService, never()).trackEvent(any(), eq("게시글 작성 완료"), any());
     }
 
     @Test
