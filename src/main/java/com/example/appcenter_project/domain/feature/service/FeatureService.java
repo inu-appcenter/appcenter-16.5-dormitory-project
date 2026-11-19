@@ -13,7 +13,6 @@ import com.example.appcenter_project.global.mixpanel.MixpanelService;
 import jakarta.transaction.Transactional;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.json.JSONObject;
 import org.springframework.stereotype.Service;
 
 import java.util.List;
@@ -68,14 +67,6 @@ public class FeatureService {
         User user = userRepository.findById(userId).orElseThrow(() -> new CustomException(USER_NOT_FOUND));
         int hash = Math.abs((userId + ":" + key).hashCode());
         AbGroup group = hash % 100 < 50 ? AbGroup.A : AbGroup.B;
-        try {
-            JSONObject props = new JSONObject();
-            props.put("variant", group.name());
-            props.put("experiment_id", key);
-            mixpanelService.trackEvent(userId.toString(), "feature_click", props);
-        } catch (Exception e) {
-            log.warn("Mixpanel feature_click 추적 실패 - userId: {}", userId);
-        }
         return ResponseAbGroupDto.of(group, feature, user);
     }
 }
