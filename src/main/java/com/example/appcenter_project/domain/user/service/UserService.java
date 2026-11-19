@@ -83,9 +83,12 @@ public class UserService {
         if (!isTestAccount) {
             checkINUStudent(signupUser);
         }
+        boolean isFirstLogin = !existsUser(signupUser);
         User user = isTestAccount ? createTestAccountUser(signupUser) : createUser(signupUser);
-        trackSignupProfile(user);
-        trackLoginComplete(user, true);
+        if (isFirstLogin) {
+            trackSignupProfile(user);
+        }
+        trackLoginComplete(user, isFirstLogin);
         return createDto(user);
     }
 
