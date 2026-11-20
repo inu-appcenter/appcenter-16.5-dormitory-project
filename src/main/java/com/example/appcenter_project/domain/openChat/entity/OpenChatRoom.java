@@ -43,6 +43,9 @@ public class OpenChatRoom extends BaseTimeEntity {
 
     private LocalDateTime lastMessageAt;
 
+    @Column(name = "first_message_sent_at", insertable = false, updatable = false)
+    private LocalDateTime firstMessageSentAt;
+
     @Column(nullable = false)
     private boolean isOfficial;
 

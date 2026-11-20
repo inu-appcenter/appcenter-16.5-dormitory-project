@@ -1,5 +1,7 @@
 package com.example.appcenter_project.domain.roommate.service;
 
+import com.example.appcenter_project.global.mixpanel.ChatMixpanelTracker;
+
 import com.example.appcenter_project.common.DeletedMessageState;
 
 import com.example.appcenter_project.common.image.dto.ImageLinkDto;
@@ -77,6 +79,9 @@ class RoommateChattingChatServiceTest {
 
     @Mock
     ImageService imageService;
+
+    @Mock
+    ChatMixpanelTracker chatMixpanelTracker;
 
     @InjectMocks
     RoommateChattingChatService roommateChattingChatService;

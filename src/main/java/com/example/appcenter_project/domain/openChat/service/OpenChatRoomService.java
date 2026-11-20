@@ -1,6 +1,7 @@
 package com.example.appcenter_project.domain.openChat.service;
 
 import com.example.appcenter_project.domain.block.service.BlockService;
+import com.example.appcenter_project.global.mixpanel.ChatMixpanelTracker;
 import com.example.appcenter_project.domain.openChat.dto.request.RequestCreateDerivedRoomDto;
 import com.example.appcenter_project.domain.openChat.dto.request.RequestCreateOpenChatRoomDto;
 import com.example.appcenter_project.domain.openChat.dto.request.RequestCreatePersonalRoomDto;
@@ -56,6 +57,7 @@ public class OpenChatRoomService {
     private final MyRoommateRepository myRoommateRepository;
     private final BlockService blockService;
     private final OpenChatNotificationService openChatNotificationService;
+    private final ChatMixpanelTracker chatMixpanelTracker;
 
     @Autowired
     public OpenChatRoomService(
@@ -70,7 +72,8 @@ public class OpenChatRoomService {
             RoommateChattingChatRepository roommateChattingChatRepository,
             MyRoommateRepository myRoommateRepository,
             BlockService blockService,
-            OpenChatNotificationService openChatNotificationService) {
+            OpenChatNotificationService openChatNotificationService,
+            ChatMixpanelTracker chatMixpanelTracker) {
         this.openChatRoomRepository = openChatRoomRepository;
         this.openChatParticipantRepository = openChatParticipantRepository;
         this.openChatMessageRepository = openChatMessageRepository;
@@ -83,6 +86,7 @@ public class OpenChatRoomService {
         this.myRoommateRepository = myRoommateRepository;
         this.blockService = blockService;
         this.openChatNotificationService = openChatNotificationService;
+        this.chatMixpanelTracker = chatMixpanelTracker;
     }
 
     @Transactional
@@ -322,6 +326,7 @@ public class OpenChatRoomService {
         openChatParticipantRepository.save(
                 OpenChatParticipant.create(roomId, userId, LocalDateTime.now(), defaultMode));
         openChatMessageService.sendSystemMessage(roomId, user.getName() + "님이 입장했습니다.");
+        chatMixpanelTracker.trackRoomJoined(userId, roomId, room.getRoomType().name());
 
         return toDetailDtoWithBlockedCheck(room, roomId, userId);
     }
@@ -506,6 +511,9 @@ public class OpenChatRoomService {
         }
 
         room.updateRecruitmentStatus(status, actorId);
+        if (status == OpenChatRoomRecruitmentStatus.CLOSED) {
+            trackRecruitmentClosed(actorId, room);
+        }
 
         Long originRoomId = room.getOriginRoomId();
         if (originRoomId == null) {
@@ -537,6 +545,12 @@ public class OpenChatRoomService {
         }
 
         room.closeRecruitment(actorId);
+        trackRecruitmentClosed(actorId, room);
+    }
+
+    private void trackRecruitmentClosed(Long actorId, OpenChatRoom room) {
+        chatMixpanelTracker.trackRecruitmentClosed(actorId, room.getId(), room.getOriginRoomId(),
+                openChatParticipantRepository.countByRoomId(room.getId()));
     }
 
     @Transactional

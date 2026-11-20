@@ -67,6 +67,9 @@ public class RoommateChattingRoom extends BaseTimeEntity {
     @Column(nullable = true)
     private LocalDateTime guestLastBundledNotifiedAt;
 
+    @Column(name = "first_message_sent_at", insertable = false, updatable = false)
+    private LocalDateTime firstMessageSentAt;
+
     @Builder
     public RoommateChattingRoom(RoommateBoard roommateBoard, User guest, User host,
                                 RoommateCheckList guestChecklist, RoommateCheckList hostChecklist) {

@@ -1,5 +1,7 @@
 package com.example.appcenter_project.domain.openChat.service;
 
+import com.example.appcenter_project.global.mixpanel.ChatMixpanelTracker;
+
 import com.example.appcenter_project.common.image.enums.ImageType;
 import com.example.appcenter_project.common.image.repository.ImageRepository;
 import com.example.appcenter_project.common.image.service.ImageService;
@@ -66,6 +68,9 @@ class OpenChatMultiImageServiceTest {
     private HttpServletRequest httpServletRequest;
     @Mock
     private OpenChatSessionRegistry sessionRegistry;
+
+    @Mock
+    ChatMixpanelTracker chatMixpanelTracker;
 
     @InjectMocks
     private OpenChatMessageService openChatMessageService;
