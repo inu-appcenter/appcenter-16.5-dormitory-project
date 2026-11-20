@@ -551,6 +551,17 @@ public class RoommateService {
     public List<ResponseRoommatePostDto> getRoommateBoardListScroll(Long userId, HttpServletRequest request, Long lastId, int size, String keyword, Integer year, SemesterType semester) {
         List<RoommateBoard> boards = roommateBoardRepository.searchBoards(lastId, size, keyword, year, semester);
 
+        if (keyword != null && !keyword.isBlank()) {
+            try {
+                JSONObject props = new JSONObject();
+                props.put("search_location", "roommate");
+                props.put("result_count", boards.size());
+                mixpanelService.trackEvent(userId.toString(), "search", props);
+            } catch (Exception e) {
+                log.warn("Mixpanel search 이벤트 추적 실패 - userId: {}", userId);
+            }
+        }
+
         if (boards.isEmpty()) {
             return List.of(); // 마지막 페이지
         }

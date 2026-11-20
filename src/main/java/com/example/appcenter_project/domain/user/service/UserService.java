@@ -105,7 +105,7 @@ public class UserService {
             trackLoginComplete(user, false);
             return createDto(user);
         } catch (CustomException e) {
-            trackLoginFail(signupUser.getStudentNumber(), e.getErrorCode().name());
+            trackLoginFail(e.getErrorCode().name());
             throw e;
         }
     }
@@ -462,13 +462,13 @@ public class UserService {
         openChatDormOfficialRoomService.reassignDormRoom(userId, oldDorm, newDorm);
     }
 
-    private void trackLoginFail(String studentNumber, String reason) {
+    private void trackLoginFail(String reason) {
         try {
             JSONObject eventProps = new JSONObject();
             eventProps.put("reason", reason);
-            mixpanelService.trackEvent(studentNumber, "Login_fail", eventProps);
+            mixpanelService.trackEvent(UUID.randomUUID().toString(), "Login_fail", eventProps);
         } catch (Exception e) {
-            log.warn("Mixpanel 로그인 실패 이벤트 추적 실패 - studentNumber: {}", studentNumber);
+            log.warn("Mixpanel 로그인 실패 이벤트 추적 실패");
         }
     }
 

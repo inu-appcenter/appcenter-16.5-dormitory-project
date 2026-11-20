@@ -135,10 +135,6 @@ public class ComplaintService {
             JSONObject eventProps = new JSONObject();
             eventProps.put("category", saved.getType() != null ? saved.getType().toValue() : "");
             eventProps.put("has_image", images != null && !images.isEmpty());
-            String roomInfo = (saved.getBuilding() != null ? saved.getBuilding().toValue() : "") +
-                    (saved.getFloor() != null ? " " + saved.getFloor() + "층" : "") +
-                    (saved.getRoomNumber() != null ? " " + saved.getRoomNumber() + "호" : "");
-            eventProps.put("room_info", roomInfo.trim());
             mixpanelService.trackEvent(user.getId().toString(), "complaint_submit", eventProps);
             mixpanelService.incrementUserProperty(user.getId().toString(), "total_complaints", 1);
         } catch (Exception e) {
