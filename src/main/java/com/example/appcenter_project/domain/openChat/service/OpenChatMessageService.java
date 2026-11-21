@@ -21,6 +21,7 @@ import com.example.appcenter_project.domain.user.repository.UserRepository;
 import com.example.appcenter_project.global.config.OpenChatSessionRegistry;
 import com.example.appcenter_project.global.exception.CustomException;
 import com.example.appcenter_project.global.exception.ErrorCode;
+import com.example.appcenter_project.global.mixpanel.ChatMixpanelTracker;
 import com.example.appcenter_project.shared.dto.ReplySourceDto;
 import com.example.appcenter_project.shared.enums.ChatRoomType;
 import com.example.appcenter_project.shared.enums.ReplySourceStatus;
@@ -34,6 +35,7 @@ import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.multipart.MultipartFile;
 
 import java.nio.file.Paths;
+import java.time.LocalDateTime;
 import java.util.*;
 import java.util.stream.Collectors;
 
@@ -60,6 +62,7 @@ public class OpenChatMessageService {
     private final OpenChatSessionRegistry sessionRegistry;
     private final OpenChatNotificationService openChatNotificationService;
     private final ObjectMapper objectMapper;
+    private final ChatMixpanelTracker chatMixpanelTracker;
 
     // ========== Public Methods ========== //
 
@@ -83,6 +86,7 @@ public class OpenChatMessageService {
         openChatMessageRepository.save(message);
 
         room.updateLastMessage(message.getId(), message.getCreatedDate());
+        trackUserMessage(room, userId, message);
 
         Set<Long> usersToRead = new HashSet<>(sessionRegistry.getSubscriberUserIds(request.getRoomId()));
         usersToRead.add(userId);
@@ -103,6 +107,12 @@ public class OpenChatMessageService {
             openChatNotificationService.sendImmediateNotifications(
                     request.getRoomId(), room.getRoomType(), usersToRead, room.getName(), request.getContent(), message.getId());
         }
+    }
+
+    private void trackUserMessage(OpenChatRoom room, Long userId, OpenChatMessage message) {
+        boolean isFirstMessage = openChatRoomRepository.markFirstMessageSent(room.getId(), LocalDateTime.now()) == 1;
+        chatMixpanelTracker.trackMessageSent(userId, room.getId(), room.getRoomType().name(),
+                message.getId(), message.getType().name(), isFirstMessage);
     }
 
     private ReplySourceDto prepareReply(OpenChatMessage message, Long roomId, Long replyToMessageId) {
@@ -182,6 +192,7 @@ public class OpenChatMessageService {
             openChatMessageRepository.save(message);
 
             imageService.saveImages(ImageType.OPEN_CHAT_MESSAGE, message.getId(), List.of(image));
+            trackUserMessage(room, userId, message);
 
             List<String> imageUrls = imageService.findStaticImageUrls(ImageType.OPEN_CHAT_MESSAGE, message.getId(), httpServletRequest);
 

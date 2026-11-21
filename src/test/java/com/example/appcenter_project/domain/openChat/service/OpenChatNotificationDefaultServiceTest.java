@@ -1,5 +1,7 @@
 package com.example.appcenter_project.domain.openChat.service;
 
+import com.example.appcenter_project.global.mixpanel.ChatMixpanelTracker;
+
 import com.example.appcenter_project.domain.openChat.dto.response.ResponseNotificationModeDto;
 import com.example.appcenter_project.domain.openChat.entity.OpenChatParticipant;
 import com.example.appcenter_project.domain.openChat.entity.OpenChatRoom;
@@ -32,6 +34,9 @@ class OpenChatNotificationDefaultServiceTest {
     @Mock OpenChatParticipantRepository openChatParticipantRepository;
     @Mock UserRepository userRepository;
     @Mock OpenChatMessageService openChatMessageService;
+
+    @Mock
+    ChatMixpanelTracker chatMixpanelTracker;
 
     @InjectMocks OpenChatRoomService openChatRoomService;
 

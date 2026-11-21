@@ -1,5 +1,7 @@
 package com.example.appcenter_project.domain.openChat.service;
 
+import com.example.appcenter_project.global.mixpanel.ChatMixpanelTracker;
+
 import com.example.appcenter_project.domain.openChat.dto.request.RequestCreateDerivedRoomDto;
 import com.example.appcenter_project.domain.openChat.dto.response.ResponseOpenChatMessageDto;
 import com.example.appcenter_project.domain.openChat.entity.OpenChatMessage;
@@ -37,6 +39,9 @@ class OpenChatParentCardServiceTest {
     @Mock OpenChatMessageRepository openChatMessageRepository;
     @Mock OpenChatMessageService openChatMessageService;
     @Mock UserRepository userRepository;
+
+    @Mock
+    ChatMixpanelTracker chatMixpanelTracker;
 
     @InjectMocks OpenChatRoomService openChatRoomService;
 

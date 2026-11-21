@@ -16,5 +16,4 @@ public interface RoommateChattingChatRepository extends JpaRepository<RoommateCh
 
     List<RoommateChattingChat> findByRoommateChattingRoomAndMemberNotAndReadByReceiverFalse(RoommateChattingRoom chatRoom, User member);
 
-    int countByRoommateChattingRoom(RoommateChattingRoom room);
 }

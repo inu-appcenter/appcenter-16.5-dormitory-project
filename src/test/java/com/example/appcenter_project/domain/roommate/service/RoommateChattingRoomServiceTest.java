@@ -1,5 +1,7 @@
 package com.example.appcenter_project.domain.roommate.service;
 
+import com.example.appcenter_project.global.mixpanel.ChatMixpanelTracker;
+
 import com.example.appcenter_project.common.image.service.ImageService;
 import com.example.appcenter_project.domain.roommate.entity.RoommateBoard;
 import com.example.appcenter_project.domain.roommate.service.RoommateChattingChatService;
@@ -59,6 +61,9 @@ class RoommateChattingRoomServiceTest {
 
     @Mock
     RoommateCheckListRepository roommateCheckListRepository;
+
+    @Mock
+    ChatMixpanelTracker chatMixpanelTracker;
 
     @InjectMocks
     RoommateChattingRoomService roommateChattingRoomService;

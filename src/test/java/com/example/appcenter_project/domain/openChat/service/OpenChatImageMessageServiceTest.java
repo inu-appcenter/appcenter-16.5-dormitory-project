@@ -1,5 +1,7 @@
 package com.example.appcenter_project.domain.openChat.service;
 
+import com.example.appcenter_project.global.mixpanel.ChatMixpanelTracker;
+
 import com.example.appcenter_project.common.image.enums.ImageType;
 import com.example.appcenter_project.common.image.repository.ImageRepository;
 import com.example.appcenter_project.common.image.service.ImageService;
@@ -70,6 +72,9 @@ class OpenChatImageMessageServiceTest {
     // TODO: BR-685 구현 후 주석 해제
     // @Mock
     // private com.example.appcenter_project.domain.block.service.BlockService blockService;
+
+    @Mock
+    ChatMixpanelTracker chatMixpanelTracker;
 
     @InjectMocks
     private OpenChatMessageService openChatMessageService;

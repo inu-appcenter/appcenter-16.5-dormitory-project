@@ -12,6 +12,7 @@ import com.example.appcenter_project.domain.roommate.entity.RoommateCheckList;
 import com.example.appcenter_project.domain.roommate.enums.SemesterType;
 import com.example.appcenter_project.domain.user.entity.User;
 import com.example.appcenter_project.global.exception.CustomException;
+import com.example.appcenter_project.global.mixpanel.ChatMixpanelTracker;
 import com.example.appcenter_project.domain.roommate.repository.MyRoommateRepository;
 import com.example.appcenter_project.domain.roommate.repository.RoommateBoardRepository;
 import com.example.appcenter_project.domain.roommate.repository.RoommateCheckListRepository;
@@ -50,6 +51,7 @@ public class RoommateChattingRoomService {
     private final RoommateMatchingPeriodResolver periodResolver;
     private final RoommateCheckListRepository roommateCheckListRepository;
     private final BlockService blockService;
+    private final ChatMixpanelTracker chatMixpanelTracker;
 
 
     //채팅방 생성
@@ -103,6 +105,7 @@ public class RoommateChattingRoomService {
                 .build();
 
         roommateChattingRoomRepository.save(chattingRoom);
+        chatMixpanelTracker.trackRoomJoined(guestId, chattingRoom.getId(), "ROOMMATE");
         return chattingRoom.getId();
     }
 
@@ -247,6 +250,8 @@ public class RoommateChattingRoomService {
         } catch (Exception e) {
             log.warn("partner image url resolve failed. userId={}", partner.getId(), e);
         }
+
+        chatMixpanelTracker.trackRoomViewed(userId, room.getId(), "ROOMMATE");
 
         return ResponseRoommateChatRoomDetailDto.builder()
                 .chatRoomId(room.getId())
