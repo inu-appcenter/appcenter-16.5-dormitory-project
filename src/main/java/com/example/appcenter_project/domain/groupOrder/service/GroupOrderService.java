@@ -10,6 +10,8 @@ import com.example.appcenter_project.domain.groupOrder.repository.*;
 import com.example.appcenter_project.domain.place.enums.NormalizationOutcome;
 import com.example.appcenter_project.domain.place.service.PlaceResolveResult;
 import com.example.appcenter_project.domain.place.service.PlaceResolver;
+import com.example.appcenter_project.global.mixpanel.MixpanelService;
+import org.json.JSONObject;
 import com.example.appcenter_project.domain.user.entity.User;
 import com.example.appcenter_project.common.image.dto.ImageLinkDto;
 import com.example.appcenter_project.domain.groupOrder.dto.request.RequestGroupOrderDto;
@@ -59,6 +61,7 @@ public class GroupOrderService {
     private final GroupOrderNotificationService groupOrderNotificationService;
     private final PlaceResolver placeResolver;
     private final GroupOrderCreateService groupOrderCreateService;
+    private final MixpanelService mixpanelService;
 
     private static final int TOP_SEARCH_KEYWORD_COUNT = 10;
 
@@ -128,6 +131,18 @@ public class GroupOrderService {
         addUserSearchLog(currentUser, search);
 
         List<GroupOrderListProjection> projections = groupOrderRepository.findGroupOrdersComplex(sort, type, search, PageRequest.of(page, size));
+
+        if (search != null && !search.isBlank() && currentUser != null) {
+            try {
+                JSONObject props = new JSONObject();
+                props.put("search_location", "group_order");
+                props.put("result_count", projections.size());
+                mixpanelService.trackEvent(currentUser.getId().toString(), "search", props);
+            } catch (Exception e) {
+                log.warn("Mixpanel search 이벤트 추적 실패 - userId: {}", currentUser.getId());
+            }
+        }
+
         if (projections.isEmpty()) {
             return Collections.emptyList();
         }

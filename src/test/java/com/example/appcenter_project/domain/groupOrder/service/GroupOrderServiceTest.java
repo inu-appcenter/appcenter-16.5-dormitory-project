@@ -20,6 +20,7 @@ import com.example.appcenter_project.domain.place.service.PlaceResolver;
 import com.example.appcenter_project.domain.user.entity.User;
 import com.example.appcenter_project.domain.user.repository.UserRepository;
 import com.example.appcenter_project.global.exception.CustomException;
+import com.example.appcenter_project.global.mixpanel.MixpanelService;
 import com.example.appcenter_project.global.scheduler.MealTimeChecker;
 import jakarta.servlet.http.HttpServletRequest;
 import org.junit.jupiter.api.BeforeEach;
@@ -62,6 +63,7 @@ class GroupOrderServiceTest {
     @Mock private MealTimeChecker mealTimeChecker;
     @Mock private GroupOrderNotificationService groupOrderNotificationService;
     @Mock private GroupOrderCreateService groupOrderCreateService;
+    @Mock private MixpanelService mixpanelService;
     @Mock private HttpServletRequest httpServletRequest;
 
     @InjectMocks
@@ -74,7 +76,7 @@ class GroupOrderServiceTest {
                 groupOrderCommentRepository, imageRepository,
                 groupOrderPopularSearchKeywordRepository, imageService,
                 asyncViewCountService, mealTimeChecker, groupOrderNotificationService,
-                null, groupOrderCreateService);
+                null, groupOrderCreateService, mixpanelService);
     }
 
     // ===== findGroupOrders - N+1 해소 검증 =====

@@ -231,30 +231,33 @@ public class FcmAsyncSender {
                             .setTag(routing.threadId(outbox.getRoutingId()))
                             .build())
                     .build());
-            builder.putData("com.google.firebase.messaging.delivery_metrics_exported", "true");
         }
+        builder.putData("com.google.firebase.messaging.delivery_metrics_exported", "true");
 
         return builder.build();
     }
 
     static String buildAnalyticsLabel(FcmOutbox outbox) {
-        if (outbox.getRoutingType() == null) {
-            return null;
-        }
-
-        String prefix = outbox.getRoutingType().analyticsLabelPrefix();
         String userSuffix = outbox.getUserId() != null ? "_u_" + outbox.getUserId() : "_u_unknown";
 
         String label;
-        if (outbox.getMessageId() != null) {
-            String action = outbox.getAction() != null
-                    ? outbox.getAction().name().toLowerCase()
-                    : "create";
-            label = prefix + "_" + action + "_msg_" + outbox.getMessageId() + userSuffix;
-        } else if (outbox.getRoutingId() != null) {
-            label = prefix + "_create_bundle_" + outbox.getRoutingId() + userSuffix;
+        if (outbox.getRoutingType() == null) {
+            if (outbox.getId() == null) {
+                return null;
+            }
+            label = "generic_outbox_" + outbox.getId() + userSuffix;
         } else {
-            return null;
+            String prefix = outbox.getRoutingType().analyticsLabelPrefix();
+            if (outbox.getMessageId() != null) {
+                String action = outbox.getAction() != null
+                        ? outbox.getAction().name().toLowerCase()
+                        : "create";
+                label = prefix + "_" + action + "_msg_" + outbox.getMessageId() + userSuffix;
+            } else if (outbox.getRoutingId() != null) {
+                label = prefix + "_create_bundle_" + outbox.getRoutingId() + userSuffix;
+            } else {
+                return null;
+            }
         }
 
         if (label.length() > 50) {

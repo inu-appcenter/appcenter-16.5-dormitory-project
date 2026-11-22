@@ -143,6 +143,7 @@ class RoommateServiceTest {
         verify(roommateCheckListRepository).save(any(RoommateCheckList.class));
         verify(roommateBoardRepository).save(any(RoommateBoard.class));
         verify(roommateNotificationService).sendFilteredNotifications(any(RoommateBoard.class));
+        verify(mixpanelService).trackEvent(eq("1"), eq("roommate_post_create_completed"), any());
     }
 
     @Test
@@ -174,6 +175,7 @@ class RoommateServiceTest {
 
         assertThat(result).isNotNull();
         verify(roommateNotificationService).sendFilteredNotificationsOnUpdate(any(RoommateBoard.class), eq(1L));
+        verify(mixpanelService, never()).trackEvent(anyString(), eq("roommate_post_create_completed"), any());
     }
 
     @Test
@@ -185,6 +187,7 @@ class RoommateServiceTest {
                 roommateService.createRoommateCheckListandBoard(mock(RequestRoommateFormDto.class), 99L))
                 .isInstanceOf(CustomException.class)
                 .hasFieldOrPropertyWithValue("errorCode", ROOMMATE_USER_NOT_FOUND);
+        verify(mixpanelService, never()).trackEvent(anyString(), eq("roommate_post_create_completed"), any());
     }
 
     @Test

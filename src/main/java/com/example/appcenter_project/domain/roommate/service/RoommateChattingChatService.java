@@ -24,14 +24,13 @@ import com.example.appcenter_project.domain.user.repository.UserRepository;
 import com.example.appcenter_project.global.config.RoommateWebSocketEventListener;
 import com.example.appcenter_project.global.exception.CustomException;
 import com.example.appcenter_project.global.exception.ErrorCode;
-import com.example.appcenter_project.global.mixpanel.MixpanelService;
+import com.example.appcenter_project.global.mixpanel.ChatMixpanelTracker;
 import com.example.appcenter_project.shared.dto.ReplySourceDto;
 import com.example.appcenter_project.shared.enums.ChatRoomType;
 import com.example.appcenter_project.shared.enums.ReplySourceStatus;
 import jakarta.servlet.http.HttpServletRequest;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.json.JSONObject;
 import org.springframework.messaging.simp.SimpMessagingTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -39,6 +38,7 @@ import com.example.appcenter_project.common.image.entity.Image;
 import com.example.appcenter_project.common.image.repository.ImageRepository;
 import org.springframework.web.multipart.MultipartFile;
 import java.nio.file.Paths;
+import java.time.LocalDateTime;
 import java.util.Set;
 
 
@@ -67,7 +67,7 @@ public class RoommateChattingChatService {
     private final FcmTokenRepository fcmTokenRepository;
     private final ImageService imageService;
     private final ImageRepository imageRepository;
-    private final MixpanelService mixpanelService;
+    private final ChatMixpanelTracker chatMixpanelTracker;
 
     private static final Set<String> ALLOWED_IMAGE_EXTENSIONS = Set.of(".jpg", ".jpeg", ".png", ".gif", ".webp");
     private static final Set<String> ALLOWED_MIME_TYPES = Set.of("image/jpeg", "image/png", "image/gif", "image/webp");
@@ -100,10 +100,7 @@ public class RoommateChattingChatService {
         boolean isReceiverOnline = isUserOnlineInRoom(requestRoommateChatDto.getRoommateChattingRoomId(), receiver.getId());
         log.info("🔍 [수신자 온라인 상태] receiverId: {}, isOnline: {}", receiver.getId(), isReceiverOnline);
 
-        // 5. 첫 메시지 여부 판별 (저장 전 count)
-        boolean isFirstMessage = chatRepository.countByRoommateChattingRoom(room) == 0;
-
-        // 6. 채팅 메시지 엔티티 생성 (수신자가 온라인이면 자동으로 읽음 처리)
+        // 5. 채팅 메시지 엔티티 생성 (수신자가 온라인이면 자동으로 읽음 처리)
         RoommateChattingChat chat = RoommateChattingChat.builder()
                 .roommateChattingRoom(room)
                 .member(sender)
@@ -117,20 +114,11 @@ public class RoommateChattingChatService {
             replySource = prepareReply(chat, room.getId(), replyToId);
         }
 
-        // 7. DB에 저장
+        // 6. DB에 저장
         RoommateChattingChat savedChat = chatRepository.save(chat);
         log.info("💾 [채팅 DB 저장 완료] chatId: {}, read: {}", savedChat.getId(), savedChat.isReadByReceiver());
 
-        try {
-            JSONObject props = new JSONObject();
-            props.put("room_id", room.getId());
-            mixpanelService.trackEvent(userId.toString(), "chat_message_sent", props);
-            if (isFirstMessage) {
-                mixpanelService.trackEvent(userId.toString(), "chat_first_message_sent", props);
-            }
-        } catch (Exception e) {
-            log.warn("Mixpanel 채팅 이벤트 추적 실패 - userId: {}", userId);
-        }
+        trackUserMessage(room, userId, savedChat, "TEXT");
 
         ResponseRoommateChatDto responseDto = ResponseRoommateChatDto.entityToDto(savedChat, null, replySource);
         ResponseRoommateChatCreateEventDto createEventDto = ResponseRoommateChatCreateEventDto.from(savedChat, null, replySource);
@@ -151,6 +139,11 @@ public class RoommateChattingChatService {
         }
 
         return responseDto;
+    }
+
+    private void trackUserMessage(RoommateChattingRoom room, Long userId, RoommateChattingChat chat, String messageType) {
+        boolean isFirstMessage = chatRoomRepository.markFirstMessageSent(room.getId(), LocalDateTime.now()) == 1;
+        chatMixpanelTracker.trackMessageSent(userId, room.getId(), "ROOMMATE", chat.getId(), messageType, isFirstMessage);
     }
 
     private void sendChatNotification(User sender, User receiver, Long chatRoomId, String content, ChatNotificationMode mode, Long messageId) {
@@ -574,6 +567,7 @@ public class RoommateChattingChatService {
             RoommateChattingChat savedChat = chatRepository.save(
                     RoommateChattingChat.createImageMessage(room, sender, isReceiverOnline));
             imageService.saveImage(ImageType.ROOMMATE_CHAT_MESSAGE, savedChat.getId(), image);
+            trackUserMessage(room, userId, savedChat, "IMAGE");
             List<String> imageUrls = imageService.findStaticImageUrls(ImageType.ROOMMATE_CHAT_MESSAGE, savedChat.getId(), request);
 
             messagingTemplate.convertAndSend(ROOMMATE_CHAT_TOPIC_PREFIX + roomId,

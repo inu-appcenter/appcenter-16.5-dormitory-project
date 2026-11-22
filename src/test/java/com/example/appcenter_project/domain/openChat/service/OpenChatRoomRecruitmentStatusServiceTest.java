@@ -1,5 +1,7 @@
 package com.example.appcenter_project.domain.openChat.service;
 
+import com.example.appcenter_project.global.mixpanel.ChatMixpanelTracker;
+
 import com.example.appcenter_project.domain.openChat.entity.OpenChatRoom;
 import com.example.appcenter_project.domain.openChat.enums.OpenChatRoomRecruitmentStatus;
 import com.example.appcenter_project.domain.openChat.fixture.OpenChatRecruitmentStatusFixture;
@@ -40,6 +42,9 @@ class OpenChatRoomRecruitmentStatusServiceTest {
 
     @Mock
     UserRepository userRepository;
+
+    @Mock
+    ChatMixpanelTracker chatMixpanelTracker;
 
     @InjectMocks
     OpenChatRoomService openChatRoomService;
