@@ -384,6 +384,49 @@ class FcmAsyncSenderTest {
         assertThat(label).isEqualTo("openchat_create_msg_12345_u_unknown");
     }
 
+    // routing-less 알림 추적 — generic 라벨 포맷
+
+    @Test
+    @DisplayName("analytics_label = generic_outbox_{id}_u_{userId} — routing 없는 알림도 추적 가능")
+    void should_set_generic_label_when_routingType_is_null() {
+        // given
+        FcmOutbox outbox = FcmOutbox.create(67890L, "token", "제목", "내용");
+        org.springframework.test.util.ReflectionTestUtils.setField(outbox, "id", 1234567L);
+
+        // when
+        String label = FcmAsyncSender.buildAnalyticsLabel(outbox);
+
+        // then
+        assertThat(label).isEqualTo("generic_outbox_1234567_u_67890");
+    }
+
+    @Test
+    @DisplayName("analytics_label = generic_outbox_{id}_u_unknown — routing 없고 userId도 없을 때")
+    void should_set_generic_label_with_unknown_when_no_user_and_no_routing() {
+        // given
+        FcmOutbox outbox = FcmOutbox.create(null, "token", "제목", "내용");
+        org.springframework.test.util.ReflectionTestUtils.setField(outbox, "id", 999L);
+
+        // when
+        String label = FcmAsyncSender.buildAnalyticsLabel(outbox);
+
+        // then
+        assertThat(label).isEqualTo("generic_outbox_999_u_unknown");
+    }
+
+    @Test
+    @DisplayName("outbox.id가 null이면 generic 라벨 생략 — 영속화 전 호출 방어")
+    void should_return_null_label_when_routingType_is_null_and_id_is_null() {
+        // given
+        FcmOutbox outbox = FcmOutbox.create(67890L, "token", "제목", "내용");
+
+        // when
+        String label = FcmAsyncSender.buildAnalyticsLabel(outbox);
+
+        // then
+        assertThat(label).isNull();
+    }
+
     // BR-792 AC6 — Android delivery receipt 활성화
 
     @Test
