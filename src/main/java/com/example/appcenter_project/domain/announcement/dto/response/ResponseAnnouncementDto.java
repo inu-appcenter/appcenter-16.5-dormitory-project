@@ -30,7 +30,7 @@ public class ResponseAnnouncementDto {
     @Schema(description = "공지사항 제목", example = "기숙사 공지사항")
     private String title;
 
-    @Schema(description = "공지사항 내용 (50자 초과시 50자로 자름)", example = "기숙사 생활 관련 중요한 공지사항입니다. 자세한 내용은...")
+    @Schema(description = "공지사항 내용 (HTML 태그 제거 후 최대 150자)", example = "기숙사 생활 관련 중요한 공지사항입니다. 자세한 내용은...")
     private String content;
 
     @Schema(description = "생성일", example = "2025-08-05")
@@ -48,11 +48,17 @@ public class ResponseAnnouncementDto {
 
     public static ResponseAnnouncementDto from(Announcement announcement) {
 
+        // 직접 작성한 공지사항
         if (announcement instanceof ManualAnnouncement) {
             ManualAnnouncement manualAnnouncement = (ManualAnnouncement) announcement;
             String truncatedContent = manualAnnouncement.getContent();
-            if (truncatedContent != null && truncatedContent.length() > 70) {
-                truncatedContent = truncatedContent.substring(0, 70);
+
+            if (truncatedContent != null) {
+                // html 태그 제거 후 텍스트만 추출
+                truncatedContent = Jsoup.parse(truncatedContent).text();
+                if (truncatedContent.length() > 150) {
+                    truncatedContent = truncatedContent.substring(0, 150);
+                }
             }
 
             return ResponseAnnouncementDto.builder()
@@ -68,14 +74,14 @@ public class ResponseAnnouncementDto {
                     .build();
         }
 
-
+        // 크롤링 공지
         if (announcement instanceof CrawledAnnouncement) {
             CrawledAnnouncement crawledAnnouncement = (CrawledAnnouncement) announcement;
             String truncatedContent = crawledAnnouncement.getContent();
             if (truncatedContent != null) {
                 truncatedContent = Jsoup.parse(truncatedContent).text();
-                if (truncatedContent.length() > 70) {
-                    truncatedContent = truncatedContent.substring(0, 70);
+                if (truncatedContent.length() > 150) {
+                    truncatedContent = truncatedContent.substring(0, 150);
                 }
             }
 
