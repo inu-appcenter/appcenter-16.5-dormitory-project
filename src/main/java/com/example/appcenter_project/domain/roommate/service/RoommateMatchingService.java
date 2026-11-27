@@ -16,6 +16,7 @@ import com.example.appcenter_project.domain.roommate.repository.MyRoommateReposi
 import com.example.appcenter_project.domain.roommate.repository.RoommateChattingRoomRepository;
 import com.example.appcenter_project.domain.roommate.repository.RoommateMatchingRepository;
 import com.example.appcenter_project.domain.user.repository.UserRepository;
+import com.example.appcenter_project.domain.fcm.enums.FcmRoutingType;
 import com.example.appcenter_project.domain.fcm.service.FcmMessageService;
 import com.example.appcenter_project.global.mixpanel.MixpanelService;
 import lombok.RequiredArgsConstructor;
@@ -357,7 +358,8 @@ public class RoommateMatchingService {
     private void sendRequestNotification(User sender, User receiver, Long matchingId) {
         Notification requestNotification = notificationService.createRoommateRequestNotification(sender.getName(), matchingId);
         notificationService.createUserNotification(receiver, requestNotification);
-        fcmMessageService.sendNotification(receiver, requestNotification.getTitle(), requestNotification.getBody());
+        fcmMessageService.sendNotification(receiver, requestNotification.getTitle(), requestNotification.getBody(),
+                FcmRoutingType.ROOMMATE_POST, matchingId);
     }
 
     // 공통 FCM 발송 메서드
@@ -388,6 +390,7 @@ public class RoommateMatchingService {
     private void sendAcceptNotification(User sender, User receiver, Long matchingId) {
         Notification acceptNotification = notificationService.createRoommateAcceptNotification(sender.getName(), matchingId);
         notificationService.createUserNotification(receiver, acceptNotification);
-        fcmMessageService.sendNotification(receiver, acceptNotification.getTitle(), acceptNotification.getBody());
+        fcmMessageService.sendNotification(receiver, acceptNotification.getTitle(), acceptNotification.getBody(),
+                FcmRoutingType.ROOMMATE_POST, matchingId);
     }
 }

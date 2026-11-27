@@ -7,6 +7,7 @@ import com.example.appcenter_project.domain.announcement.enums.AnnouncementCateg
 import com.example.appcenter_project.domain.announcement.enums.AnnouncementType;
 import com.example.appcenter_project.domain.announcement.repository.CrawledAnnouncementRepository;
 import com.example.appcenter_project.domain.announcement.service.CrawledAnnouncementUpdateService;
+import com.example.appcenter_project.domain.fcm.enums.FcmRoutingType;
 import com.example.appcenter_project.domain.fcm.service.FcmMessageService;
 import com.example.appcenter_project.domain.notification.entity.Notification;
 import com.example.appcenter_project.domain.notification.entity.UserNotification;
@@ -313,7 +314,8 @@ public class AnnouncementCrawlScheduler {
                     NotificationType.DORMITORY, dormitoryUserRoles);
             for (User receiveUser : allUsers) {
                 userNotificationRepository.save(UserNotification.of(receiveUser, notification));
-                fcmMessageService.sendNotification(receiveUser, notification.getTitle(), notification.getBody());
+                fcmMessageService.sendNotification(receiveUser, notification.getTitle(), notification.getBody(),
+                        FcmRoutingType.ANNOUNCEMENT, crawledAnnouncement.getId());
             }
 
         } catch (Exception e) {
