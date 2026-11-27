@@ -5,6 +5,7 @@ import com.example.appcenter_project.domain.fcm.dto.response.ResponseFcmMessageD
 import com.example.appcenter_project.domain.fcm.dto.response.ResponseFcmStatsDto;
 import com.example.appcenter_project.domain.fcm.entity.FcmOutbox;
 import com.example.appcenter_project.domain.fcm.entity.FcmToken;
+import com.example.appcenter_project.domain.fcm.enums.FcmRoutingType;
 import com.example.appcenter_project.domain.fcm.enums.OutboxStatus;
 import com.example.appcenter_project.domain.fcm.repository.FcmOutboxRepository;
 import com.example.appcenter_project.domain.user.entity.User;
@@ -54,6 +55,15 @@ public class FcmMessageService {
         User freshUser = userRepository.findById(user.getId())
                 .orElseThrow(() -> new CustomException(ErrorCode.USER_NOT_FOUND));
         enqueueOutbox(freshUser, title, body);
+    }
+
+    @Async("fcmExecutor")
+    public void sendNotification(User user, String title, String body, FcmRoutingType routingType, Long routingId) {
+        User freshUser = userRepository.findById(user.getId())
+                .orElseThrow(() -> new CustomException(ErrorCode.USER_NOT_FOUND));
+        for (FcmToken token : fcmTokenRepository.findAllByUser(freshUser)) {
+            fcmOutboxRepository.save(FcmOutbox.create(freshUser.getId(), token.getToken(), title, body, routingType, routingId));
+        }
     }
 
     public ResponseFcmMessageDto sendNotificationToAllUsers(String title, String body) {
